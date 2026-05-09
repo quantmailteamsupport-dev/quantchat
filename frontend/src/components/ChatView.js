@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { format, isToday, isYesterday } from 'date-fns';
-import { Send, ArrowLeft, User, Check, CheckCheck, MoreVertical, Smile, Trash2, Forward, X, Edit2, Paperclip, Mic, Square, CornerDownRight, Search, Phone, Video } from 'lucide-react';
+import { Send, ArrowLeft, User, Check, CheckCheck, MoreVertical, Smile, Trash2, Forward, X, Edit2, Paperclip, Mic, Square, CornerDownRight, Search, Phone, Video, Pin, UploadCloud, PhoneOff, MicOff, VideoOff } from 'lucide-react';
 import axios from 'axios';
 
 const API = process.env.REACT_APP_BACKEND_URL;
-const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
+const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '🎉', '💯'];
 
 function formatMsgTime(time) {
   try {
@@ -13,7 +13,7 @@ function formatMsgTime(time) {
   } catch { return ''; }
 }
 
-function MessageBubble({ msg, isMine, userId, onReact, onDelete, onForward, onEditSubmit, onReply, participants, repliedMsg }) {
+function MessageBubble({ msg, isMine, userId, onReact, onDelete, onForward, onEditSubmit, onReply, onPin, participants, repliedMsg, isPinned }) {
   const [showMenu, setShowMenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(msg.content);
@@ -46,7 +46,7 @@ function MessageBubble({ msg, isMine, userId, onReact, onDelete, onForward, onEd
     }
     if (msg.type === 'audio') {
       return (
-        <div className="mt-1 flex items-center gap-2">
+        <div className="mt-1 flex items-center gap-2 bg-black/5 rounded-full p-1 pr-3">
           <audio controls src={msg.content} className="h-10 w-[200px]" />
         </div>
       );
@@ -55,37 +55,38 @@ function MessageBubble({ msg, isMine, userId, onReact, onDelete, onForward, onEd
   };
 
   return (
-    <div className={`flex ${isMine ? 'justify-end' : 'justify-start'} w-full mb-1 group relative`} onMouseLeave={() => setShowMenu(false)}>
+    <div id={`msg-${msg.id}`} className={`flex ${isMine ? 'justify-end' : 'justify-start'} w-full mb-1 group relative`} onMouseLeave={() => setShowMenu(false)}>
       
-      <div className={`max-w-[85%] sm:max-w-[65%] px-2 py-1.5 rounded-lg shadow-sm relative flex flex-col ${isMine ? 'bg-qc-bubble-mine rounded-tr-none text-[#111B21]' : 'bg-qc-bubble-other rounded-tl-none text-[#111B21]'}`}>
+      <div className={`max-w-[85%] sm:max-w-[65%] px-2 py-1.5 rounded-lg shadow-sm relative flex flex-col transition-all ${isPinned ? 'ring-2 ring-qc-accent-primary ring-offset-2' : ''} ${isMine ? 'bg-qc-bubble-mine rounded-tr-none text-[#111B21]' : 'bg-qc-bubble-other rounded-tl-none text-[#111B21]'}`}>
         
-        {/* Context Menu Trigger (Chevron) */}
+        {/* Context Menu Trigger */}
         <div className={`absolute top-0 right-0 p-1 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity z-10 ${isMine ? 'bg-gradient-to-l from-qc-bubble-mine to-transparent' : 'bg-gradient-to-l from-qc-bubble-other to-transparent'}`} onClick={() => setShowMenu(!showMenu)}>
           <svg viewBox="0 0 18 18" width="18" height="18" className="text-gray-500"><path fill="currentColor" d="M3.3 4.6 9 10.3l5.7-5.7 1.6 1.6L9 13.4 1.7 6.2l1.6-1.6z"></path></svg>
         </div>
 
         {/* Context Menu */}
         {showMenu && !isEditing && (
-          <div ref={menuRef} className="absolute top-6 right-2 w-40 bg-qc-surface shadow-lg rounded-md py-2 z-50 text-qc-text-primary text-sm border border-qc-border">
-            <div className="flex justify-around px-2 py-2 border-b border-qc-border">
-               {EMOJIS.map(e => <button key={e} onClick={() => { onReact(msg.id, e); setShowMenu(false); }} className="hover:scale-125 transition-transform">{e}</button>)}
+          <div ref={menuRef} className="absolute top-6 right-2 w-48 bg-qc-surface shadow-lg rounded-md py-2 z-50 text-qc-text-primary text-sm border border-qc-border animate-fadeIn origin-top-right">
+            <div className="flex flex-wrap justify-around px-2 py-2 border-b border-qc-border gap-2">
+               {EMOJIS.map(e => <button key={e} onClick={() => { onReact(msg.id, e); setShowMenu(false); }} className="hover:scale-125 transition-transform text-lg">{e}</button>)}
             </div>
             <button onClick={() => { onReply(msg); setShowMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-qc-surface-hover">Reply</button>
             <button onClick={() => { onForward(msg.id); setShowMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-qc-surface-hover">Forward message</button>
+            <button onClick={() => { onPin(isPinned ? null : msg.id); setShowMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-qc-surface-hover flex justify-between items-center">
+              {isPinned ? 'Unpin' : 'Pin'} <Pin size={14}/>
+            </button>
             {isMine && msg.type === 'text' && <button onClick={() => { setIsEditing(true); setShowMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-qc-surface-hover">Edit</button>}
             {isMine && <button onClick={() => { onDelete(msg.id); setShowMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-qc-surface-hover text-red-500">Delete message</button>}
           </div>
         )}
 
-        {/* Sender Name for Groups */}
         {!isMine && senderName && <span className="text-[12.5px] font-medium text-blue-500 mb-0.5">{senderName}</span>}
         
-        {/* Forwarded Tag */}
         {msg.forwarded && <div className="flex items-center gap-1 text-[12px] text-gray-500 mb-1 italic"><Forward size={12}/> Forwarded</div>}
 
-        {/* Replied Message Snippet */}
         {repliedMsg && (
-          <div className="bg-black/5 border-l-4 border-qc-accent-primary rounded p-1.5 mb-1 cursor-pointer">
+          <div className="bg-black/5 border-l-4 border-qc-accent-primary rounded p-1.5 mb-1 cursor-pointer hover:bg-black/10 transition-colors"
+               onClick={() => document.getElementById(`msg-${repliedMsg.id}`)?.scrollIntoView({behavior:'smooth', block:'center'})}>
             <p className="text-[12px] font-medium text-qc-accent-secondary">{repliedMsg.sender_id === userId ? 'You' : (participants?.find(p => p.user_id === repliedMsg.sender_id)?.name || 'Unknown')}</p>
             <p className="text-[13px] text-gray-600 truncate">{repliedMsg.type === 'text' ? repliedMsg.content : (repliedMsg.type === 'image' ? '📷 Photo' : '🎵 Audio')}</p>
           </div>
@@ -111,7 +112,7 @@ function MessageBubble({ msg, isMine, userId, onReact, onDelete, onForward, onEd
         )}
 
         {reactionList.length > 0 && !isEditing && (
-          <div className="absolute -bottom-3 right-0 flex bg-white rounded-full px-1 shadow border border-gray-100 z-10">
+          <div className="absolute -bottom-3 right-0 flex bg-white rounded-full px-1.5 shadow border border-gray-200 z-10">
             {reactionList.map(([uid, emoji]) => <span key={uid} className="text-[12px]">{emoji}</span>)}
           </div>
         )}
@@ -120,18 +121,25 @@ function MessageBubble({ msg, isMine, userId, onReact, onDelete, onForward, onEd
   );
 }
 
-export default function ChatArea({ conversation, messages, onSend, onEdit, userId, onlineUsers, typingUsers, emitTyping, onBack, conversations, token, onReloadMessages, isMobile }) {
+export default function ChatArea({ conversation, messages, onSend, onEdit, userId, onlineUsers, typingUsers, emitTyping, onBack, conversations, token, onReloadMessages, onReloadConversations, isMobile }) {
   const [input, setInput] = useState('');
   const [forwardMsgId, setForwardMsgId] = useState(null);
   const [replyToMsg, setReplyToMsg] = useState(null);
   const messagesEndRef = useRef(null);
   const typingTimeout = useRef(null);
   
+  // Audio recording states
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const fileInputRef = useRef(null);
+
+  // Drag & Drop state
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Simulated Call state
+  const [activeCall, setActiveCall] = useState(null);
 
   const isGroup = conversation.type === 'group';
   const otherUser = isGroup ? null : (conversation.other_user || conversation.participants?.find(p => p.user_id !== userId));
@@ -190,16 +198,46 @@ export default function ChatArea({ conversation, messages, onSend, onEdit, userI
     } catch {}
   };
 
+  const handlePin = async (msgId) => {
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.post(`${API}/api/conversations/${conversation.id}/pin_message`, { message_id: msgId }, { headers });
+      if (onReloadConversations) onReloadConversations();
+    } catch {}
+  };
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    processFile(file);
+    e.target.value = '';
+  };
+
+  const processFile = (file) => {
     const reader = new FileReader();
     reader.onload = (ev) => {
-      onSend(ev.target.result, 'image', replyToMsg?.id);
+      // Basic check if it's an image
+      const type = file.type.startsWith('image/') ? 'image' : 'text';
+      if (type === 'image') {
+        onSend(ev.target.result, 'image', replyToMsg?.id);
+      } else {
+        alert("Only images are fully supported in this demo.");
+      }
       setReplyToMsg(null);
     };
     reader.readAsDataURL(file);
-    e.target.value = '';
+  };
+
+  // Drag and drop handlers
+  const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFile(e.dataTransfer.files[0]);
+      e.dataTransfer.clearData();
+    }
   };
 
   const startRecording = async () => {
@@ -235,12 +273,54 @@ export default function ChatArea({ conversation, messages, onSend, onEdit, userI
 
   // Group messages by date
   let lastDate = null;
+  const pinnedMessage = conversation.pinned_message_id ? messages.find(m => m.id === conversation.pinned_message_id) : null;
 
   return (
-    <div className="flex flex-col h-full w-full relative bg-qc-bg overflow-hidden">
+    <div className="flex flex-col h-full w-full relative bg-qc-bg overflow-hidden" 
+         onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+      
       {/* Wallpaper */}
       <div className="absolute inset-0 chat-bg-pattern z-0 pointer-events-none" />
 
+      {/* Drag & Drop Overlay */}
+      {isDragging && (
+        <div className="absolute inset-0 bg-qc-accent-primary/90 z-50 flex items-center justify-center backdrop-blur-sm transition-all border-4 border-dashed border-white m-4 rounded-xl">
+           <div className="flex flex-col items-center text-white">
+              <UploadCloud size={64} className="mb-4 animate-bounce"/>
+              <h2 className="text-3xl font-bold uppercase tracking-wider">Drop to Upload</h2>
+           </div>
+        </div>
+      )}
+
+      {/* Simulated Call Overlay */}
+      {activeCall && (
+        <div className="absolute inset-0 bg-[#0A1014]/95 z-50 flex flex-col items-center justify-between py-12 px-6 backdrop-blur-md animate-fadeIn text-white">
+           <div className="text-center mt-10">
+              <div className="w-32 h-32 rounded-full overflow-hidden mb-6 mx-auto border-4 border-qc-accent-primary shadow-[0_0_30px_rgba(0,168,132,0.4)] animate-pulse">
+                 {isGroup ? (conversation.avatar ? <img src={conversation.avatar} alt="" className="w-full h-full object-cover"/> : <Users size={64} className="m-auto mt-8 text-gray-400"/>) 
+                          : (otherUser?.avatar ? <img src={otherUser.avatar} alt="" className="w-full h-full object-cover"/> : <User size={64} className="m-auto mt-8 text-gray-400"/>)}
+              </div>
+              <h2 className="text-3xl font-medium mb-2">{isGroup ? conversation.name : (otherUser?.name || 'Unknown')}</h2>
+              <p className="text-gray-400 uppercase tracking-widest text-sm">
+                 {activeCall.status === 'ringing' ? `Calling...` : `00:${Math.floor(Math.random()*59).toString().padStart(2,'0')}`}
+              </p>
+           </div>
+           
+           <div className="flex items-center gap-8 mb-10">
+              <button className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
+                <MicOff size={24} />
+              </button>
+              <button className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
+                <VideoOff size={24} />
+              </button>
+              <button onClick={() => setActiveCall(null)} className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg hover:scale-105 transform">
+                <PhoneOff size={28} />
+              </button>
+           </div>
+        </div>
+      )}
+
+      {/* Forward Modal */}
       {forwardMsgId && (
         <div className="absolute inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setForwardMsgId(null)}>
           <div className="bg-qc-surface w-full max-w-sm rounded-lg shadow-xl flex flex-col max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -276,7 +356,7 @@ export default function ChatArea({ conversation, messages, onSend, onEdit, userI
           </button>
         )}
         <div className="w-10 h-10 rounded-full overflow-hidden bg-qc-bg flex items-center justify-center flex-shrink-0 cursor-pointer">
-          {isGroup ? (conversation.avatar ? <img src={conversation.avatar} alt="" className="w-full h-full object-cover"/> : <User size={24} className="text-qc-text-secondary"/>) : (otherUser?.avatar ? <img src={otherUser.avatar} alt="" className="w-full h-full object-cover"/> : <User size={24} className="text-qc-text-secondary"/>)}
+          {isGroup ? (conversation.avatar ? <img src={conversation.avatar} alt="" className="w-full h-full object-cover"/> : <Users size={24} className="text-qc-text-secondary"/>) : (otherUser?.avatar ? <img src={otherUser.avatar} alt="" className="w-full h-full object-cover"/> : <User size={24} className="text-qc-text-secondary"/>)}
         </div>
         <div className="flex-1 min-w-0 cursor-pointer">
           <h3 className="text-base font-medium text-qc-text-primary truncate">{isGroup ? conversation.name : (otherUser?.name || 'Unknown')}</h3>
@@ -286,11 +366,25 @@ export default function ChatArea({ conversation, messages, onSend, onEdit, userI
           }
         </div>
         <div className="flex items-center gap-2 text-qc-text-secondary">
-          <button className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5"><Video size={20}/></button>
+          <button onClick={() => setActiveCall({type: 'video', status: 'ringing'})} className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5"><Video size={20}/></button>
+          <button onClick={() => setActiveCall({type: 'audio', status: 'ringing'})} className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5"><Phone size={18}/></button>
           <button className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5"><Search size={20}/></button>
           <button className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5"><MoreVertical size={20}/></button>
         </div>
       </div>
+
+      {/* Pinned Message Bar */}
+      {pinnedMessage && (
+        <div className="bg-qc-surface-hover px-4 py-2 border-b border-qc-border flex items-center gap-3 relative z-10 cursor-pointer hover:bg-black/5 transition-colors"
+             onClick={() => document.getElementById(`msg-${pinnedMessage.id}`)?.scrollIntoView({behavior:'smooth', block:'center'})}>
+           <Pin size={16} className="text-qc-text-secondary rotate-45"/>
+           <div className="flex-1 min-w-0">
+             <p className="text-xs text-qc-accent-primary font-medium">Pinned Message</p>
+             <p className="text-[13px] text-qc-text-secondary truncate">{pinnedMessage.type === 'text' ? pinnedMessage.content : 'Attachment'}</p>
+           </div>
+           <button onClick={(e) => { e.stopPropagation(); handlePin(pinnedMessage.id); }} className="text-qc-text-secondary hover:text-qc-text-primary"><X size={18}/></button>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-[5%] md:px-[10%] space-y-1 relative z-10">
@@ -320,8 +414,8 @@ export default function ChatArea({ conversation, messages, onSend, onEdit, userI
                 </div>
               )}
               <MessageBubble msg={msg} isMine={msg.sender_id === userId} userId={userId}
-                onReact={handleReact} onDelete={handleDelete} onForward={setForwardMsgId} onEditSubmit={onEdit} onReply={setReplyToMsg}
-                participants={conversation.participants} repliedMsg={repliedMsg} />
+                onReact={handleReact} onDelete={handleDelete} onForward={setForwardMsgId} onEditSubmit={onEdit} onReply={setReplyToMsg} onPin={handlePin}
+                participants={conversation.participants} repliedMsg={repliedMsg} isPinned={conversation.pinned_message_id === msg.id} />
             </React.Fragment>
           );
         })}
