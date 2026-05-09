@@ -21,9 +21,20 @@ export default function ChatApp() {
   const [view, setView] = useState('chats');
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const [typingUsers, setTypingUsers] = useState({});
+  const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : true);
   const socketRef = useRef(null);
   // Mobile: 'list' = show left panel, 'chat' = show chat panel
   const [mobileScreen, setMobileScreen] = useState('list');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const syncLayout = () => setIsDesktop(window.innerWidth >= 768);
+
+    syncLayout();
+    window.addEventListener('resize', syncLayout);
+    return () => window.removeEventListener('resize', syncLayout);
+  }, []);
 
   useEffect(() => {
     if (!token) return;
@@ -139,58 +150,47 @@ export default function ChatApp() {
 
   return (
     <div data-testid="chat-app" className="h-screen bg-qc-bg flex flex-col md:flex-row overflow-hidden">
-
-      {/* ===== MOBILE LAYOUT (< md) ===== */}
-      <div className="flex flex-col h-full w-full md:hidden">
-        {mobileScreen === 'list' ? (
+      {isDesktop ? (
+        <div className="flex flex-row h-full w-full">
+          <Sidebar view={view} setView={handleViewChange} user={user} logout={logout} />
+          <div className="w-80 border-r border-qc-border flex-shrink-0 flex flex-col bg-qc-surface">
+            {renderLeftContent()}
+          </div>
+          <div className="flex-1 flex flex-col bg-qc-bg">
+            {activeConv ? (
+              <ChatView
+                conversation={activeConv} messages={messages} onSend={sendMessage} userId={user?.id}
+                onlineUsers={onlineUsers} typingUsers={typingUsers} emitTyping={emitTyping}
+                onBack={() => setActiveConv(null)} conversations={conversations} token={token} onReloadMessages={loadMessages}
+                isMobile={false}
+              />
+            ) : (
+              <EmptyState />
+            )}
+          </div>
+        </div>
+      ) : mobileScreen === 'list' ? (
+        <>
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {renderLeftContent()}
+          </div>
+          <BottomNav view={view} setView={handleViewChange} user={user} logout={logout} />
+        </>
+      ) : (
+        activeConv ? (
+          <ChatView
+            conversation={activeConv} messages={messages} onSend={sendMessage} userId={user?.id}
+            onlineUsers={onlineUsers} typingUsers={typingUsers} emitTyping={emitTyping}
+            onBack={handleMobileBack} conversations={conversations} token={token} onReloadMessages={loadMessages}
+            isMobile={true}
+          />
+        ) : (
           <>
-            {/* Left content full screen */}
-            <div className="flex-1 flex flex-col overflow-hidden">
-              {renderLeftContent()}
-            </div>
-            {/* Bottom nav bar */}
+            <div className="flex-1 flex flex-col overflow-hidden">{renderLeftContent()}</div>
             <BottomNav view={view} setView={handleViewChange} user={user} logout={logout} />
           </>
-        ) : (
-          /* Chat view full screen */
-          activeConv ? (
-            <ChatView
-              conversation={activeConv} messages={messages} onSend={sendMessage} userId={user?.id}
-              onlineUsers={onlineUsers} typingUsers={typingUsers} emitTyping={emitTyping}
-              onBack={handleMobileBack} conversations={conversations} token={token} onReloadMessages={loadMessages}
-              isMobile={true}
-            />
-          ) : (
-            <>
-              <div className="flex-1 flex flex-col overflow-hidden">{renderLeftContent()}</div>
-              <BottomNav view={view} setView={handleViewChange} user={user} logout={logout} />
-            </>
-          )
-        )}
-      </div>
-
-      {/* ===== DESKTOP LAYOUT (>= md) ===== */}
-      <div className="hidden md:flex md:flex-row h-full w-full">
-        {/* Desktop sidebar */}
-        <Sidebar view={view} setView={handleViewChange} user={user} logout={logout} />
-        {/* Middle panel */}
-        <div className="w-80 border-r border-qc-border flex-shrink-0 flex flex-col bg-qc-surface">
-          {renderLeftContent()}
-        </div>
-        {/* Right panel */}
-        <div className="flex-1 flex flex-col bg-qc-bg">
-          {activeConv ? (
-            <ChatView
-              conversation={activeConv} messages={messages} onSend={sendMessage} userId={user?.id}
-              onlineUsers={onlineUsers} typingUsers={typingUsers} emitTyping={emitTyping}
-              onBack={() => setActiveConv(null)} conversations={conversations} token={token} onReloadMessages={loadMessages}
-              isMobile={false}
-            />
-          ) : (
-            <EmptyState />
-          )}
-        </div>
-      </div>
+        )
+      )}
     </div>
   );
 }

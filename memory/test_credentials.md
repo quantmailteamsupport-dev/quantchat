@@ -10,8 +10,10 @@
 - **Admin**: admin@quantchat.com / QuantChat@2026
 
 ## URLs
+- **Working Live App**: https://get-painting-consumers-completing.trycloudflare.com
 - **Preview**: https://web-chat-gateway.preview.emergentagent.com
 - **Azure Target**: http://20.249.208.224
+- **Custom Domain (current state)**: https://quantchat.online (Hostinger parking)
 
 ## API Endpoints
 - Health: /api/health
