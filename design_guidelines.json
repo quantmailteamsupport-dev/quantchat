@@ -1,0 +1,85 @@
+{
+  "project_name": "Nexus/QuantChat Platform",
+  "theme": "LIGHT",
+  "archetype": "Archetype 4 (Swiss & High-Contrast)",
+  "vibe": "Authority, Clarity, Truth. Functional precision through strict grids, stark monochrome foundations, and hyper-targeted color usage. It avoids the generic 'SaaS blue' and completely drops soft, uninspired layouts.",
+  "colors": {
+    "background": "#FFFFFF",
+    "surface": "#F4F4F5",
+    "surface_glass": "rgba(255, 255, 255, 0.7)",
+    "text_primary": "#09090B",
+    "text_secondary": "#52525B",
+    "border": "#E4E4E7",
+    "primary": "#002FA7",
+    "primary_hover": "#00207A",
+    "accent_warning": "#FFB800",
+    "accent_danger": "#FF2A00",
+    "accent_success": "#00C853",
+    "tinted_grey": "#F8F9FA"
+  },
+  "typography": {
+    "primary_font": "Cabinet Grotesk",
+    "secondary_font": "IBM Plex Sans",
+    "mono_font": "JetBrains Mono",
+    "rules": [
+      "H1: text-5xl to text-6xl, tracking-tighter, font-black. Left-aligned.",
+      "H2: text-3xl to text-4xl, tracking-tight, font-bold.",
+      "Body: text-base, leading-relaxed, IBM Plex Sans.",
+      "Overlines: Uppercase, text-xs, tracking-[0.2em], font-bold.",
+      "Never center-align headings by default; strict left-alignment preferred for Swiss aesthetic."
+    ]
+  },
+  "spacing_and_layout": {
+    "philosophy": "Generous spacing. Use p-8 or p-12 for containers. Borders must have internal padding. Eliminate 'cramped' default component paddings.",
+    "landing_page_grid": "Mode A: The Tetris Grid. Asymmetry, gap-8 to gap-12. Overlapping elements. Do not just use a standard 2-column flexbox.",
+    "dashboard_grid": "Mode B: The Control Room Grid. Dense, gap-4 to gap-6. Every pixel utilized. F-pattern optimized.",
+    "borders": "Expose the skeleton. Use border-collapse styles or border-r/border-b on grid items for a technical look."
+  },
+  "surface_strategies": {
+    "landing_hero": "Solid white background with subtle geometric grid lines (border-black/5). No heavy gradients.",
+    "header": "Crystal Glassmorphism: bg-white/70, backdrop-blur-2xl, border-b border-black/10, saturate-150.",
+    "dashboard_cards": "Flat solid background, 1px hard border (border-black/10), NO shadow by default. Hover: shadow-lg, -translate-y-1.",
+    "buttons": "Square or very slightly rounded (rounded-sm). High contrast. Primary buttons are #002FA7 with white text."
+  },
+  "motion_and_interactions": {
+    "hover_states": "Buttons must have explicit text color on hover. E.g., hover:bg-[#00207A] hover:text-white.",
+    "focus_states": "High contrast focus rings: focus:ring-2 focus:ring-[#002FA7] focus:ring-offset-2.",
+    "transitions": "transition-transform 0.2s ease, transition-colors 0.2s ease.",
+    "micro_interactions": "Typing indicators pulse, new message slides in smoothly (Framer Motion)."
+  },
+  "components": {
+    "ui_library": "shadcn/ui",
+    "icons": "@phosphor-icons/react - Duotone for marketing, Regular/Fill for dashboard.",
+    "charts": "Recharts via shadcn chart components. Minimalist, mostly monochrome with primary color accents.",
+    "forms": "Strictly Shadcn Input, Select, Form. Customize to have 1px solid border, zero border-radius (or rounded-sm)."
+  },
+  "media": {
+    "hero_image": {
+      "url": "https://images.unsplash.com/photo-1758691736872-61a1f75fe2d5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTJ8MHwxfHNlYXJjaHwxfHx0ZWFtJTIwY29sbGFib3JhdGluZyUyMG1vZGVybiUyMG9mZmljZXxlbnwwfHx8fDE3NzgzMjM3NDd8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Team collaborating with sticky notes on glass wall. Overlay: bg-white/20 with text shadow for contrast."
+    },
+    "team_collaboration": {
+      "url": "https://images.pexels.com/photos/8117466/pexels-photo-8117466.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Diverse team brainstorming in contemporary office."
+    },
+    "abstract_secure_bg": {
+      "url": "https://images.unsplash.com/photo-1650210658952-6d541fada6a2?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzB8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRhdGElMjBzZWN1cmV8ZW58MHx8fHwxNzc4MzIzNzcxfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Abstract security/data locks representation for background textures."
+    },
+    "usage_rules": "Use images inside geometric containers (rectangles or squares). No excessive rounded corners. Always ensure accessible contrast if text overlays images."
+  },
+  "testing": {
+    "attributes": "All interactive and key informational elements MUST include a `data-testid` attribute (e.g., data-testid='login-form-submit-button'). Convention: kebab-case, role-based."
+  },
+  "instructions_to_main_agent": [
+    "Load and apply Cabinet Grotesk (headings) and IBM Plex Sans (body). Do not use Inter or generic sans.",
+    "Install @phosphor-icons/react for icon usage.",
+    "Enforce the exact International Klein Blue (#002FA7) provided for primary actions.",
+    "For the Landing page, utilize raw HTML/Tailwind for bento-box asymmetrical grids. Do not default to boilerplate Shadcn Cards for the marketing layout.",
+    "For Dashboard/Chat/Admin workspaces, integrate Shadcn/ui deeply but override the border-radius (rounded-sm or none) to align with the sharp Swiss aesthetic.",
+    "Apply explicit focus and hover states with sufficient contrast on all interactable elements.",
+    "Implement pure F-pattern for the chat dashboard: Collapsible left sidebar, North Star metric top left, and embedded action-oriented messaging widgets.",
+    "Inject 'data-testid' to every interactive element (buttons, forms, navigation) to pass testability mandates.",
+    "Execute full production build, deployment, and live link generation as explicitly requested by the user's instructions."
+  ]
+}
