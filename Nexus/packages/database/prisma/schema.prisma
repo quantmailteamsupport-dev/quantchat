@@ -31,6 +31,7 @@ model User {
 
   // Media they have uploaded
   mediaAttachments MediaAttachment[]
+  fileMetadata     FileMetadata[]
 
   // Act V: Neural Hives
   hives            HiveMember[]
@@ -397,6 +398,26 @@ model MediaAttachment {
 
   @@index([uploaderId])
   @@index([conversationId])
+}
+
+model FileMetadata {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileName       String
+  fileType       String
+  fileSize       Int?
+  s3Key          String   @unique
+  conversationId String?
+  messageId      String?
+  status         String   @default("pending_upload")
+  uploadedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([conversationId])
+  @@index([messageId])
 }
 
 // ════════════════════════════════════════════════════════════

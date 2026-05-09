@@ -10,7 +10,7 @@ import {
   InvalidAmountError,
 } from "./AttentionTokenService";
 
-const SERIALIZABLE_TX: Prisma.TransactionOptions = {
+const SERIALIZABLE_TX = {
   isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
 };
 

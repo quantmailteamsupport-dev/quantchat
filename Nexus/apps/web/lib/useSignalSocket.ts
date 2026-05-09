@@ -19,9 +19,6 @@ import { resolveSocketIdentity } from "./socketIdentity";
 // ═══════════════════════════════════════════════════════════════
 
 const API_URL = process.env.NEXT_PUBLIC_WS_URL;
-if (!API_URL) {
-  throw new Error("NEXT_PUBLIC_WS_URL is required for realtime chat.");
-}
 const KEY_ROTATION_INTERVAL_MS = 24 * 3600 * 1000;
 
 export interface IncomingMessage {
@@ -151,7 +148,7 @@ export function useSignalSocket(userId: string | null | undefined, authToken?: s
   }, [socket, rotateKeys]);
 
   useEffect(() => {
-    if (!effectiveUserId) {
+    if (!effectiveUserId || !API_URL) {
       setSocket(null);
       setIsConnected(false);
       return;

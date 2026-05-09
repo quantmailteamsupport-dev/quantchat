@@ -106,7 +106,7 @@ function minuteBucket(d: Date = new Date()): Date {
 // ─────────────────────────────────────────────────────────────
 
 type TxClient = Prisma.TransactionClient;
-const SERIALIZABLE_TX: Prisma.TransactionOptions = {
+const SERIALIZABLE_TX = {
   isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
 };
 

@@ -58,6 +58,7 @@ const LAST_REDIS_PRUNE_TRACKING_TTL_MS = Math.max(
   60_000,
   REDIS_SESSION_PRUNE_INTERVAL_MS * 4,
 );
+const MAX_SAFE_TIMER_MS = 2_147_483_647;
 
 const memorySessions = new Map<string, Map<string, CompanionSessionRecord>>();
 const lastPersistAt = new Map<string, number>();
@@ -362,7 +363,7 @@ export async function listCompanionSessions(
       const cutoff = Date.now() - SESSION_TTL_MS;
       await pubClient.zRemRangeByScore(indexKey, 0, cutoff);
 
-      const ids = await pubClient.zRevRange(indexKey, 0, boundedLimit * 2);
+      const ids = await pubClient.zRange(indexKey, 0, boundedLimit * 2, { REV: true });
       if (ids.length === 0) return [];
 
       const keys = ids.map((id) => sessionKey(userId, id));
@@ -446,7 +447,7 @@ const revokedSessionSweep = setInterval(() => {
       revokedSessionCache.delete(key);
     }
   }
-}, REVOKED_CACHE_TTL_MS);
+}, Math.min(REVOKED_CACHE_TTL_MS, MAX_SAFE_TIMER_MS));
 
 if (typeof revokedSessionSweep.unref === "function") {
   revokedSessionSweep.unref();

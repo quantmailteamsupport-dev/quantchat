@@ -1,5 +1,8 @@
 import type { DefaultSession } from "next-auth";
 
+export { default } from "../../node_modules/next-auth";
+export * from "../../node_modules/next-auth";
+
 declare module "next-auth" {
   interface Session {
     accessToken?: string;

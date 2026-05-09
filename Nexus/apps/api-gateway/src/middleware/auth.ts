@@ -9,15 +9,9 @@ export interface ZeroTrustUser {
   livenessLevel?: string;
 }
 
-type SharedKernelAuthService = {
-  verifyAccessToken: (token: string) => Promise<{
-    sub: string;
-    email?: string;
-    username?: string;
-    sessionId?: string;
-    livenessLevel?: string;
-  } | null>;
-};
+export interface QuantChatTokenPayload extends ZeroTrustUser {
+  aud?: string[] | string;
+}
 
 function readBearerToken(req: Request): string | null {
   const authHeader = req.headers.authorization;
@@ -28,22 +22,8 @@ function readBearerToken(req: Request): string | null {
 }
 
 async function verifyWithSharedKernel(token: string): Promise<ZeroTrustUser | null> {
-  try {
-    const mod = (await import("../../../../../../../shared-kernel/AuthenticationService.js")) as {
-      authService?: SharedKernelAuthService;
-    };
-    const payload = await mod.authService?.verifyAccessToken(token);
-    if (!payload?.sub) return null;
-    return {
-      sub: payload.sub,
-      email: payload.email,
-      username: payload.username,
-      sessionId: payload.sessionId,
-      livenessLevel: payload.livenessLevel,
-    };
-  } catch {
-    return null;
-  }
+  void token;
+  return null;
 }
 
 function verifyWithJwtSecret(token: string): ZeroTrustUser | null {
@@ -63,6 +43,45 @@ function verifyWithJwtSecret(token: string): ZeroTrustUser | null {
   } catch {
     return null;
   }
+}
+
+export function verifyQuantChatToken(token: string): QuantChatTokenPayload | null {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) return null;
+  try {
+    const decoded = jwt.verify(token, secret) as jwt.JwtPayload;
+    const sub = typeof decoded.sub === "string" ? decoded.sub.trim() : "";
+    if (!sub) return null;
+    return {
+      sub,
+      email: typeof decoded.email === "string" ? decoded.email : undefined,
+      username: typeof decoded.username === "string" ? decoded.username : undefined,
+      sessionId: typeof decoded.sessionId === "string" ? decoded.sessionId : undefined,
+      livenessLevel: typeof decoded.livenessLevel === "string" ? decoded.livenessLevel : undefined,
+      aud: decoded.aud,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function issueQuantChatAccessToken(payload: ZeroTrustUser): { accessToken: string; expiresIn: number } {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error("JWT_SECRET is required to issue access tokens");
+  const expiresIn = 60 * 60;
+  const accessToken = jwt.sign(
+    {
+      sub: payload.sub,
+      email: payload.email,
+      username: payload.username,
+      sessionId: payload.sessionId,
+      livenessLevel: payload.livenessLevel,
+      aud: ["quantchat"],
+    },
+    secret,
+    { expiresIn },
+  );
+  return { accessToken, expiresIn };
 }
 
 /**
@@ -101,8 +120,10 @@ export async function verifyBiometricToken(token: string) {
   return verifyWithJwtSecret(token);
 }
 
-// Backward compatibility for validateAuthConfig (noop now as shared-kernel handles it)
+// Backward compatibility for validateAuthConfig.
 export function validateAuthConfig(): void {
-  // Configured via AuthenticationService singleton
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is required for authentication");
+  }
 }
 

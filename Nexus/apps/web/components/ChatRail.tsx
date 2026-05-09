@@ -65,7 +65,7 @@ export default function ChatRail({ activeId }: { activeId?: string }) {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Avatar name="You Alvarez" size={28}/>
+          <Avatar contact={{ id: "you", name: "You Alvarez", avatarLetter: "Y" }} size={28}/>
           <div style={{ flex: 1, fontSize: 12, lineHeight: 1.2 }}>
             <div style={{ fontWeight: 600 }}>You Alvarez</div>
             <div style={{ color: "var(--qc-ink-3)", fontSize: 10 }} className="mono">@you · vol-desk</div>

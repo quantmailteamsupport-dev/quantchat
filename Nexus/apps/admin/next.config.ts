@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
 
+const workspaceRoot = process.cwd().replace(/\/apps\/admin$/, "");
+
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: "standalone",
+  outputFileTracingRoot: workspaceRoot,
+  turbopack: {
+    root: workspaceRoot,
+  },
 };
 
 export default nextConfig;

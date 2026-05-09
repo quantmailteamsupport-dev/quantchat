@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
 import { z } from "zod";
-import { requireBiometricAuth } from "./middleware/auth";
+import { issueQuantChatAccessToken, requireBiometricAuth, verifyQuantChatToken } from "./middleware/auth";
 import { prisma } from "@repo/database";
 import { logger } from "./logger";
 import {
@@ -177,11 +177,8 @@ router.post(
     const { quantmailToken } = parsed.data;
 
     try {
-      // 1. Verify the Quantmail-issued token through shared-kernel
-      const { authService } = await import(
-        "../../../../../../../shared-kernel/AuthenticationService.js"
-      );
-      const payload = await authService.verifyAccessToken(quantmailToken);
+      // 1. Verify a signed token using the configured production JWT secret.
+      const payload = verifyQuantChatToken(quantmailToken);
 
       if (!payload || !payload.sub) {
         return res.status(401).json({
@@ -201,23 +198,20 @@ router.post(
       }
 
       // 3. Exchange for a QuantChat-scoped token
-      const ssoResult = await authService.exchangeForApp(
-        quantmailToken,
-        "quantchat",
-      );
+      const ssoResult = issueQuantChatAccessToken(payload);
 
       // 4. Cross-reference with database to get user profile
       let userProfile: { id: string; email: string; displayName: string } | null = null;
       try {
         const dbUser = await prisma.user.findUnique({
           where: { id: payload.sub },
-          select: { id: true, email: true, displayName: true },
+          select: { id: true, email: true, name: true },
         });
         if (dbUser) {
           userProfile = {
             id: dbUser.id,
             email: dbUser.email,
-            displayName: dbUser.displayName || dbUser.email.split("@")[0] || "User",
+            displayName: dbUser.name || dbUser.email.split("@")[0] || "User",
           };
         }
       } catch {
@@ -291,10 +285,7 @@ router.post(
     }
 
     try {
-      const { authService } = await import(
-        "../../../../../../../shared-kernel/AuthenticationService.js"
-      );
-      const payload = await authService.verifyAccessToken(parsed.data.token);
+      const payload = verifyQuantChatToken(parsed.data.token);
 
       if (!payload || !payload.sub) {
         return res.json({ valid: false });
@@ -338,22 +329,21 @@ router.post(
     }
 
     try {
-      const { authService } = await import(
-        "../../../../../../../shared-kernel/AuthenticationService.js"
-      );
-      const tokens = await authService.refreshAccessToken(
-        parsed.data.refreshToken,
-      );
+      const payload = verifyQuantChatToken(parsed.data.refreshToken);
+      if (!payload?.sub) {
+        return res.status(401).json({ error: "INVALID_TOKEN", message: "Refresh token is invalid" });
+      }
+      const issued = issueQuantChatAccessToken(payload);
 
       logger.info(
-        { sessionId: tokens.accessToken ? "issued" : "none" },
+        { sessionId: issued.accessToken ? "issued" : "none" },
         "[Auth] Token refreshed via shared-kernel",
       );
 
       res.json({
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        expiresIn: tokens.expiresIn,
+        accessToken: issued.accessToken,
+        refreshToken: parsed.data.refreshToken,
+        expiresIn: issued.expiresIn,
       });
     } catch (err) {
       const errorCode = (err as any)?.code ?? "REFRESH_FAILED";

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface BiometricHandshakeProps {
@@ -23,21 +23,23 @@ export default function BiometricHandshake({ onVerified, onCancel, partnerName }
   const [touchPos, setTouchPos] = useState({ x: 0, y: 0 });
   const [isVerified, setIsVerified] = useState(false);
   
-  const syncTimerRef = useRef<NodeJS.Timeout | null>(null);
-
   // Trigger haptic feedback if available
-  const triggerHaptic = useCallback((intensity: number) => {
+  const triggerHaptic = useCallback((intensity: number | number[]) => {
     if (typeof window !== "undefined" && window.navigator.vibrate) {
       window.navigator.vibrate(intensity);
     }
   }, []);
 
+  const getPointerPosition = (e: React.PointerEvent): { x: number; y: number } => ({
+    x: e.clientX,
+    y: e.clientY,
+  });
+
   // Handle local touch/press
-  const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
+  const handleStart = (e: React.PointerEvent) => {
     setIsPressing(true);
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    setTouchPos({ x: clientX, y: clientY });
+    const position = getPointerPosition(e);
+    setTouchPos(position);
     setMyResonance(1);
     triggerHaptic(10);
   };
@@ -47,11 +49,9 @@ export default function BiometricHandshake({ onVerified, onCancel, partnerName }
     setMyResonance(0);
   };
 
-  const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
+  const handleMove = (e: React.PointerEvent) => {
     if (!isPressing) return;
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.touches[0]?.clientX ?? (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.touches[0]?.clientY ?? (e as React.MouseEvent).clientY;
-    setTouchPos({ x: clientX, y: clientY });
+    setTouchPos(getPointerPosition(e));
   };
 
   // Simulate partner resonance for the UI demo (In prod: this comes from Socket.io)

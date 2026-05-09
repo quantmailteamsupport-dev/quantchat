@@ -254,7 +254,7 @@ export class MetricsService {
       });
 
       const messagesPerDay = messagesPerDayRaw.map((row) => ({
-        date: new Date(row.createdAt).toISOString().split("T")[0],
+        date: new Date(row.createdAt).toISOString().split("T")[0] ?? "unknown",
         count: row._count,
       }));
 
@@ -271,7 +271,7 @@ export class MetricsService {
       }
       messagesRaw.forEach((msg) => {
         const hour = new Date(msg.createdAt).getHours();
-        messagesPerHour[hour]++;
+        messagesPerHour[hour] = (messagesPerHour[hour] ?? 0) + 1;
       });
 
       const messagesPerHourArray = Object.entries(messagesPerHour).map(

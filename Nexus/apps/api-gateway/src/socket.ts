@@ -920,6 +920,9 @@ export function registerSocketHandlers(io: Server): void {
       if (authToken) {
         try {
           const verified = await verifyBiometricToken(authToken);
+          if (!verified?.sub) {
+            return socket.emit("error", { message: "Authentication failed" });
+          }
           verifiedTokenPayload = verified;
           authenticatedUserId = verified.sub;
         } catch (err) {
@@ -1029,6 +1032,7 @@ export function registerSocketHandlers(io: Server): void {
         socket.emit("error", { message: "Invalid payload" });
         return;
       }
+      const typedBundle = bundle as Record<string, unknown>;
       if (socket.data.userId !== userId) {
         socket.emit("error", { message: "User mismatch in key upload" });
         return;
@@ -1038,17 +1042,18 @@ export function registerSocketHandlers(io: Server): void {
         ? oneTimePreKeys
             .slice(0, MAX_OPKS_PER_UPLOAD)
             .map((opk) => {
-              if (!opk || !isValidString(opk.keyId, 256) || !opk.publicKey) return null;
-              const serialized = JSON.stringify({ keyId: opk.keyId, publicKey: opk.publicKey });
+              const typedOpk = opk as Record<string, unknown> | null;
+              if (!typedOpk || !isValidString(typedOpk.keyId, 256) || !typedOpk.publicKey) return null;
+              const serialized = JSON.stringify({ keyId: typedOpk.keyId, publicKey: typedOpk.publicKey });
               if (serialized.length > MAX_OPK_SERIALIZED_SIZE) return null;
               return serialized;
             })
             .filter((v): v is string => Boolean(v))
         : (
-          bundle.oneTimePreKey
+          typedBundle.oneTimePreKey
             ? [JSON.stringify({
-              keyId: bundle.oneTimePreKeyId || generateLegacyOpkKeyId(),
-              publicKey: bundle.oneTimePreKey,
+              keyId: typedBundle.oneTimePreKeyId || generateLegacyOpkKeyId(),
+              publicKey: typedBundle.oneTimePreKey,
             })]
             : []
         );
@@ -1067,16 +1072,16 @@ export function registerSocketHandlers(io: Server): void {
       await prisma.publicKeyBundle.upsert({
         where: { userId },
         update: {
-          identityKey: JSON.stringify(bundle.identityKey),
-          signedPreKey: JSON.stringify(bundle.signedPreKey),
-          signature: bundle.signature ?? "",
+          identityKey: JSON.stringify(typedBundle.identityKey),
+          signedPreKey: JSON.stringify(typedBundle.signedPreKey),
+          signature: typeof typedBundle.signature === "string" ? typedBundle.signature : "",
           oneTimePreKeys: nextOneTimePreKeys,
         },
         create: {
           userId,
-          identityKey: JSON.stringify(bundle.identityKey),
-          signedPreKey: JSON.stringify(bundle.signedPreKey),
-          signature: bundle.signature ?? "",
+          identityKey: JSON.stringify(typedBundle.identityKey),
+          signedPreKey: JSON.stringify(typedBundle.signedPreKey),
+          signature: typeof typedBundle.signature === "string" ? typedBundle.signature : "",
           oneTimePreKeys: nextOneTimePreKeys,
         },
       });

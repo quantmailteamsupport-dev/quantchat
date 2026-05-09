@@ -570,6 +570,8 @@ function ChatConversation({
   const [showAttach, setShowAttach] = useState(false);
   const [isAudioCallOpen, setIsAudioCallOpen] = useState(false);
   const [chillRoomOpen, setChillRoomOpen] = useState(false);
+  const [showHandshake, setShowHandshake] = useState(false);
+  const [isHandshakeVerified, setIsHandshakeVerified] = useState(false);
   const [spoilerShieldEnabled, setSpoilerShieldEnabled] = useState(false);
   const [spoilerShieldMode, setSpoilerShieldMode] = useState<SpoilerShieldMode>("auto");
   const [ghostSuggestion, setGhostSuggestion] = useState("");
@@ -577,6 +579,7 @@ function ChatConversation({
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ghostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const readReceiptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onInitiateHandshake = useCallback(() => setShowHandshake(true), []);
 
   // Auto-scroll on new messages
   useEffect(() => {

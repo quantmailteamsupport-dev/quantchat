@@ -1,0 +1,80 @@
+{
+  "summary": "Validated Nexus production build and public deployment reachability. Local monorepo build/typecheck pass, but all public endpoint checks to 20.249.208.224 timed out.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "http://20.249.208.224:4000/healthz",
+        "issue": "Connection timeout from test environment; no HTTP response",
+        "priority": "CRITICAL"
+      },
+      {
+        "endpoint": "http://20.249.208.224:4000/readyz",
+        "issue": "Connection timeout from test environment; no HTTP response",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Web app public home",
+        "issue": "Public URL not reachable (timeout), browser navigation failed",
+        "selector": "N/A (navigation timeout before render)",
+        "priority": "HIGH"
+      },
+      {
+        "component": "Docs app public home",
+        "issue": "Public URL not reachable (timeout)",
+        "selector": "N/A",
+        "priority": "HIGH"
+      },
+      {
+        "component": "Admin app public home",
+        "issue": "Could not verify expected 401 Basic auth because endpoint timed out",
+        "selector": "N/A",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Public ingress/network access",
+        "issue": "All required public ports (80,3000,3001,3002,4000) timed out from this environment",
+        "affected_selectors": [
+          "N/A"
+        ]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/tests/test_nexus_deployment_public.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Fix Azure NSG / cloud firewall / LB rules to allow inbound traffic for required public ports (or route via reverse proxy on 80/443).",
+    "After network access is fixed, rerun /app/tests/test_nexus_deployment_public.py to confirm web/docs/admin/api expected responses.",
+    "Provide/verify auth credentials file path: /app/memory/test_credentials.md (missing in this workspace).",
+    "Verify remote docker runtime with `docker compose ps` on server (not executable in this environment because docker CLI missing)."
+  ],
+  "critical_code_review_comments": [
+    "File /app/Nexus/apps/api-gateway/src/routes.ts is 1435 lines (>700 guideline); split into focused route modules for maintainability and safer production changes.",
+    "Admin middleware behavior is correct for production only when ADMIN_SECRET is present; otherwise it returns 503 by design. Ensure ADMIN_SECRET is always set in production deployment.",
+    "MOCKED: AWS S3 env values are placeholders; presign/upload flow will fail until real AWS credentials are configured.",
+    "MOCKED: @repo/webrtc-native package build/install is placeholder without native binding source."
+  ],
+  "updated_files": [
+    "/app/tests/test_nexus_deployment_public.py",
+    "/app/test_reports/iteration_1.json"
+  ],
+  "success_rate": {
+    "backend": "0%",
+    "frontend": "0%"
+  },
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Build/typecheck passed locally in /app/Nexus (turbo). Public reachability from this runner to 20.249.208.224 failed on all tested ports. A previous agent context mentioned server-local curl succeeded, indicating likely external network perimeter issue (NSG/firewall/LB) rather than app process crash.",
+  "rca of the issue": "Reproduction: run pytest /app/tests/test_nexus_deployment_public.py -v. All tests fail with ConnectTimeout at socket connect stage (before HTTP handshake), including port 80 and app ports 3000/3001/3002/4000. This points to blocked inbound path from outside server network (cloud firewall/NSG/routing) rather than endpoint logic bug. Mitigation: open/forward ports properly or expose via reverse proxy on 80/443; then retest expected status codes (web 200, docs 200, admin 401 Basic, healthz/readyz 200).",
+  "test_credentials": "Missing: /app/memory/test_credentials.md not found"
+}

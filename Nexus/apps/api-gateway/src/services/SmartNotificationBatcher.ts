@@ -335,15 +335,18 @@ export class SmartNotificationBatcher {
     const merged: MergedGroup[] = [];
     for (const [key, items] of groups) {
       if (items.length < 2) continue;
+      const firstItem = items[0];
+      const latestItem = items[items.length - 1];
+      if (!firstItem || !latestItem) continue;
 
       const senders = [...new Set(items.map(i => i.input.senderId).filter(Boolean) as string[])];
       merged.push({
         groupKey: key,
         count: items.length,
         title: items.length > 1
-          ? `${items.length} ${items[0].input.type}s${senders.length > 0 ? ` from ${senders.length} people` : ''}`
-          : items[0].input.title,
-        latestBody: items[items.length - 1].input.body,
+          ? `${items.length} ${firstItem.input.type}s${senders.length > 0 ? ` from ${senders.length} people` : ''}`
+          : firstItem.input.title,
+        latestBody: latestItem.input.body,
         senders,
       });
     }

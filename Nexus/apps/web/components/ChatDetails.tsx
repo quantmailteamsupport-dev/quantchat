@@ -21,7 +21,7 @@ export default function ChatDetails({ contact }: { contact: any }) {
             color: "var(--qc-ink-2)", fontWeight: 700, fontSize: 18, border: "1px solid var(--qc-line)",
           }}><Icon name="hash" size={20}/></div>
         ) : (
-          <Avatar name={contact.name} size={56} color={hashHue(contact.name)} kind={contact.kind === "bot" ? "bot" : "user"}/>
+          <Avatar contact={{ ...contact, avatarHue: hashHue(contact.name), isBot: contact.kind === "bot" }} size={56}/>
         )}
         <div style={{ marginTop: 8, fontSize: 14, fontWeight: 600 }}>{contact.name}</div>
         <div style={{ fontSize: 11, color: "var(--qc-ink-3)", marginTop: 2 }}>

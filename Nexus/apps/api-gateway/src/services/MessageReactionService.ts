@@ -120,6 +120,9 @@ export class MessageReactionService {
     }
 
     const removedReaction = messageReactions[reactionIndex];
+    if (!removedReaction) {
+      throw new Error('Reaction not found');
+    }
     messageReactions.splice(reactionIndex, 1);
 
     if (messageReactions.length === 0) {
