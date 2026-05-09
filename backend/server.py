@@ -77,6 +77,8 @@ def serialize_message(msg: dict) -> dict:
         "content": msg.get("content", ""),
         "type": msg.get("type", "text"),
         "status": msg.get("status", "sent"),
+        "reactions": msg.get("reactions", {}),
+        "forwarded": msg.get("forwarded", False),
         "created_at": msg.get("created_at", "").isoformat() if isinstance(msg.get("created_at"), datetime) else str(msg.get("created_at", "")),
     }
 
@@ -483,6 +485,206 @@ async def create_story(body: StoryBody, request: Request):
     result = await db.stories.insert_one(story)
     story["_id"] = result.inserted_id
     return {"story": {"id": str(story["_id"]), "content": story["content"], "type": story["type"], "created_at": story["created_at"].isoformat()}}
+
+# --- Group Chat Routes ---
+@fastapi_app.get("/api/conversations/{conv_id}")
+async def get_conversation(conv_id: str, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    conv = await db.conversations.find_one({"_id": ObjectId(conv_id), "participant_ids": uid})
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return {"conversation": serialize_conversation(conv, uid)}
+
+@fastapi_app.post("/api/conversations/{conv_id}/add-member")
+async def add_group_member(conv_id: str, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    body = await request.json()
+    member_id = body.get("user_id")
+    conv = await db.conversations.find_one({"_id": ObjectId(conv_id), "participant_ids": uid, "type": "group"})
+    if not conv:
+        raise HTTPException(status_code=404, detail="Group not found")
+    if member_id in conv["participant_ids"]:
+        return {"message": "Already a member"}
+    new_user = await db.users.find_one({"_id": ObjectId(member_id)})
+    if not new_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    await db.conversations.update_one({"_id": ObjectId(conv_id)}, {
+        "$push": {"participant_ids": member_id, "participants": {"user_id": member_id, "name": new_user.get("name", ""), "avatar": new_user.get("avatar", "")}},
+        "$set": {f"unread_counts.{member_id}": 0}
+    })
+    return {"message": "Member added"}
+
+@fastapi_app.post("/api/conversations/{conv_id}/leave")
+async def leave_group(conv_id: str, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    conv = await db.conversations.find_one({"_id": ObjectId(conv_id), "participant_ids": uid, "type": "group"})
+    if not conv:
+        raise HTTPException(status_code=404, detail="Group not found")
+    await db.conversations.update_one({"_id": ObjectId(conv_id)}, {
+        "$pull": {"participant_ids": uid, "participants": {"user_id": uid}},
+        "$unset": {f"unread_counts.{uid}": ""}
+    })
+    return {"message": "Left group"}
+
+# --- Message Actions ---
+@fastapi_app.delete("/api/messages/{msg_id}")
+async def delete_message(msg_id: str, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    msg = await db.messages.find_one({"_id": ObjectId(msg_id), "sender_id": uid})
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+    await db.messages.delete_one({"_id": ObjectId(msg_id)})
+    conv_id = msg["conversation_id"]
+    for pid in (await db.conversations.find_one({"_id": ObjectId(conv_id)})).get("participant_ids", []):
+        await sio.emit("message_deleted", {"message_id": msg_id, "conversation_id": conv_id}, room=f"user_{pid}")
+    return {"message": "Deleted"}
+
+@fastapi_app.post("/api/messages/{msg_id}/react")
+async def react_message(msg_id: str, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    body = await request.json()
+    emoji = body.get("emoji", "")
+    msg = await db.messages.find_one({"_id": ObjectId(msg_id)})
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+    reactions = msg.get("reactions", {})
+    if uid in reactions and reactions[uid] == emoji:
+        del reactions[uid]
+    else:
+        reactions[uid] = emoji
+    await db.messages.update_one({"_id": ObjectId(msg_id)}, {"$set": {"reactions": reactions}})
+    conv_id = msg["conversation_id"]
+    conv = await db.conversations.find_one({"_id": ObjectId(conv_id)})
+    if conv:
+        for pid in conv.get("participant_ids", []):
+            await sio.emit("message_reaction", {"message_id": msg_id, "conversation_id": conv_id, "reactions": reactions, "user_id": uid, "emoji": emoji}, room=f"user_{pid}")
+    return {"reactions": reactions}
+
+# --- Pin/Archive Conversations ---
+@fastapi_app.post("/api/conversations/{conv_id}/pin")
+async def pin_conversation(conv_id: str, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    await db.user_prefs.update_one({"user_id": uid}, {"$addToSet": {"pinned": conv_id}}, upsert=True)
+    return {"pinned": True}
+
+@fastapi_app.post("/api/conversations/{conv_id}/unpin")
+async def unpin_conversation(conv_id: str, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    await db.user_prefs.update_one({"user_id": uid}, {"$pull": {"pinned": conv_id}})
+    return {"pinned": False}
+
+@fastapi_app.post("/api/conversations/{conv_id}/archive")
+async def archive_conversation(conv_id: str, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    await db.user_prefs.update_one({"user_id": uid}, {"$addToSet": {"archived": conv_id}}, upsert=True)
+    return {"archived": True}
+
+@fastapi_app.post("/api/conversations/{conv_id}/clear")
+async def clear_chat(conv_id: str, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    conv = await db.conversations.find_one({"_id": ObjectId(conv_id), "participant_ids": uid})
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    await db.messages.delete_many({"conversation_id": conv_id})
+    await db.conversations.update_one({"_id": ObjectId(conv_id)}, {"$set": {"last_message": None, "last_message_time": datetime.now(timezone.utc)}})
+    return {"message": "Chat cleared"}
+
+# --- Block Users ---
+@fastapi_app.post("/api/users/{target_id}/block")
+async def block_user(target_id: str, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    await db.user_prefs.update_one({"user_id": uid}, {"$addToSet": {"blocked": target_id}}, upsert=True)
+    return {"blocked": True}
+
+@fastapi_app.post("/api/users/{target_id}/unblock")
+async def unblock_user(target_id: str, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    await db.user_prefs.update_one({"user_id": uid}, {"$pull": {"blocked": target_id}})
+    return {"blocked": False}
+
+@fastapi_app.get("/api/users/blocked/list")
+async def get_blocked_users(request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    prefs = await db.user_prefs.find_one({"user_id": uid})
+    blocked_ids = prefs.get("blocked", []) if prefs else []
+    blocked_users = []
+    for bid in blocked_ids:
+        u = await db.users.find_one({"_id": ObjectId(bid)})
+        if u:
+            blocked_users.append(serialize_user(u))
+    return {"blocked": blocked_users}
+
+# --- User Prefs ---
+@fastapi_app.get("/api/user-prefs")
+async def get_user_prefs(request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    prefs = await db.user_prefs.find_one({"user_id": uid})
+    if not prefs:
+        return {"pinned": [], "archived": [], "blocked": []}
+    return {"pinned": prefs.get("pinned", []), "archived": prefs.get("archived", []), "blocked": prefs.get("blocked", [])}
+
+# --- Contacts ---
+@fastapi_app.get("/api/contacts")
+async def get_contacts(request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    convs = await db.conversations.find({"participant_ids": uid, "type": "direct"}).to_list(100)
+    contact_ids = set()
+    for c in convs:
+        for pid in c["participant_ids"]:
+            if pid != uid:
+                contact_ids.add(pid)
+    contacts = []
+    for cid in contact_ids:
+        u = await db.users.find_one({"_id": ObjectId(cid)})
+        if u:
+            contacts.append(serialize_user(u))
+    return {"contacts": contacts}
+
+# --- Forward Message ---
+@fastapi_app.post("/api/messages/{msg_id}/forward")
+async def forward_message(msg_id: str, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    body = await request.json()
+    target_conv_id = body.get("conversation_id")
+    orig = await db.messages.find_one({"_id": ObjectId(msg_id)})
+    if not orig:
+        raise HTTPException(status_code=404, detail="Message not found")
+    conv = await db.conversations.find_one({"_id": ObjectId(target_conv_id), "participant_ids": uid})
+    if not conv:
+        raise HTTPException(status_code=404, detail="Target conversation not found")
+    fwd_msg = {
+        "conversation_id": target_conv_id,
+        "sender_id": uid,
+        "content": orig["content"],
+        "type": orig.get("type", "text"),
+        "status": "sent",
+        "forwarded": True,
+        "created_at": datetime.now(timezone.utc),
+    }
+    result = await db.messages.insert_one(fwd_msg)
+    fwd_msg["_id"] = result.inserted_id
+    serialized = serialize_message(fwd_msg)
+    serialized["forwarded"] = True
+    unread_inc = {f"unread_counts.{pid}": 1 for pid in conv["participant_ids"] if pid != uid}
+    await db.conversations.update_one({"_id": ObjectId(target_conv_id)}, {"$set": {"last_message": orig["content"], "last_message_time": fwd_msg["created_at"]}, "$inc": unread_inc})
+    for pid in conv["participant_ids"]:
+        await sio.emit("new_message", {"message": serialized, "conversation_id": target_conv_id}, room=f"user_{pid}")
+    return {"message": serialized}
 
 # --- Health ---
 @fastapi_app.get("/api/health")

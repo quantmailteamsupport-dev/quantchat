@@ -1,6 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns';
-import { Send, ArrowLeft, User, Check, CheckCheck, MoreVertical } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { format, isToday, isYesterday } from 'date-fns';
+import { Send, ArrowLeft, User, Check, CheckCheck, MoreVertical, Smile, Trash2, CornerUpRight, X, Forward } from 'lucide-react';
+import axios from 'axios';
+
+const API = process.env.REACT_APP_BACKEND_URL;
+const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
 
 function formatMsgTime(time) {
   try {
@@ -8,30 +12,48 @@ function formatMsgTime(time) {
     if (isToday(d)) return format(d, 'HH:mm');
     if (isYesterday(d)) return 'Yesterday ' + format(d, 'HH:mm');
     return format(d, 'dd/MM HH:mm');
-  } catch {
-    return '';
-  }
+  } catch { return ''; }
 }
 
-function MessageBubble({ msg, isMine }) {
+function MessageBubble({ msg, isMine, userId, onReact, onDelete, onForward, participants }) {
+  const [showActions, setShowActions] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const reactions = msg.reactions || {};
+  const reactionList = Object.entries(reactions);
+  const senderName = !isMine ? (participants?.find(p => p.user_id === msg.sender_id)?.name || '') : '';
+
   return (
-    <div
-      data-testid={`message-${msg.id}`}
-      className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-fadeIn`}
-    >
-      <div className={`max-w-[70%] px-3 py-2 ${
-        isMine
-          ? 'bg-qc-accent text-white rounded-md rounded-br-none'
-          : 'bg-qc-elevated text-white border border-qc-border rounded-md rounded-bl-none'
-      }`}>
+    <div data-testid={`message-${msg.id}`} className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-fadeIn group relative`}
+      onMouseEnter={() => setShowActions(true)} onMouseLeave={() => { setShowActions(false); setShowEmoji(false); }}>
+      
+      {/* Action buttons */}
+      {showActions && (
+        <div className={`absolute top-0 ${isMine ? 'right-[calc(70%+8px)]' : 'left-[calc(70%+8px)]'} flex items-center gap-1 z-10`}>
+          <button data-testid={`react-btn-${msg.id}`} onClick={() => setShowEmoji(!showEmoji)} className="w-6 h-6 flex items-center justify-center bg-qc-elevated border border-qc-border text-qc-text-secondary hover:text-white text-xs"><Smile size={12}/></button>
+          {isMine && <button data-testid={`delete-btn-${msg.id}`} onClick={() => onDelete(msg.id)} className="w-6 h-6 flex items-center justify-center bg-qc-elevated border border-qc-border text-qc-text-secondary hover:text-qc-error text-xs"><Trash2 size={12}/></button>}
+          <button data-testid={`forward-btn-${msg.id}`} onClick={() => onForward(msg.id)} className="w-6 h-6 flex items-center justify-center bg-qc-elevated border border-qc-border text-qc-text-secondary hover:text-white text-xs"><Forward size={12}/></button>
+        </div>
+      )}
+
+      {/* Emoji picker */}
+      {showEmoji && (
+        <div className={`absolute top-7 ${isMine ? 'right-0' : 'left-0'} bg-qc-elevated border border-qc-border p-1 flex gap-1 z-20`}>
+          {EMOJIS.map(e => <button key={e} onClick={() => { onReact(msg.id, e); setShowEmoji(false); }} className="w-7 h-7 flex items-center justify-center hover:bg-qc-highlight text-sm">{e}</button>)}
+        </div>
+      )}
+
+      <div className={`max-w-[70%] px-3 py-2 ${isMine ? 'bg-qc-accent text-white rounded-md rounded-br-none' : 'bg-qc-elevated text-white border border-qc-border rounded-md rounded-bl-none'}`}>
+        {senderName && <p className="text-[10px] font-mono text-qc-accent mb-0.5">{senderName}</p>}
+        {msg.forwarded && <p className="text-[10px] italic text-white/50 mb-0.5 flex items-center gap-1"><CornerUpRight size={9}/>Forwarded</p>}
         <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+        {reactionList.length > 0 && (
+          <div className="flex flex-wrap gap-0.5 mt-1">
+            {reactionList.map(([uid, emoji]) => <span key={uid} className="text-xs bg-black/20 px-1 rounded">{emoji}</span>)}
+          </div>
+        )}
         <div className={`flex items-center gap-1 mt-1 ${isMine ? 'justify-end' : 'justify-start'}`}>
           <span className="font-mono text-[9px] opacity-60">{formatMsgTime(msg.created_at)}</span>
-          {isMine && (
-            msg.status === 'read'
-              ? <CheckCheck size={12} className="text-white opacity-80" />
-              : <Check size={12} className="opacity-50" />
-          )}
+          {isMine && (msg.status === 'read' ? <CheckCheck size={12} className="text-white opacity-80"/> : <Check size={12} className="opacity-50"/>)}
         </div>
       </div>
     </div>
@@ -39,24 +61,21 @@ function MessageBubble({ msg, isMine }) {
 }
 
 function getConvInfo(conv, userId) {
-  if (conv.type === 'group') {
-    return { name: conv.name, avatar: conv.avatar };
-  }
+  if (conv.type === 'group') return { name: conv.name, avatar: conv.avatar, isGroup: true };
   const other = conv.other_user || conv.participants?.find(p => p.user_id !== userId);
-  return { name: other?.name || 'Unknown', avatar: other?.avatar || '', user_id: other?.user_id };
+  return { name: other?.name || 'Unknown', avatar: other?.avatar || '', user_id: other?.user_id, isGroup: false };
 }
 
-export default function ChatView({ conversation, messages, onSend, userId, onlineUsers, typingUsers, emitTyping, onBack }) {
+export default function ChatView({ conversation, messages, onSend, userId, onlineUsers, typingUsers, emitTyping, onBack, conversations, token, onReloadMessages }) {
   const [input, setInput] = useState('');
+  const [forwardMsgId, setForwardMsgId] = useState(null);
   const messagesEndRef = useRef(null);
   const typingTimeout = useRef(null);
   const info = getConvInfo(conversation, userId);
   const isOnline = info.user_id ? onlineUsers.has(info.user_id) : false;
   const isTyping = typingUsers[conversation.id] && typingUsers[conversation.id] !== userId;
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   const handleSend = (e) => {
     e.preventDefault();
@@ -65,62 +84,84 @@ export default function ChatView({ conversation, messages, onSend, userId, onlin
     setInput('');
     emitTyping(conversation.id, false);
   };
-
   const handleInputChange = (e) => {
     setInput(e.target.value);
     emitTyping(conversation.id, true);
     clearTimeout(typingTimeout.current);
-    typingTimeout.current = setTimeout(() => {
-      emitTyping(conversation.id, false);
-    }, 2000);
+    typingTimeout.current = setTimeout(() => emitTyping(conversation.id, false), 2000);
+  };
+  const handleKeyDown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e); } };
+
+  const handleReact = async (msgId, emoji) => {
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.post(`${API}/api/messages/${msgId}/react`, { emoji }, { headers });
+      if (onReloadMessages) onReloadMessages(conversation.id);
+    } catch {}
+  };
+  const handleDelete = async (msgId) => {
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.delete(`${API}/api/messages/${msgId}`, { headers });
+      if (onReloadMessages) onReloadMessages(conversation.id);
+    } catch {}
+  };
+  const handleForward = async (targetConvId) => {
+    if (!forwardMsgId) return;
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.post(`${API}/api/messages/${forwardMsgId}/forward`, { conversation_id: targetConvId }, { headers });
+      setForwardMsgId(null);
+    } catch {}
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend(e);
-    }
-  };
+  const memberCount = conversation.participants?.length || 0;
+  const onlineCount = conversation.participants?.filter(p => onlineUsers.has(p.user_id)).length || 0;
 
   return (
     <div data-testid="chat-view" className="flex flex-col h-full">
+      {/* Forward Modal */}
+      {forwardMsgId && (
+        <div className="absolute inset-0 bg-black/70 z-50 flex items-center justify-center" onClick={() => setForwardMsgId(null)}>
+          <div className="bg-qc-surface border border-qc-border w-80 max-h-96 flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="p-3 border-b border-qc-border flex items-center justify-between">
+              <span className="text-sm font-medium text-white">Forward to...</span>
+              <button onClick={() => setForwardMsgId(null)} className="text-qc-text-secondary hover:text-white"><X size={16}/></button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {(conversations || []).filter(c => c.id !== conversation.id).map(c => {
+                const ci = getConvInfo(c, userId);
+                return (
+                  <button key={c.id} data-testid={`forward-to-${c.id}`} onClick={() => handleForward(c.id)}
+                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-qc-elevated border-b border-qc-border text-left">
+                    <div className="w-8 h-8 rounded-md bg-qc-highlight flex items-center justify-center overflow-hidden">
+                      {ci.avatar ? <img src={ci.avatar} alt="" className="w-full h-full object-cover"/> : <User size={14} className="text-qc-text-secondary"/>}
+                    </div>
+                    <span className="text-sm text-white truncate">{ci.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div data-testid="chat-header" className="h-14 px-4 border-b border-qc-border flex items-center gap-3 bg-qc-surface flex-shrink-0">
-        <button
-          data-testid="chat-back-btn"
-          onClick={onBack}
-          className="sm:hidden text-qc-text-secondary hover:text-white mr-1"
-        >
-          <ArrowLeft size={20} />
-        </button>
-
+        <button data-testid="chat-back-btn" onClick={onBack} className="sm:hidden text-qc-text-secondary hover:text-white mr-1"><ArrowLeft size={20}/></button>
         <div className="relative">
           <div className="w-9 h-9 rounded-md overflow-hidden bg-qc-highlight flex items-center justify-center">
-            {info.avatar ? (
-              <img src={info.avatar} alt={info.name} className="w-full h-full object-cover" />
-            ) : (
-              <User size={16} className="text-qc-text-secondary" />
-            )}
+            {info.avatar ? <img src={info.avatar} alt={info.name} className="w-full h-full object-cover"/> : <User size={16} className="text-qc-text-secondary"/>}
           </div>
-          {isOnline && (
-            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-qc-success border-2 border-qc-surface rounded-full" />
-          )}
+          {isOnline && <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-qc-success border-2 border-qc-surface rounded-full"/>}
         </div>
-
         <div className="flex-1 min-w-0">
           <h3 data-testid="chat-recipient-name" className="text-sm font-medium text-white truncate">{info.name}</h3>
-          {isTyping ? (
-            <p className="text-[11px] text-qc-accent font-mono animate-pulse-dot">typing...</p>
-          ) : (
-            <p className="text-[11px] text-qc-text-tertiary font-mono">
-              {isOnline ? 'ONLINE' : 'OFFLINE'}
-            </p>
-          )}
+          {isTyping ? <p className="text-[11px] text-qc-accent font-mono animate-pulse-dot">typing...</p>
+            : info.isGroup ? <p className="text-[11px] text-qc-text-tertiary font-mono">{memberCount} MEMBERS / {onlineCount} ONLINE</p>
+            : <p className="text-[11px] text-qc-text-tertiary font-mono">{isOnline ? 'ONLINE' : 'OFFLINE'}</p>}
         </div>
-
-        <button data-testid="chat-more-btn" className="text-qc-text-secondary hover:text-white transition-colors duration-150">
-          <MoreVertical size={18} />
-        </button>
+        <button data-testid="chat-more-btn" className="text-qc-text-secondary hover:text-white transition-colors duration-150"><MoreVertical size={18}/></button>
       </div>
 
       {/* Messages */}
@@ -130,36 +171,21 @@ export default function ChatView({ conversation, messages, onSend, userId, onlin
             <p className="text-qc-text-tertiary text-sm">No messages yet</p>
             <p className="text-qc-text-tertiary text-xs mt-1 font-mono">Send the first message</p>
           </div>
-        ) : (
-          messages.map(msg => (
-            <MessageBubble key={msg.id} msg={msg} isMine={msg.sender_id === userId} />
-          ))
-        )}
-        <div ref={messagesEndRef} />
+        ) : messages.map(msg => (
+          <MessageBubble key={msg.id} msg={msg} isMine={msg.sender_id === userId} userId={userId}
+            onReact={handleReact} onDelete={handleDelete} onForward={setForwardMsgId}
+            participants={conversation.participants} />
+        ))}
+        <div ref={messagesEndRef}/>
       </div>
 
       {/* Input */}
-      <form
-        data-testid="message-form"
-        onSubmit={handleSend}
-        className="border-t border-qc-border bg-qc-surface px-4 py-3 flex items-center gap-3"
-      >
-        <input
-          data-testid="message-input"
-          type="text"
-          value={input}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          placeholder="Type a message..."
-          className="flex-1 bg-transparent text-white text-sm placeholder:text-qc-text-tertiary outline-none"
-        />
-        <button
-          data-testid="send-message-btn"
-          type="submit"
-          disabled={!input.trim()}
-          className="w-8 h-8 flex items-center justify-center bg-qc-accent hover:bg-qc-accent-hover text-white transition-colors duration-150 disabled:opacity-30 disabled:hover:bg-qc-accent"
-        >
-          <Send size={14} />
+      <form data-testid="message-form" onSubmit={handleSend} className="border-t border-qc-border bg-qc-surface px-4 py-3 flex items-center gap-3">
+        <input data-testid="message-input" type="text" value={input} onChange={handleInputChange} onKeyDown={handleKeyDown}
+          placeholder="Type a message..." className="flex-1 bg-transparent text-white text-sm placeholder:text-qc-text-tertiary outline-none"/>
+        <button data-testid="send-message-btn" type="submit" disabled={!input.trim()}
+          className="w-8 h-8 flex items-center justify-center bg-qc-accent hover:bg-qc-accent-hover text-white transition-colors duration-150 disabled:opacity-30">
+          <Send size={14}/>
         </button>
       </form>
     </div>
