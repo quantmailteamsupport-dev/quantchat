@@ -13,6 +13,12 @@ html, body, #root {
   background: #000;
   color: #fff;
   font-family: 'IBM Plex Sans', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+.safe-bottom {
+  padding-bottom: max(0.625rem, env(safe-area-inset-bottom));
 }
 
 ::-webkit-scrollbar {

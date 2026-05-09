@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { format, isToday, isYesterday } from 'date-fns';
-import { Send, ArrowLeft, User, Check, CheckCheck, MoreVertical, Smile, Trash2, CornerUpRight, X, Forward } from 'lucide-react';
+import { Send, ArrowLeft, User, Check, CheckCheck, MoreVertical, Smile, Trash2, Forward, CornerUpRight, X } from 'lucide-react';
 import axios from 'axios';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -23,26 +23,26 @@ function MessageBubble({ msg, isMine, userId, onReact, onDelete, onForward, part
   const senderName = !isMine ? (participants?.find(p => p.user_id === msg.sender_id)?.name || '') : '';
 
   return (
-    <div data-testid={`message-${msg.id}`} className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-fadeIn group relative`}
-      onMouseEnter={() => setShowActions(true)} onMouseLeave={() => { setShowActions(false); setShowEmoji(false); }}>
-      
-      {/* Action buttons */}
+    <div data-testid={`message-${msg.id}`}
+      className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-fadeIn group relative`}
+      onMouseEnter={() => setShowActions(true)} onMouseLeave={() => { setShowActions(false); setShowEmoji(false); }}
+      onTouchStart={() => setShowActions(true)}>
+
       {showActions && (
-        <div className={`absolute top-0 ${isMine ? 'right-[calc(70%+8px)]' : 'left-[calc(70%+8px)]'} flex items-center gap-1 z-10`}>
-          <button data-testid={`react-btn-${msg.id}`} onClick={() => setShowEmoji(!showEmoji)} className="w-6 h-6 flex items-center justify-center bg-qc-elevated border border-qc-border text-qc-text-secondary hover:text-white text-xs"><Smile size={12}/></button>
-          {isMine && <button data-testid={`delete-btn-${msg.id}`} onClick={() => onDelete(msg.id)} className="w-6 h-6 flex items-center justify-center bg-qc-elevated border border-qc-border text-qc-text-secondary hover:text-qc-error text-xs"><Trash2 size={12}/></button>}
-          <button data-testid={`forward-btn-${msg.id}`} onClick={() => onForward(msg.id)} className="w-6 h-6 flex items-center justify-center bg-qc-elevated border border-qc-border text-qc-text-secondary hover:text-white text-xs"><Forward size={12}/></button>
+        <div className={`absolute -top-7 ${isMine ? 'right-0' : 'left-0'} flex items-center gap-1 z-10`}>
+          <button onClick={() => setShowEmoji(!showEmoji)} className="w-7 h-7 flex items-center justify-center bg-qc-elevated border border-qc-border text-qc-text-secondary hover:text-white rounded-sm"><Smile size={13}/></button>
+          {isMine && <button onClick={() => onDelete(msg.id)} className="w-7 h-7 flex items-center justify-center bg-qc-elevated border border-qc-border text-qc-text-secondary hover:text-qc-error rounded-sm"><Trash2 size={13}/></button>}
+          <button onClick={() => onForward(msg.id)} className="w-7 h-7 flex items-center justify-center bg-qc-elevated border border-qc-border text-qc-text-secondary hover:text-white rounded-sm"><Forward size={13}/></button>
         </div>
       )}
 
-      {/* Emoji picker */}
       {showEmoji && (
-        <div className={`absolute top-7 ${isMine ? 'right-0' : 'left-0'} bg-qc-elevated border border-qc-border p-1 flex gap-1 z-20`}>
-          {EMOJIS.map(e => <button key={e} onClick={() => { onReact(msg.id, e); setShowEmoji(false); }} className="w-7 h-7 flex items-center justify-center hover:bg-qc-highlight text-sm">{e}</button>)}
+        <div className={`absolute -top-14 ${isMine ? 'right-0' : 'left-0'} bg-qc-elevated border border-qc-border p-1 flex gap-1 z-20 rounded-sm`}>
+          {EMOJIS.map(e => <button key={e} onClick={() => { onReact(msg.id, e); setShowEmoji(false); setShowActions(false); }} className="w-8 h-8 flex items-center justify-center hover:bg-qc-highlight text-base">{e}</button>)}
         </div>
       )}
 
-      <div className={`max-w-[70%] px-3 py-2 ${isMine ? 'bg-qc-accent text-white rounded-md rounded-br-none' : 'bg-qc-elevated text-white border border-qc-border rounded-md rounded-bl-none'}`}>
+      <div className={`max-w-[80%] sm:max-w-[70%] px-3 py-2 ${isMine ? 'bg-qc-accent text-white rounded-md rounded-br-none' : 'bg-qc-elevated text-white border border-qc-border rounded-md rounded-bl-none'}`}>
         {senderName && <p className="text-[10px] font-mono text-qc-accent mb-0.5">{senderName}</p>}
         {msg.forwarded && <p className="text-[10px] italic text-white/50 mb-0.5 flex items-center gap-1"><CornerUpRight size={9}/>Forwarded</p>}
         <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
@@ -66,7 +66,7 @@ function getConvInfo(conv, userId) {
   return { name: other?.name || 'Unknown', avatar: other?.avatar || '', user_id: other?.user_id, isGroup: false };
 }
 
-export default function ChatView({ conversation, messages, onSend, userId, onlineUsers, typingUsers, emitTyping, onBack, conversations, token, onReloadMessages }) {
+export default function ChatView({ conversation, messages, onSend, userId, onlineUsers, typingUsers, emitTyping, onBack, conversations, token, onReloadMessages, isMobile }) {
   const [input, setInput] = useState('');
   const [forwardMsgId, setForwardMsgId] = useState(null);
   const messagesEndRef = useRef(null);
@@ -119,12 +119,12 @@ export default function ChatView({ conversation, messages, onSend, userId, onlin
   const onlineCount = conversation.participants?.filter(p => onlineUsers.has(p.user_id)).length || 0;
 
   return (
-    <div data-testid="chat-view" className="flex flex-col h-full">
+    <div data-testid="chat-view" className="flex flex-col h-full w-full">
       {/* Forward Modal */}
       {forwardMsgId && (
-        <div className="absolute inset-0 bg-black/70 z-50 flex items-center justify-center" onClick={() => setForwardMsgId(null)}>
-          <div className="bg-qc-surface border border-qc-border w-80 max-h-96 flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="p-3 border-b border-qc-border flex items-center justify-between">
+        <div className="absolute inset-0 bg-black/80 z-50 flex items-end sm:items-center justify-center" onClick={() => setForwardMsgId(null)}>
+          <div className="bg-qc-surface border border-qc-border w-full sm:w-80 max-h-[70vh] flex flex-col rounded-t-lg sm:rounded-lg" onClick={e => e.stopPropagation()}>
+            <div className="p-3 border-b border-qc-border flex items-center justify-between flex-shrink-0">
               <span className="text-sm font-medium text-white">Forward to...</span>
               <button onClick={() => setForwardMsgId(null)} className="text-qc-text-secondary hover:text-white"><X size={16}/></button>
             </div>
@@ -133,8 +133,8 @@ export default function ChatView({ conversation, messages, onSend, userId, onlin
                 const ci = getConvInfo(c, userId);
                 return (
                   <button key={c.id} data-testid={`forward-to-${c.id}`} onClick={() => handleForward(c.id)}
-                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-qc-elevated border-b border-qc-border text-left">
-                    <div className="w-8 h-8 rounded-md bg-qc-highlight flex items-center justify-center overflow-hidden">
+                    className="w-full flex items-center gap-2 px-3 py-3 hover:bg-qc-elevated border-b border-qc-border text-left">
+                    <div className="w-9 h-9 rounded-md bg-qc-highlight flex items-center justify-center overflow-hidden flex-shrink-0">
                       {ci.avatar ? <img src={ci.avatar} alt="" className="w-full h-full object-cover"/> : <User size={14} className="text-qc-text-secondary"/>}
                     </div>
                     <span className="text-sm text-white truncate">{ci.name}</span>
@@ -147,9 +147,12 @@ export default function ChatView({ conversation, messages, onSend, userId, onlin
       )}
 
       {/* Header */}
-      <div data-testid="chat-header" className="h-14 px-4 border-b border-qc-border flex items-center gap-3 bg-qc-surface flex-shrink-0">
-        <button data-testid="chat-back-btn" onClick={onBack} className="sm:hidden text-qc-text-secondary hover:text-white mr-1"><ArrowLeft size={20}/></button>
-        <div className="relative">
+      <div data-testid="chat-header" className="h-14 px-3 border-b border-qc-border flex items-center gap-2.5 bg-qc-surface flex-shrink-0">
+        <button data-testid="chat-back-btn" onClick={onBack}
+          className="w-9 h-9 flex items-center justify-center text-qc-text-secondary hover:text-white hover:bg-qc-elevated rounded-sm flex-shrink-0">
+          <ArrowLeft size={20}/>
+        </button>
+        <div className="relative flex-shrink-0">
           <div className="w-9 h-9 rounded-md overflow-hidden bg-qc-highlight flex items-center justify-center">
             {info.avatar ? <img src={info.avatar} alt={info.name} className="w-full h-full object-cover"/> : <User size={16} className="text-qc-text-secondary"/>}
           </div>
@@ -158,14 +161,16 @@ export default function ChatView({ conversation, messages, onSend, userId, onlin
         <div className="flex-1 min-w-0">
           <h3 data-testid="chat-recipient-name" className="text-sm font-medium text-white truncate">{info.name}</h3>
           {isTyping ? <p className="text-[11px] text-qc-accent font-mono animate-pulse-dot">typing...</p>
-            : info.isGroup ? <p className="text-[11px] text-qc-text-tertiary font-mono">{memberCount} MEMBERS / {onlineCount} ONLINE</p>
-            : <p className="text-[11px] text-qc-text-tertiary font-mono">{isOnline ? 'ONLINE' : 'OFFLINE'}</p>}
+            : info.isGroup ? <p className="text-[11px] text-qc-text-tertiary font-mono">{memberCount} members, {onlineCount} online</p>
+            : <p className="text-[11px] text-qc-text-tertiary font-mono">{isOnline ? 'online' : 'offline'}</p>}
         </div>
-        <button data-testid="chat-more-btn" className="text-qc-text-secondary hover:text-white transition-colors duration-150"><MoreVertical size={18}/></button>
+        <button data-testid="chat-more-btn" className="w-9 h-9 flex items-center justify-center text-qc-text-secondary hover:text-white hover:bg-qc-elevated rounded-sm flex-shrink-0">
+          <MoreVertical size={18}/>
+        </button>
       </div>
 
       {/* Messages */}
-      <div data-testid="messages-container" className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+      <div data-testid="messages-container" className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <p className="text-qc-text-tertiary text-sm">No messages yet</p>
@@ -180,12 +185,13 @@ export default function ChatView({ conversation, messages, onSend, userId, onlin
       </div>
 
       {/* Input */}
-      <form data-testid="message-form" onSubmit={handleSend} className="border-t border-qc-border bg-qc-surface px-4 py-3 flex items-center gap-3">
+      <form data-testid="message-form" onSubmit={handleSend}
+        className="border-t border-qc-border bg-qc-surface px-3 py-2.5 flex items-center gap-2 flex-shrink-0 safe-bottom">
         <input data-testid="message-input" type="text" value={input} onChange={handleInputChange} onKeyDown={handleKeyDown}
-          placeholder="Type a message..." className="flex-1 bg-transparent text-white text-sm placeholder:text-qc-text-tertiary outline-none"/>
+          placeholder="Type a message..." className="flex-1 bg-qc-elevated border border-qc-border text-white text-sm px-3 py-2.5 rounded-sm placeholder:text-qc-text-tertiary outline-none focus:border-qc-accent transition-colors"/>
         <button data-testid="send-message-btn" type="submit" disabled={!input.trim()}
-          className="w-8 h-8 flex items-center justify-center bg-qc-accent hover:bg-qc-accent-hover text-white transition-colors duration-150 disabled:opacity-30">
-          <Send size={14}/>
+          className="w-10 h-10 flex items-center justify-center bg-qc-accent hover:bg-qc-accent-hover text-white rounded-sm transition-colors duration-150 disabled:opacity-30 flex-shrink-0">
+          <Send size={16}/>
         </button>
       </form>
     </div>

@@ -12,21 +12,15 @@ export default function Sidebar({ view, setView, user, logout }) {
   ];
 
   return (
-    <div data-testid="sidebar" className="w-16 bg-qc-bg border-r border-qc-border flex flex-col items-center py-4 flex-shrink-0 hidden sm:flex">
+    <div data-testid="sidebar" className="w-16 bg-qc-bg border-r border-qc-border flex flex-col items-center py-4 flex-shrink-0">
       <div data-testid="sidebar-logo" className="w-9 h-9 bg-qc-accent flex items-center justify-center mb-6">
         <span className="font-heading font-black text-white text-lg">Q</span>
       </div>
       <div className="flex-1 flex flex-col items-center gap-0.5">
         {items.map(({ id, icon: Icon, label }) => (
-          <button
-            key={id}
-            data-testid={`sidebar-${id}-btn`}
-            onClick={() => setView(id)}
-            className={`w-10 h-10 flex items-center justify-center transition-colors duration-150 ${
-              view === id ? 'bg-qc-elevated text-qc-accent' : 'text-qc-text-secondary hover:text-white hover:bg-qc-elevated'
-            }`}
-            title={label}
-          >
+          <button key={id} data-testid={`sidebar-${id}-btn`} onClick={() => setView(id)}
+            className={`w-10 h-10 flex items-center justify-center transition-colors duration-150 ${view === id ? 'bg-qc-elevated text-qc-accent' : 'text-qc-text-secondary hover:text-white hover:bg-qc-elevated'}`}
+            title={label}>
             <Icon size={18} />
           </button>
         ))}
