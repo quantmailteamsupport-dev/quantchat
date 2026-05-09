@@ -1,13 +1,12 @@
+@import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,700,800,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
+
 :root {
   --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --foreground: #09090b;
+  --blue: #002fa7;
+  --muted: #52525b;
+  --line: #e4e4e7;
 }
 
 html,
@@ -18,7 +17,12 @@ body {
 
 body {
   color: var(--foreground);
-  background: var(--background);
+  background:
+    linear-gradient(rgba(9, 9, 11, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(9, 9, 11, 0.04) 1px, transparent 1px),
+    var(--background);
+  background-size: 44px 44px;
+  font-family: "IBM Plex Sans", sans-serif;
 }
 
 * {
@@ -32,19 +36,4 @@ a {
   text-decoration: none;
 }
 
-.imgDark {
-  display: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
-
-  .imgLight {
-    display: none;
-  }
-  .imgDark {
-    display: unset;
-  }
-}
+.docs-display { font-family: "Cabinet Grotesk", "IBM Plex Sans", sans-serif; letter-spacing: -0.045em; }

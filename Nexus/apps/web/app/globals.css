@@ -1,11 +1,13 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,700,800,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
 @import "tailwindcss";
 @source "../components";
 
 /* QuantChat tokens — Professional Redesign */
 :root {
   /* Type */
-  --qc-font-ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --qc-font-display: "Cabinet Grotesk", "IBM Plex Sans", sans-serif;
+  --qc-font-ui: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --qc-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   /* Electric Teal accent (#2DD4BF equivalent hue is ~185) */
@@ -22,10 +24,10 @@
   --qc-ink-3:     oklch(0.55 0.008 80);     /* tertiary / metadata */
   --qc-ink-4:     oklch(0.72 0.006 80);     /* placeholder */
 
-  --qc-accent:        oklch(0.62 0.16 var(--qc-accent-h));
-  --qc-accent-ink:    oklch(0.32 0.10 var(--qc-accent-h));
-  --qc-accent-bg:     oklch(0.95 0.05 var(--qc-accent-h));
-  --qc-accent-line:   oklch(0.85 0.08 var(--qc-accent-h));
+  --qc-accent:        #002FA7;
+  --qc-accent-ink:    #002FA7;
+  --qc-accent-bg:     rgba(0, 47, 167, 0.08);
+  --qc-accent-line:   rgba(0, 47, 167, 0.22);
   --qc-accent-fg:     oklch(0.99 0.01 var(--qc-accent-h));
 
   --qc-warn:    oklch(0.62 0.18 30);
@@ -108,6 +110,72 @@ html, body {
   background: var(--qc-bg);
 }
 .qc .mono { font-family: var(--qc-font-mono); font-feature-settings: normal; letter-spacing: 0; }
+
+.qc-display { font-family: var(--qc-font-display); letter-spacing: -0.045em; }
+
+.qc-home-page {
+  min-height: 100svh;
+  color: #09090b;
+  background:
+    linear-gradient(rgba(9, 9, 11, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(9, 9, 11, 0.045) 1px, transparent 1px),
+    #ffffff;
+  background-size: 48px 48px;
+  overflow: hidden;
+}
+
+.qc-home-nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px clamp(20px, 5vw, 72px);
+  background: rgba(255, 255, 255, 0.72);
+  border-bottom: 1px solid rgba(9, 9, 11, 0.1);
+  backdrop-filter: blur(22px) saturate(150%);
+}
+
+.qc-home-shell { padding: clamp(28px, 5vw, 72px); }
+.qc-home-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.9fr);
+  gap: clamp(20px, 3vw, 40px);
+  align-items: stretch;
+}
+.qc-home-panel {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(9, 9, 11, 0.12);
+  padding: clamp(24px, 4vw, 48px);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+.qc-home-panel:hover { transform: translateY(-3px); box-shadow: 0 22px 80px rgba(9, 9, 11, 0.09); border-color: rgba(0, 47, 167, 0.32); }
+.qc-home-primary-link,
+.qc-home-secondary-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid #09090b;
+  text-decoration: none;
+  font-weight: 800;
+  transition: transform 180ms ease, background-color 180ms ease, color 180ms ease;
+}
+.qc-home-primary-link { background: #002FA7; border-color: #002FA7; color: #fff; }
+.qc-home-primary-link:hover { background: #00207A; color: #fff; transform: translateY(-2px); }
+.qc-home-secondary-link { background: #fff; color: #09090b; }
+.qc-home-secondary-link:hover { background: #09090b; color: #fff; transform: translateY(-2px); }
+.qc-home-kpi { border-top: 1px solid rgba(9, 9, 11, 0.12); padding-top: 18px; }
+
+@media (max-width: 920px) {
+  .qc-home-page { overflow: auto; }
+  .qc-home-grid { grid-template-columns: 1fr; }
+  .qc-home-nav { align-items: flex-start; flex-direction: column; }
+}
 
 /* Buttons */
 .qc-btn {

@@ -14,12 +14,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased min-h-screen bg-[var(--color-background-dark)]">
+      <body className="admin-swiss antialiased min-h-screen bg-[var(--color-background-dark)]">
         {/* Ambient background glow */}
         <div className="fixed inset-0 pointer-events-none z-0" aria-hidden="true">
-          <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-[var(--color-neon-purple)] opacity-10 blur-[150px] rounded-full" />
-          <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-[var(--color-neon-blue)] opacity-10 blur-[150px] rounded-full" />
-          <div className="absolute top-[40%] right-[20%] w-[30%] h-[30%] bg-[var(--color-neon-pink)] opacity-5 blur-[120px] rounded-full" />
+          <div className="absolute inset-0 admin-grid-bg" />
         </div>
 
         {/* Sidebar navigation */}

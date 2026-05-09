@@ -1,70 +1,75 @@
 import Link from "next/link";
 
+const metrics: Array<[string, string]> = [
+  ["<140ms", "Realtime median delivery target"],
+  ["E2EE", "Device-keyed conversations"],
+  ["24/7", "Health endpoints and ops visibility"],
+];
+
+const capabilities = [
+  "Biometric trust checks",
+  "Disappearing messages",
+  "Voice rooms and calls",
+  "Admin telemetry",
+];
+
 export default function Home() {
   return (
-    <main
-      data-testid="quantchat-home-page"
-      style={{
-        minHeight: "100vh",
-        padding: "72px clamp(20px, 5vw, 84px)",
-        background:
-          "radial-gradient(circle at top left, rgba(0,245,255,0.18), transparent 34%), linear-gradient(135deg, #071117 0%, #0d1620 48%, #111827 100%)",
-        color: "#e9edef",
-        display: "grid",
-        alignItems: "center",
-      }}
-    >
-      <section data-testid="quantchat-home-hero" style={{ maxWidth: 980 }}>
-        <p
-          data-testid="quantchat-home-kicker"
-          style={{ color: "#53bdeb", fontSize: 13, fontWeight: 800, letterSpacing: "0.18em", textTransform: "uppercase" }}
-        >
-          QuantChat Secure Messaging
-        </p>
-        <h1
-          data-testid="quantchat-home-title"
-          style={{ fontSize: "clamp(44px, 8vw, 88px)", lineHeight: 0.95, letterSpacing: "-0.06em", margin: "18px 0" }}
-        >
-          Private realtime chat for high-trust teams.
-        </h1>
-        <p
-          data-testid="quantchat-home-description"
-          style={{ maxWidth: 680, color: "#aebac1", fontSize: 18, lineHeight: 1.7, marginBottom: 34 }}
-        >
-          End-to-end encrypted messaging, device-aware sessions, voice rooms, disappearing messages, and consent-first AI assistance in one focused workspace.
-        </p>
-        <div data-testid="quantchat-home-actions" style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-          <Link
-            data-testid="quantchat-home-open-chat-link"
-            href="/chat"
-            style={{
-              borderRadius: 999,
-              padding: "14px 22px",
-              background: "#00a884",
-              color: "#03130f",
-              fontWeight: 800,
-              textDecoration: "none",
-              boxShadow: "0 18px 38px rgba(0,168,132,0.28)",
-            }}
-          >
-            Open secure chat
-          </Link>
-          <Link
-            data-testid="quantchat-home-login-link"
-            href="/login"
-            style={{
-              borderRadius: 999,
-              padding: "14px 22px",
-              border: "1px solid rgba(233,237,239,0.18)",
-              color: "#e9edef",
-              fontWeight: 700,
-              textDecoration: "none",
-              background: "rgba(255,255,255,0.04)",
-            }}
-          >
-            Sign in
-          </Link>
+    <main data-testid="quantchat-home-page" className="qc-home-page">
+      <nav data-testid="quantchat-home-nav" className="qc-home-nav">
+        <Link data-testid="quantchat-home-brand-link" href="/" style={{ display: "flex", alignItems: "center", gap: 12, color: "#09090b", textDecoration: "none" }}>
+          <span aria-hidden="true" style={{ width: 34, height: 34, display: "grid", placeItems: "center", background: "#002FA7", color: "white", fontFamily: "var(--qc-font-mono)", fontWeight: 800 }}>Q</span>
+          <span className="qc-display" style={{ fontSize: 24, fontWeight: 900 }}>QuantChat</span>
+        </Link>
+        <div data-testid="quantchat-home-nav-actions" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <Link data-testid="quantchat-home-docs-link" className="qc-home-secondary-link" href="/workspace">Workspace</Link>
+          <Link data-testid="quantchat-home-login-link" className="qc-home-primary-link" href="/login">Sign in</Link>
         </div>
+      </nav>
+
+      <section data-testid="quantchat-home-hero" className="qc-home-shell qc-home-grid">
+        <div className="qc-home-panel" style={{ minHeight: 560, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div>
+            <p data-testid="quantchat-home-kicker" className="mono" style={{ color: "#002FA7", fontSize: 12, fontWeight: 800, letterSpacing: "0.22em", textTransform: "uppercase", margin: 0 }}>
+              Secure communications control room
+            </p>
+            <h1 data-testid="quantchat-home-title" className="qc-display" style={{ fontSize: "clamp(52px, 8vw, 104px)", lineHeight: 0.88, fontWeight: 900, margin: "26px 0 28px", maxWidth: 950 }}>
+              Private chat with operational certainty.
+            </h1>
+            <p data-testid="quantchat-home-description" style={{ maxWidth: 720, color: "#52525B", fontSize: 18, lineHeight: 1.75, margin: 0 }}>
+              QuantChat combines realtime messaging, trusted-device identity, disappearing conversations, voice collaboration, and production-grade telemetry for teams that cannot afford noisy tools.
+            </p>
+          </div>
+          <div data-testid="quantchat-home-actions" style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 34 }}>
+            <Link data-testid="quantchat-home-open-chat-link" className="qc-home-primary-link" href="/chat">Open secure chat</Link>
+            <Link data-testid="quantchat-home-view-settings-link" className="qc-home-secondary-link" href="/settings/key-verification">Verify trust model</Link>
+          </div>
+        </div>
+
+        <aside data-testid="quantchat-home-control-panel" className="qc-home-panel" style={{ display: "grid", gap: 18, alignContent: "start", background: "#F8F9FA" }}>
+          <div data-testid="quantchat-home-live-status" style={{ border: "1px solid rgba(9,9,11,.12)", background: "#fff", padding: 20 }}>
+            <div className="mono" style={{ color: "#002FA7", fontSize: 11, fontWeight: 800, letterSpacing: ".18em", textTransform: "uppercase" }}>Live system posture</div>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 16, marginTop: 16 }}>
+              <strong className="qc-display" style={{ fontSize: 52, lineHeight: 1 }}>99.99</strong>
+              <span style={{ color: "#00C853", fontWeight: 800 }}>READY</span>
+            </div>
+          </div>
+
+          {metrics.map(([value, label]) => (
+            <div data-testid={`quantchat-home-metric-${value.replace(/[^a-z0-9]/gi, "").toLowerCase()}`} className="qc-home-kpi" key={value}>
+              <strong className="qc-display" style={{ display: "block", fontSize: 34, lineHeight: 1 }}>{value}</strong>
+              <span style={{ color: "#52525B", fontSize: 14 }}>{label}</span>
+            </div>
+          ))}
+
+          <div data-testid="quantchat-home-capabilities" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
+            {capabilities.map((item) => (
+              <span data-testid={`quantchat-capability-${item.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} key={item} className="mono" style={{ border: "1px solid rgba(0,47,167,.18)", background: "rgba(0,47,167,.06)", color: "#002FA7", padding: "10px 12px", fontSize: 11, fontWeight: 800 }}>
+                {item}
+              </span>
+            ))}
+          </div>
+        </aside>
       </section>
     </main>
   );

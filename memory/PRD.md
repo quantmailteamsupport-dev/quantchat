@@ -49,3 +49,10 @@
 1. Configure permanent public ingress for ports 80/443 or a domain-backed proxy.
 2. Configure real S3 credentials.
 3. Retest public direct URLs after ingress is opened.
+
+
+## Latest Frontend Polish Update
+- Applied A1 Swiss high-contrast visual system to web landing, docs landing, and admin dashboard.
+- Verified screenshots for web, docs, and authenticated admin dashboard.
+- Rebuilt and redeployed web/docs/admin containers on SSH server.
+- Final public tunnel regression: 5 passed, 1 skipped (direct IP ingress still blocked externally).

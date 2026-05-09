@@ -1,102 +1,44 @@
-import Image, { type ImageProps } from "next/image";
-import { Button } from "@repo/ui/button";
-import styles from "./page.module.css";
+import Link from "next/link";
 
-type Props = Omit<ImageProps, "src"> & {
-  srcLight: string;
-  srcDark: string;
-};
-
-const ThemeImage = (props: Props) => {
-  const { srcLight, srcDark, ...rest } = props;
-
-  return (
-    <>
-      <Image {...rest} src={srcLight} className="imgLight" />
-      <Image {...rest} src={srcDark} className="imgDark" />
-    </>
-  );
-};
+const sections: Array<[string, string, string]> = [
+  ["01", "Start", "Understand the secure messaging model, runtime services, and live app URLs."],
+  ["02", "Operate", "Monitor health, readiness, Redis, PostgreSQL, and encrypted device registration."],
+  ["03", "Integrate", "Wire chat, channels, files, websocket sessions, and admin access controls."],
+  ["04", "Harden", "Finalize ingress, secrets, S3 credentials, backups, and production observability."],
+];
 
 export default function Home() {
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <ThemeImage
-          className={styles.logo}
-          srcLight="turborepo-dark.svg"
-          srcDark="turborepo-light.svg"
-          alt="Turborepo logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>apps/docs/app/page.tsx</code>
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <main data-testid="docs-home-page" style={{ minHeight: "100svh", padding: "clamp(24px, 5vw, 72px)", color: "#09090b" }}>
+      <nav data-testid="docs-home-nav" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 18, marginBottom: 56 }}>
+        <strong data-testid="docs-home-brand" className="docs-display" style={{ fontSize: 28 }}>QuantChat Docs</strong>
+        <Link data-testid="docs-api-health-link" href="/" style={{ border: "1px solid #09090b", padding: "12px 16px", fontWeight: 800 }}>Operator index</Link>
+      </nav>
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new/clone?demo-description=Learn+to+implement+a+monorepo+with+a+two+Next.js+sites+that+has+installed+three+local+packages.&demo-image=%2F%2Fimages.ctfassets.net%2Fe5382hct74si%2F4K8ZISWAzJ8X1504ca0zmC%2F0b21a1c6246add355e55816278ef54bc%2FBasic.png&demo-title=Monorepo+with+Turborepo&demo-url=https%3A%2F%2Fexamples-basic-web.vercel.sh%2F&from=templates&project-name=Monorepo+with+Turborepo&repository-name=monorepo-turborepo&repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fturborepo%2Ftree%2Fmain%2Fexamples%2Fbasic&root-directory=apps%2Fdocs&skippable-integrations=1&teamSlug=vercel&utm_source=create-turbo"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://turborepo.dev/docs?utm_source"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
+      <section data-testid="docs-home-hero" style={{ display: "grid", gridTemplateColumns: "minmax(0,1.2fr) minmax(280px,.8fr)", gap: 28 }}>
+        <div style={{ background: "rgba(255,255,255,.9)", border: "1px solid var(--line)", padding: "clamp(28px, 5vw, 56px)" }}>
+          <p data-testid="docs-home-kicker" style={{ color: "var(--blue)", fontFamily: "JetBrains Mono", fontSize: 12, letterSpacing: ".2em", textTransform: "uppercase", fontWeight: 800 }}>Production runbook</p>
+          <h1 data-testid="docs-home-title" className="docs-display" style={{ fontSize: "clamp(48px, 7vw, 96px)", lineHeight: .9, margin: "20px 0", fontWeight: 900 }}>Clear docs for a serious secure chat system.</h1>
+          <p data-testid="docs-home-description" style={{ color: "var(--muted)", fontSize: 18, lineHeight: 1.75, maxWidth: 760 }}>Everything an operator needs: service map, deployment health, API checks, admin controls, realtime messaging flows, and hardening tasks.</p>
         </div>
-        <Button appName="docs" className={styles.secondary}>
-          Open alert
-        </Button>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com/templates?search=turborepo&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://turborepo.dev?utm_source=create-turbo"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to turborepo.dev →
-        </a>
-      </footer>
-    </div>
+        <aside data-testid="docs-home-status-card" style={{ background: "#002FA7", color: "white", padding: 32, display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 360 }}>
+          <span style={{ fontFamily: "JetBrains Mono", fontSize: 12, letterSpacing: ".18em", textTransform: "uppercase" }}>Current release</span>
+          <div>
+            <strong className="docs-display" style={{ display: "block", fontSize: 64, lineHeight: 1 }}>A1</strong>
+            <p style={{ marginTop: 12, lineHeight: 1.6 }}>Web, docs, admin, API, database, and Redis are documented as one production system.</p>
+          </div>
+        </aside>
+      </section>
+
+      <section data-testid="docs-home-sections" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 0, marginTop: 32, border: "1px solid var(--line)", background: "white" }}>
+        {sections.map(([number, title, text]) => (
+          <article data-testid={`docs-section-${title.toLowerCase()}`} key={title} style={{ padding: 26, borderRight: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
+            <span style={{ fontFamily: "JetBrains Mono", color: "var(--blue)", fontWeight: 800 }}>{number}</span>
+            <h2 className="docs-display" style={{ fontSize: 30, margin: "14px 0 10px" }}>{title}</h2>
+            <p style={{ color: "var(--muted)", lineHeight: 1.65 }}>{text}</p>
+          </article>
+        ))}
+      </section>
+    </main>
   );
 }
