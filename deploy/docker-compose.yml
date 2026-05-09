@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build: ./backend
+    restart: always
+    ports:
+      - "8001:8001"
+    environment:
+      - MONGO_URL=mongodb://mongodb:27017
+      - DB_NAME=quantchat
+      - JWT_SECRET=a7f3e9b2c1d4f8a6e5b3c7d9f2a1e4b8c6d3f7a9e2b5c8d1f4a7e3b6c9d2f5
+      - ADMIN_EMAIL=admin@quantchat.com
+      - ADMIN_PASSWORD=QuantChat@2026
+      - FRONTEND_URL=http://20.249.208.224
+    depends_on:
+      - mongodb
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        REACT_APP_BACKEND_URL: http://20.249.208.224
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:
