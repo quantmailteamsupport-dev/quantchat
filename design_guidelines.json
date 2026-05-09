@@ -1,85 +1,112 @@
 {
-  "project_name": "Nexus/QuantChat Platform",
-  "theme": "LIGHT",
-  "archetype": "Archetype 4 (Swiss & High-Contrast)",
-  "vibe": "Authority, Clarity, Truth. Functional precision through strict grids, stark monochrome foundations, and hyper-targeted color usage. It avoids the generic 'SaaS blue' and completely drops soft, uninspired layouts.",
-  "colors": {
-    "background": "#FFFFFF",
-    "surface": "#F4F4F5",
-    "surface_glass": "rgba(255, 255, 255, 0.7)",
-    "text_primary": "#09090B",
-    "text_secondary": "#52525B",
-    "border": "#E4E4E7",
-    "primary": "#002FA7",
-    "primary_hover": "#00207A",
-    "accent_warning": "#FFB800",
-    "accent_danger": "#FF2A00",
-    "accent_success": "#00C853",
-    "tinted_grey": "#F8F9FA"
+  "theme": "Dark",
+  "archetype": "4 (Swiss & High-Contrast)",
+  "vibe": "Objective, rigid, ultra-fast, command-center functional",
+  "design_rules": {
+    "color_palette": {
+      "background": "#000000",
+      "surface_base": "#0A0A0A",
+      "surface_elevated": "#141414",
+      "surface_highlight": "#1E1E1E",
+      "primary_accent": "#0066FF",
+      "primary_accent_hover": "#3385FF",
+      "text_primary": "#FFFFFF",
+      "text_secondary": "#8A8A8A",
+      "text_tertiary": "#525252",
+      "border": "#262626",
+      "success": "#00FF66",
+      "error": "#FF3333"
+    },
+    "typography": {
+      "primary_font": "IBM Plex Sans",
+      "heading_font": "Cabinet Grotesk",
+      "mono_font": "JetBrains Mono",
+      "hierarchy": {
+        "h1": "text-4xl sm:text-5xl font-black tracking-tighter",
+        "h2": "text-2xl sm:text-3xl font-bold tracking-tight",
+        "h3": "text-xl sm:text-2xl font-semibold tracking-tight",
+        "h4": "text-lg font-medium",
+        "body": "text-base font-normal leading-relaxed",
+        "small": "text-sm font-medium",
+        "timestamp": "text-xs font-mono tracking-wider text-secondary"
+      }
+    },
+    "layout_and_spacing": {
+      "grid_strategy": "Control Room Grid (Dense, structural, 100% height)",
+      "container_padding": "p-4 sm:p-6",
+      "border_radius": {
+        "buttons": "rounded-sm",
+        "avatars": "rounded-md",
+        "chat_bubbles": "rounded-md",
+        "panels": "rounded-none"
+      }
+    },
+    "surface_strategy": {
+      "style": "Grid Borders (The Technical Look)",
+      "implementation": "border-collapse style layout. 1px borders on right/bottom of grid items. Pure solid colors. No glassmorphism. Absolute minimal shadows."
+    },
+    "animation": {
+      "hover_states": "Hard cuts or very fast transitions (0.15s ease-out). Hover backgrounds shift from #0A0A0A to #141414.",
+      "interactions": "No bouncy physics. Strictly linear/ease-out fades and slides."
+    },
+    "iconography": {
+      "library": "@phosphor-icons/react",
+      "style": "Regular or Bold weight, highly legible at small sizes.",
+      "installation_command": "npm install @phosphor-icons/react"
+    }
   },
-  "typography": {
-    "primary_font": "Cabinet Grotesk",
-    "secondary_font": "IBM Plex Sans",
-    "mono_font": "JetBrains Mono",
-    "rules": [
-      "H1: text-5xl to text-6xl, tracking-tighter, font-black. Left-aligned.",
-      "H2: text-3xl to text-4xl, tracking-tight, font-bold.",
-      "Body: text-base, leading-relaxed, IBM Plex Sans.",
-      "Overlines: Uppercase, text-xs, tracking-[0.2em], font-bold.",
-      "Never center-align headings by default; strict left-alignment preferred for Swiss aesthetic."
-    ]
-  },
-  "spacing_and_layout": {
-    "philosophy": "Generous spacing. Use p-8 or p-12 for containers. Borders must have internal padding. Eliminate 'cramped' default component paddings.",
-    "landing_page_grid": "Mode A: The Tetris Grid. Asymmetry, gap-8 to gap-12. Overlapping elements. Do not just use a standard 2-column flexbox.",
-    "dashboard_grid": "Mode B: The Control Room Grid. Dense, gap-4 to gap-6. Every pixel utilized. F-pattern optimized.",
-    "borders": "Expose the skeleton. Use border-collapse styles or border-r/border-b on grid items for a technical look."
-  },
-  "surface_strategies": {
-    "landing_hero": "Solid white background with subtle geometric grid lines (border-black/5). No heavy gradients.",
-    "header": "Crystal Glassmorphism: bg-white/70, backdrop-blur-2xl, border-b border-black/10, saturate-150.",
-    "dashboard_cards": "Flat solid background, 1px hard border (border-black/10), NO shadow by default. Hover: shadow-lg, -translate-y-1.",
-    "buttons": "Square or very slightly rounded (rounded-sm). High contrast. Primary buttons are #002FA7 with white text."
-  },
-  "motion_and_interactions": {
-    "hover_states": "Buttons must have explicit text color on hover. E.g., hover:bg-[#00207A] hover:text-white.",
-    "focus_states": "High contrast focus rings: focus:ring-2 focus:ring-[#002FA7] focus:ring-offset-2.",
-    "transitions": "transition-transform 0.2s ease, transition-colors 0.2s ease.",
-    "micro_interactions": "Typing indicators pulse, new message slides in smoothly (Framer Motion)."
-  },
-  "components": {
-    "ui_library": "shadcn/ui",
-    "icons": "@phosphor-icons/react - Duotone for marketing, Regular/Fill for dashboard.",
-    "charts": "Recharts via shadcn chart components. Minimalist, mostly monochrome with primary color accents.",
-    "forms": "Strictly Shadcn Input, Select, Form. Customize to have 1px solid border, zero border-radius (or rounded-sm)."
+  "component_guidelines": {
+    "app_shell": "3-column fluid grid. Left: Sidebar (narrow, icon only or icon+text). Middle: Chat List (fixed width). Right: Active Chat (fluid).",
+    "avatars": "Square with slight rounded corners (rounded-md). Unread status shown by a solid 2px border of primary_accent with ring-offset-black.",
+    "chat_list_item": "Hover shifts surface color. Title is white, subtitle/message preview is secondary gray. Unread count in a sharp square badge.",
+    "chat_bubbles": "Sender: bg-[#0066FF] text-white. Receiver: bg-[#141414] text-white border border-[#262626]. Both rounded-md.",
+    "message_input": "Bottom anchored block. No floating pill. Solid 1px top border. Input field takes full width, no background.",
+    "stories_status": "Horizontal scroll in a dedicated top section of the Chat List. Square avatars.",
+    "testing": "All interactive elements MUST include data-testid attribute in kebab-case."
   },
   "media": {
-    "hero_image": {
-      "url": "https://images.unsplash.com/photo-1758691736872-61a1f75fe2d5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTJ8MHwxfHNlYXJjaHwxfHx0ZWFtJTIwY29sbGFib3JhdGluZyUyMG1vZGVybiUyMG9mZmljZXxlbnwwfHx8fDE3NzgzMjM3NDd8MA&ixlib=rb-4.1.0&q=85",
-      "description": "Team collaborating with sticky notes on glass wall. Overlay: bg-white/20 with text shadow for contrast."
+    "login_background": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/c89ece03-01c5-4a75-b33a-08299e675ee7/images/a62178a5ab19bff6e21b2bde8467d10900640014d49f7a1e3478ec88b7535716.png",
+      "description": "Macro photography of a sleek, dark metallic grid for login page."
     },
-    "team_collaboration": {
-      "url": "https://images.pexels.com/photos/8117466/pexels-photo-8117466.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-      "description": "Diverse team brainstorming in contemporary office."
-    },
-    "abstract_secure_bg": {
-      "url": "https://images.unsplash.com/photo-1650210658952-6d541fada6a2?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzB8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRhdGElMjBzZWN1cmV8ZW58MHx8fHwxNzc4MzIzNzcxfDA&ixlib=rb-4.1.0&q=85",
-      "description": "Abstract security/data locks representation for background textures."
-    },
-    "usage_rules": "Use images inside geometric containers (rectangles or squares). No excessive rounded corners. Always ensure accessible contrast if text overlays images."
-  },
-  "testing": {
-    "attributes": "All interactive and key informational elements MUST include a `data-testid` attribute (e.g., data-testid='login-form-submit-button'). Convention: kebab-case, role-based."
+    "user_avatars": [
+      {
+        "url": "https://images.unsplash.com/photo-1576558656222-ba66febe3dec?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2MzR8MHwxfHNlYXJjaHwzfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMHBvcnRyYWl0fGVufDB8fHx8MTc3ODI5MDg3MXww&ixlib=rb-4.1.0&q=85",
+        "description": "man wearing grey jacket"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1655249493799-9cee4fe983bb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2MzR8MHwxfHNlYXJjaHw0fHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMHBvcnRyYWl0fGVufDB8fHx8MTc3ODI5MDg3MXww&ixlib=rb-4.1.0&q=85",
+        "description": "a person with a grey sweater"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1762522926157-bcc04bf0b10a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2MzR8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMHBvcnRyYWl0fGVufDB8fHx8MTc3ODI5MDg3MXww&ixlib=rb-4.1.0&q=85",
+        "description": "Man in white shirt smiling"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1769636929388-99eff95d3bf1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2MzR8MHwxfHNlYXJjaHwyfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMHBvcnRyYWl0fGVufDB8fHx8MTc3ODI5MDg3MXww&ixlib=rb-4.1.0&q=85",
+        "description": "Young woman with short black hair"
+      }
+    ],
+    "shared_media_examples": [
+      {
+        "url": "https://images.unsplash.com/photo-1674159057061-394f68e750a5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwxfHxjeWJlcnB1bmslMjBjaXR5JTIwbmlnaHR8ZW58MHx8fHwxNzc4MjA3OTE1fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Cyberpunk city night traffic"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1607555509198-84b77411468d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwyfHxjeWJlcnB1bmslMjBjaXR5JTIwbmlnaHR8ZW58MHx8fHwxNzc4MjA3OTE1fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Cyberpunk skyline night time"
+      }
+    ]
   },
   "instructions_to_main_agent": [
-    "Load and apply Cabinet Grotesk (headings) and IBM Plex Sans (body). Do not use Inter or generic sans.",
-    "Install @phosphor-icons/react for icon usage.",
-    "Enforce the exact International Klein Blue (#002FA7) provided for primary actions.",
-    "For the Landing page, utilize raw HTML/Tailwind for bento-box asymmetrical grids. Do not default to boilerplate Shadcn Cards for the marketing layout.",
-    "For Dashboard/Chat/Admin workspaces, integrate Shadcn/ui deeply but override the border-radius (rounded-sm or none) to align with the sharp Swiss aesthetic.",
-    "Apply explicit focus and hover states with sufficient contrast on all interactable elements.",
-    "Implement pure F-pattern for the chat dashboard: Collapsible left sidebar, North Star metric top left, and embedded action-oriented messaging widgets.",
-    "Inject 'data-testid' to every interactive element (buttons, forms, navigation) to pass testability mandates.",
-    "Execute full production build, deployment, and live link generation as explicitly requested by the user's instructions."
+    "Strictly follow the Dark-First pure black (#000000) background. Do not revert to generic white screens.",
+    "Implement the 'Control Room Grid'. The app must feel like a dense, highly efficient dashboard.",
+    "Do not use Shadcn card rounded styles (no rounded-xl). Override to rounded-sm or rounded-none to maintain the brutalist feel.",
+    "Use Phosphor icons. Size them consistently.",
+    "Inject the media URLs exactly as provided. Never use placeholder services.",
+    "Ensure the UI layout extends 100% height (h-screen) with overflow managed inside the columns.",
+    "Use JetBrains Mono for all timestamps and unread counters.",
+    "Implement data-testid on everything.",
+    "File extensions are .js (e.g. JSX components are in .js files), avoid TypeScript specific setups."
   ]
 }
