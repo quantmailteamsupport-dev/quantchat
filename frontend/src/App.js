@@ -19,7 +19,6 @@ function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('qc_token') || null);
   
-  // Theme state
   const [darkMode, setDarkMode] = useState(localStorage.getItem('qc_theme') === 'dark');
 
   useEffect(() => {
@@ -89,7 +88,7 @@ function ProtectedRoute({ children }) {
   if (loading) {
     return (
       <div className="h-screen bg-qc-bg flex items-center justify-center">
-        <div className="text-qc-text-primary font-mono text-sm border-2 border-qc-border p-4 shadow-brutal font-bold tracking-widest uppercase">INITIALIZING...</div>
+        <div className="text-qc-accent-primary font-medium">Connecting...</div>
       </div>
     );
   }

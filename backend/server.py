@@ -80,6 +80,7 @@ def serialize_message(msg: dict) -> dict:
         "reactions": msg.get("reactions", {}),
         "forwarded": msg.get("forwarded", False),
         "is_edited": msg.get("is_edited", False),
+        "reply_to": msg.get("reply_to"),
         "created_at": msg.get("created_at", "").isoformat() if isinstance(msg.get("created_at"), datetime) else str(msg.get("created_at", "")),
     }
 
@@ -137,6 +138,7 @@ class LoginBody(BaseModel):
 class MessageBody(BaseModel):
     content: str
     type: str = "text"
+    reply_to: Optional[str] = None
 
 class CreateConversationBody(BaseModel):
     participant_id: str
@@ -440,6 +442,7 @@ async def send_message(conv_id: str, body: MessageBody, request: Request):
         "content": body.content,
         "type": body.type,
         "status": "sent",
+        "reply_to": body.reply_to,
         "created_at": datetime.now(timezone.utc),
     }
     result = await db.messages.insert_one(msg)

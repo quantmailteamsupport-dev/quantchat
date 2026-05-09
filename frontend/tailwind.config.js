@@ -1,28 +1,27 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ["./src/**/*.{js,jsx,ts,tsx}"],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
         qc: {
           bg: 'var(--bg)',
           surface: 'var(--surface)',
+          'surface-hover': 'var(--surface-hover)',
           'text-primary': 'var(--text-primary)',
           'text-secondary': 'var(--text-secondary)',
           border: 'var(--border)',
           'accent-primary': 'var(--accent-primary)',
           'accent-secondary': 'var(--accent-secondary)',
-          'accent-tertiary': 'var(--accent-tertiary)',
+          'chat-bg': 'var(--chat-bg)',
+          'bubble-mine': 'var(--bubble-mine)',
+          'bubble-other': 'var(--bubble-other)',
         },
       },
       fontFamily: {
-        heading: ['Cabinet Grotesk', 'sans-serif'],
-        mono: ['IBM Plex Mono', 'monospace'],
+        sans: ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
       },
-      boxShadow: {
-        'brutal': '4px 4px 0px 0px var(--border)',
-        'brutal-lg': '6px 6px 0px 0px var(--border)',
-      }
     },
   },
   plugins: [],

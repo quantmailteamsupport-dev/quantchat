@@ -1,30 +1,33 @@
-@import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@900,800,700,500,400&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --bg: #FDFBF7;
+  --bg: #F0F2F5;
   --surface: #FFFFFF;
-  --text-primary: #0A0A0A;
-  --text-secondary: #4A4A4A;
-  --border: #0A0A0A;
-  --accent-primary: #A7C7E7;
-  --accent-secondary: #B2D8D8;
-  --accent-tertiary: #FFB6C1;
+  --surface-hover: #F5F6F6;
+  --text-primary: #111B21;
+  --text-secondary: #667781;
+  --border: #E9EDEF;
+  --accent-primary: #00A884; /* WhatsApp Green */
+  --accent-secondary: #008069;
+  --chat-bg: #EFEAE2;
+  --bubble-mine: #D9FDD3;
+  --bubble-other: #FFFFFF;
 }
 
 .dark {
-  --bg: #050505;
-  --surface: #121212;
-  --text-primary: #FDFBF7;
-  --text-secondary: #A0A0A0;
-  --border: #FDFBF7;
-  --accent-primary: #5A7D9C;
-  --accent-secondary: #2A4D4D;
-  --accent-tertiary: #9C5A6C;
+  --bg: #111B21;
+  --surface: #202C33;
+  --surface-hover: #2A3942;
+  --text-primary: #E9EDEF;
+  --text-secondary: #8696A0;
+  --border: #222D34;
+  --accent-primary: #00A884;
+  --accent-secondary: #005C4B;
+  --chat-bg: #0B141A;
+  --bubble-mine: #005C4B;
+  --bubble-other: #202C33;
 }
 
 * {
@@ -37,55 +40,41 @@ html, body, #root {
   height: 100%;
   background: var(--bg);
   color: var(--text-primary);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--surface);
-  border-left: 2px solid var(--border);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: rgba(134, 150, 160, 0.2);
+}
+
+.chat-bg-pattern {
+  background-color: var(--chat-bg);
+  background-image: url("https://static.whatsapp.net/rsrc.php/v3/yl/r/gi_DckOUM5a.png");
+  background-repeat: repeat;
+  background-size: 400px;
+  opacity: 0.4;
+}
+.dark .chat-bg-pattern {
+  opacity: 0.06;
 }
 
 input, textarea, button {
   outline: none;
 }
 
-.font-heading {
-  font-family: 'Cabinet Grotesk', sans-serif;
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.font-mono {
-  font-family: 'IBM Plex Mono', monospace;
-}
-
-/* Brutalist Button Base */
-.btn-brutal {
-  border: 2px solid var(--border);
-  box-shadow: 4px 4px 0px 0px var(--border);
-  transition: all 0.1s ease-out;
-}
-.btn-brutal:hover {
-  transform: translate(-2px, -2px);
-  box-shadow: 6px 6px 0px 0px var(--border);
-}
-.btn-brutal:active {
-  transform: translate(4px, 4px);
-  box-shadow: 0px 0px 0px 0px var(--border);
-}
-
-@keyframes slideIn {
-  from { opacity: 0; transform: translateX(-8px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-.animate-slideIn {
-  animation: slideIn 0.15s ease-out;
+.animate-fadeIn {
+  animation: fadeIn 0.15s ease-out;
 }

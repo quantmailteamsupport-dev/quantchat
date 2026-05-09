@@ -2,56 +2,29 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../App';
 import axios from 'axios';
 import { io } from 'socket.io-client';
-import Sidebar from './Sidebar';
-import ChatList from './ChatList';
-import ChatView from './ChatView';
-import UserSearch from './UserSearch';
-import Settings from './Settings';
-import EmptyState from './EmptyState';
-import Contacts from './Contacts';
-import Groups from './Groups';
-import Stories from './Stories';
-import { MessageSquare, Search, Settings as SettingsIcon, Users, Radio, Contact, LogOut, Moon, Sun } from 'lucide-react';
+import LeftPanel from './LeftPanel';
+import ChatArea from './ChatView';
 
 const API = process.env.REACT_APP_BACKEND_URL;
-
-function BottomNav({ view, setView, user, logout, darkMode, toggleTheme }) {
-  const tabs = [
-    { id: 'chats', icon: MessageSquare, label: 'CHATS' },
-    { id: 'contacts', icon: Contact, label: 'CONTACTS' },
-    { id: 'groups', icon: Users, label: 'GROUPS' },
-    { id: 'stories', icon: Radio, label: 'STORIES' },
-    { id: 'search', icon: Search, label: 'SEARCH' },
-  ];
-
-  return (
-    <div data-testid="bottom-nav" className="flex items-center justify-around bg-qc-surface border-t-2 border-qc-border px-1 py-2 flex-shrink-0 relative z-20">
-      {tabs.map(({ id, icon: Icon, label }) => (
-        <button key={id} data-testid={`bnav-${id}`} onClick={() => setView(id)}
-          className={`flex flex-col items-center justify-center py-2 px-3 border-2 border-qc-border ${view === id ? 'bg-qc-accent-secondary shadow-[2px_2px_0px_#0A0A0A]' : 'bg-qc-bg hover:bg-qc-accent-tertiary'}`}>
-          <Icon size={18} className="text-qc-text-primary" />
-        </button>
-      ))}
-      <button onClick={toggleTheme} className="flex flex-col items-center justify-center py-2 px-3 border-2 border-qc-border bg-qc-bg hover:bg-qc-accent-primary">
-        {darkMode ? <Sun size={18} className="text-qc-text-primary" /> : <Moon size={18} className="text-qc-text-primary" />}
-      </button>
-      <button data-testid="bnav-logout" onClick={logout} className="flex flex-col items-center justify-center py-2 px-3 border-2 border-qc-border bg-[#FF3333] hover:shadow-[2px_2px_0px_#0A0A0A]">
-        <LogOut size={18} className="text-white" />
-      </button>
-    </div>
-  );
-}
 
 export default function ChatApp() {
   const { user, token, logout, darkMode, toggleTheme } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [activeConv, setActiveConv] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [view, setView] = useState('chats');
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const [typingUsers, setTypingUsers] = useState({});
   const socketRef = useRef(null);
-  const [mobileScreen, setMobileScreen] = useState('list');
+  
+  // Mobile layout state
+  const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
+  const [showChat, setShowChat] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobileView(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     if (!token) return;
@@ -87,6 +60,13 @@ export default function ChatApp() {
         setConversations(prev => prev.map(c => c.id === data.conversation_id && c.last_message === data.content ? c : c));
       }
     });
+    socket.on('message_deleted', (data) => {
+       setMessages(prev => prev.filter(m => m.id !== data.message_id));
+       if (onReloadMessages) onReloadMessages(data.conversation_id);
+    });
+    socket.on('message_reaction', (data) => {
+       setMessages(prev => prev.map(m => m.id === data.message_id ? { ...m, reactions: data.reactions } : m));
+    });
     socket.on('user_online', (data) => setOnlineUsers(prev => new Set([...prev, data.user_id])));
     socket.on('user_offline', (data) => setOnlineUsers(prev => { const n = new Set(prev); n.delete(data.user_id); return n; }));
     socket.on('user_typing', (data) => {
@@ -119,11 +99,11 @@ export default function ChatApp() {
 
   useEffect(() => { if (activeConv) loadMessages(activeConv.id); }, [activeConv, loadMessages]);
 
-  const sendMessage = async (content, type = 'text') => {
+  const sendMessage = async (content, type = 'text', replyTo = null) => {
     if (!activeConv || (!content.trim() && type === 'text')) return;
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      await axios.post(`${API}/api/conversations/${activeConv.id}/messages`, { content, type }, { headers });
+      await axios.post(`${API}/api/conversations/${activeConv.id}/messages`, { content, type, reply_to: replyTo }, { headers });
     } catch {}
   };
 
@@ -140,8 +120,7 @@ export default function ChatApp() {
       const { data } = await axios.post(`${API}/api/conversations`, { participant_id: otherUserId }, { headers });
       await loadConversations();
       setActiveConv(data.conversation);
-      setView('chats');
-      setMobileScreen('chat');
+      setShowChat(true);
     } catch {}
   };
 
@@ -151,87 +130,70 @@ export default function ChatApp() {
 
   const selectConversation = (conv) => {
     setActiveConv(conv);
-    setMobileScreen('chat');
+    setShowChat(true);
   };
 
   const handleMobileBack = () => {
-    setMobileScreen('list');
+    setShowChat(false);
     setActiveConv(null);
-  };
-
-  const handleViewChange = (v) => {
-    setView(v);
-    setMobileScreen('list');
-    setActiveConv(null);
-  };
-
-  const renderLeftContent = () => {
-    switch (view) {
-      case 'chats': return <ChatList conversations={conversations} activeConv={activeConv} onSelect={selectConversation} onlineUsers={onlineUsers} typingUsers={typingUsers} userId={user?.id} />;
-      case 'search': return <UserSearch onStartChat={startConversation} currentUserId={user?.id} />;
-      case 'contacts': return <Contacts onStartChat={startConversation} />;
-      case 'groups': return <Groups onSelectConv={(conv) => { setActiveConv(conv); setView('chats'); setMobileScreen('chat'); }} userId={user?.id} />;
-      case 'stories': return <Stories userId={user?.id} />;
-      case 'settings': return <Settings user={user} />;
-      default: return <ChatList conversations={conversations} activeConv={activeConv} onSelect={selectConversation} onlineUsers={onlineUsers} typingUsers={typingUsers} userId={user?.id} />;
-    }
   };
 
   return (
-    <div data-testid="chat-app" className="h-screen bg-qc-bg flex flex-col md:flex-row overflow-hidden font-mono selection:bg-qc-accent-primary selection:text-black">
-
-      {/* MOBILE */}
-      <div className="flex flex-col h-full w-full md:hidden">
-        {mobileScreen === 'list' ? (
-          <>
-            <div className="flex-1 flex flex-col overflow-hidden">
-              {renderLeftContent()}
-            </div>
-            <BottomNav view={view} setView={handleViewChange} user={user} logout={logout} darkMode={darkMode} toggleTheme={toggleTheme} />
-          </>
-        ) : (
-          activeConv ? (
-            <ChatView
-              conversation={activeConv} messages={messages} onSend={sendMessage} onEdit={editMessage} userId={user?.id}
-              onlineUsers={onlineUsers} typingUsers={typingUsers} emitTyping={emitTyping}
-              onBack={handleMobileBack} conversations={conversations} token={token} onReloadMessages={loadMessages}
-              isMobile={true}
-            />
-          ) : (
-            <>
-              <div className="flex-1 flex flex-col overflow-hidden">{renderLeftContent()}</div>
-              <BottomNav view={view} setView={handleViewChange} user={user} logout={logout} darkMode={darkMode} toggleTheme={toggleTheme} />
-            </>
-          )
-        )}
-      </div>
-
-      {/* DESKTOP */}
-      <div className="hidden md:flex md:flex-row h-full w-full">
-        <Sidebar view={view} setView={handleViewChange} user={user} logout={logout} darkMode={darkMode} toggleTheme={toggleTheme} />
-        <div className="w-[340px] border-r-2 border-qc-border flex-shrink-0 flex flex-col bg-qc-surface z-10">
-          {renderLeftContent()}
+    <div data-testid="chat-app" className="h-screen w-screen bg-[#D1D7DB] dark:bg-[#0A1014] flex items-center justify-center overflow-hidden xl:py-4 xl:px-4">
+      <div className="flex h-full w-full xl:max-w-[1600px] xl:h-[95vh] bg-qc-surface xl:shadow-lg xl:rounded-xl overflow-hidden relative">
+        
+        {/* Left Panel */}
+        <div className={`w-full md:w-[400px] flex-shrink-0 border-r border-qc-border bg-qc-surface flex flex-col ${isMobileView && showChat ? 'hidden' : 'flex'}`}>
+          <LeftPanel 
+            user={user} 
+            logout={logout} 
+            darkMode={darkMode} 
+            toggleTheme={toggleTheme}
+            conversations={conversations}
+            activeConv={activeConv}
+            onSelectConv={selectConversation}
+            onStartChat={startConversation}
+            onlineUsers={onlineUsers}
+            typingUsers={typingUsers}
+            onReloadConversations={loadConversations}
+            token={token}
+          />
         </div>
-        <div className="flex-1 flex flex-col bg-qc-bg relative">
-          {/* Background grid texture */}
-          <div className="absolute inset-0 grid grid-cols-[repeat(20,minmax(0,1fr))] grid-rows-[repeat(20,minmax(0,1fr))] opacity-[0.03] pointer-events-none z-0">
-            {Array.from({length: 400}).map((_, i) => (
-              <div key={i} className="border-r border-b border-black"></div>
-            ))}
-          </div>
 
-          <div className="relative z-10 flex-1 flex flex-col h-full">
-            {activeConv ? (
-              <ChatView
-                conversation={activeConv} messages={messages} onSend={sendMessage} onEdit={editMessage} userId={user?.id}
-                onlineUsers={onlineUsers} typingUsers={typingUsers} emitTyping={emitTyping}
-                onBack={() => setActiveConv(null)} conversations={conversations} token={token} onReloadMessages={loadMessages}
-                isMobile={false}
-              />
-            ) : (
-              <EmptyState />
-            )}
-          </div>
+        {/* Right Panel / Chat Area */}
+        <div className={`flex-1 flex flex-col bg-qc-bg ${isMobileView && !showChat ? 'hidden' : 'flex'}`}>
+          {activeConv ? (
+             <ChatArea 
+               conversation={activeConv}
+               messages={messages}
+               onSend={sendMessage}
+               onEdit={editMessage}
+               userId={user?.id}
+               onlineUsers={onlineUsers}
+               typingUsers={typingUsers}
+               emitTyping={emitTyping}
+               onBack={handleMobileBack}
+               conversations={conversations}
+               token={token}
+               onReloadMessages={loadMessages}
+               onReloadConversations={loadConversations}
+               isMobile={isMobileView}
+             />
+          ) : (
+            <div className="hidden md:flex flex-col items-center justify-center h-full text-center bg-qc-bg chat-bg-pattern border-l border-qc-border">
+              <div className="bg-qc-surface rounded-full p-6 shadow-sm mb-6">
+                <span className="text-4xl text-qc-accent-primary font-bold">Q</span>
+              </div>
+              <h2 className="text-3xl font-light text-qc-text-primary mb-4">QuantChat for Web</h2>
+              <p className="text-qc-text-secondary text-sm max-w-md">
+                Send and receive messages without keeping your phone online.<br/>
+                Use QuantChat on up to 4 linked devices and 1 phone at the same time.
+              </p>
+              <div className="mt-10 flex items-center justify-center gap-2 text-qc-text-secondary text-xs">
+                <span>🔒 End-to-end encrypted</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
