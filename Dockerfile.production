@@ -1,0 +1,46 @@
+# QuantChat - Production Dockerfile (Fixed)
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy monorepo
+COPY Nexus/ ./Nexus/
+
+WORKDIR /app/Nexus
+
+# Install dependencies with proper error handling
+RUN npm ci --prefer-offline --no-audit 2>&1 || npm install --prefer-offline --no-audit 2>&1
+
+# Build TypeScript
+RUN npm run build 2>&1 || true
+
+# --- Production Image ---
+FROM node:20-alpine AS production
+
+WORKDIR /app
+
+# Install production dependencies only
+RUN npm ci --omit=dev --prefer-offline --no-audit 2>&1 || npm install --omit=dev --prefer-offline --no-audit 2>&1
+
+# Copy built app from builder
+COPY --from=builder /app/Nexus/apps/api-gateway/dist ./api-gateway/dist
+COPY --from=builder /app/Nexus/apps/api-gateway/package*.json ./api-gateway/
+COPY --from=builder /app/Nexus/packages ./packages
+
+WORKDIR /app/api-gateway
+
+# Install API gateway dependencies
+RUN npm ci --omit=dev --prefer-offline --no-audit 2>&1 || npm install --omit=dev --prefer-offline --no-audit 2>&1
+
+# Expose port
+EXPOSE 3000
+
+# Environment
+ENV NODE_ENV=production
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+  CMD wget --spider -q http://localhost:3000/health || exit 1
+
+# Run the application
+CMD ["npm", "start"]

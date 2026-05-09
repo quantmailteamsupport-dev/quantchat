@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@theme {
+  --color-neon-blue: #00f3ff;
+  --color-neon-purple: #8a2be2;
+  --color-neon-pink: #ff007f;
+  --color-neon-green: #00ff9f;
+  --color-neon-amber: #ffb800;
+  --color-background-dark: #050508;
+  --color-panel-bg: rgba(25, 25, 35, 0.4);
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background-dark);
+    color: #ffffff;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+}
+
+.glass-panel {
+  background: rgba(25, 25, 35, 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+.neon-text {
+  text-shadow: 0 0 10px rgba(0, 243, 255, 0.4);
+}
+
+.neon-text-green {
+  text-shadow: 0 0 10px rgba(0, 255, 159, 0.4);
+}
+
+.neon-text-purple {
+  text-shadow: 0 0 10px rgba(138, 43, 226, 0.4);
+}
+
+.chart-container {
+  width: 100%;
+  position: relative;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.4s ease-out both;
+}
+
+.node-online {
+  box-shadow: 0 0 8px rgba(0, 255, 159, 0.6);
+}
+
+.node-degraded {
+  box-shadow: 0 0 8px rgba(255, 184, 0, 0.6);
+}
+
+.node-offline {
+  box-shadow: 0 0 8px rgba(255, 0, 127, 0.4);
+}

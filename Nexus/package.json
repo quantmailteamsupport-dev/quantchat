@@ -1,0 +1,34 @@
+{
+  "name": "Nexus",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "check-types": "turbo run check-types",
+    "e2e:webrtc:load": "cypress run --spec cypress/e2e/webrtc-load.cy.ts",
+    "e2e:webrtc:load:open": "cypress open --e2e --config specPattern=cypress/e2e/webrtc-load.cy.ts"
+  },
+  "devDependencies": {
+    "prettier": "^3.7.4",
+    "turbo": "^2.8.19",
+    "typescript": "5.9.2",
+    "cypress": "^13.17.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "npm@10.9.3",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "dependencies": {
+    "lightningcss": "^1.32.0"
+  },
+  "optionalDependencies": {
+    "@next/swc-linux-x64-gnu": "^16.2.0",
+    "@tailwindcss/oxide-linux-x64-gnu": "^4.2.2"
+  }
+}

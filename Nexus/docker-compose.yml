@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # Database layer
+  db:
+    image: postgres:15-alpine
+    container_name: quantchat-db
+    restart: always
+    environment:
+      POSTGRES_USER: quantchat_user
+      POSTGRES_PASSWORD: quantchat_password
+      POSTGRES_DB: quantchat
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - quantchat-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quantchat_user -d quantchat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for TwinService queuing and API Rate Limiting
+  redis:
+    image: redis:7-alpine
+    container_name: quantchat-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    networks:
+      - quantchat-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend: API Gateway (WebSockets & Auth)
+  api-gateway:
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile
+    container_name: quantchat-api-gateway
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - DATABASE_URL=postgresql://quantchat_user:quantchat_password@db:5432/quantchat?schema=public
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=super_secure_quantchat_jwt_secret_token_123
+    ports:
+      - "4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - quantchat-network
+
+  # Frontend: Next.js + React Three Fiber + Tailwind
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: quantchat-web
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - NEXT_PUBLIC_API_URL=http://localhost:4000
+      - NEXT_PUBLIC_WS_URL=ws://localhost:4000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-gateway
+    networks:
+      - quantchat-network
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  quantchat-network:
+    driver: bridge

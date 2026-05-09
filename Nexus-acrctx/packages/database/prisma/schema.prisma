@@ -1,0 +1,775 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  name             String?
+  avatarUrl        String?
+  image            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Monetization: tracks AI summary uses (20 free, then paywall)
+  aiCount          Int      @default(0)
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+
+  publicKeyBundle  PublicKeyBundle?
+
+  // Conversations this user participates in
+  conversations    ConversationParticipant[]
+
+  // Digital Twin for AI ghost mode
+  digitalTwin      DigitalTwin?
+
+  // Media they have uploaded
+  mediaAttachments MediaAttachment[]
+
+  // Act V: Neural Hives
+  hives            HiveMember[]
+  hiveMessages     HiveMessage[]
+
+  // Workspace / Channel messaging
+  workspaces       WorkspaceMember[]
+  channelMessages  ChannelMessage[]
+  threads          Thread[]
+  threadReplies    ThreadReply[]
+
+  // Attention Token economy (opt-in, transparent)
+  tokenBalance        Int      @default(0)
+  tokensEarnedLifetime Int     @default(0)
+  tokensSpentLifetime  Int     @default(0)
+
+  // Gift / notification preferences (user-controlled, default privacy-first)
+  giftPrefs          GiftPreferences?
+  tokenLedgerEntries AttentionTokenLedger[]
+  giftsSent          GiftTransaction[]     @relation("GiftsSent")
+  giftsReceived      GiftTransaction[]     @relation("GiftsReceived")
+  callMinutesLogged  CallMinuteLog[]
+}
+
+model PublicKeyBundle {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+  
+  // Public keys for Double Ratchet (Signal) E2EE
+  identityKey    String
+  signedPreKey   String
+  signature      String
+  oneTimePreKeys String[]
+}
+
+enum MessageStatus {
+  QUEUED
+  DELIVERED
+  READ
+  PURGED
+}
+
+// Micro-message types for rich interaction beyond plain text.
+enum MicroMessageType {
+  TEXT          // Standard encrypted text message
+  VOICE_BURST   // Short voice clip (<30s) with waveform
+  POLL_CARD     // Interactive poll with up to 6 options
+  DECISION_CARD // Binary decision (yes/no, accept/decline)
+  PRESENCE_PING // Lightweight "I'm here" signal
+  THREAD_CAPSULE // Summarized thread handoff
+  AI_CATCHUP    // AI-generated conversation summary
+}
+
+model Message {
+  id          String        @id @default(uuid())
+
+  // The server only EVER sees the encrypted ciphertext payload
+  content     String
+  iv          String?       // AES-GCM initialization vector (base64)
+
+  // Micro-message type — determines how the client renders the payload.
+  messageType MicroMessageType @default(TEXT)
+
+  senderId    String
+  sender      User          @relation("SentMessages", fields: [senderId], references: [id])
+
+  receiverId  String
+  receiver    User          @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  // Optional link to a Conversation record (used for group/history context)
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  // Optional media attachment
+  mediaAttachmentId String?
+
+  status      MessageStatus @default(QUEUED)
+  deliveredAt DateTime?
+  readAt      DateTime?
+
+  // Disappearing-message TTL. When set, the PurgeWorker deletes this row
+  // after expiresAt. Server only ever sees ciphertext, so deletion removes
+  // the encrypted envelope and stops further delivery / offline flush.
+  expiresAt   DateTime?
+
+  createdAt   DateTime      @default(now())
+
+  // Rich micro-message attachments
+  voiceBurst     VoiceBurst?
+  pollCard       PollCard?
+  threadCapsule  ThreadCapsule?
+  aiCatchup      AiCatchup?
+  reactions      MessageReaction[]
+
+  // Fast offline queue lookup: "give me all QUEUED messages for user X"
+  // with stable cursor pagination on createdAt/id.
+  @@index([receiverId, status, createdAt, id])
+  // Fast receipt transitions for receiver-scoped delivery/read acks.
+  @@index([receiverId, status, id])
+  // Fast queue lookup with TTL filtering for disappearing messages.
+  @@index([receiverId, status, expiresAt, createdAt, id])
+  @@index([conversationId, createdAt])
+  // Fast purge-sweep lookup ordered by expiry/id.
+  @@index([expiresAt, status, id])
+}
+
+// ════════════════════════════════════════════════════════════
+// VOICE BURST – Short voice clips with visual waveform data.
+// Client records <30s audio, uploads encrypted to S3, stores
+// the waveform peaks for instant visual rendering.
+// ════════════════════════════════════════════════════════════
+
+model VoiceBurst {
+  id            String   @id @default(uuid())
+  messageId     String   @unique
+  message       Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  // Duration in milliseconds (max 30000)
+  durationMs    Int
+  // S3 key for the encrypted audio blob
+  audioS3Key    String
+  // CDN URL for playback
+  audioCdnUrl   String
+  // Pre-computed waveform peaks (JSON array of 0-1 floats)
+  waveformPeaks Json
+  // Transcription text (optional, on-device STT result)
+  transcription String?
+
+  createdAt     DateTime @default(now())
+}
+
+// ════════════════════════════════════════════════════════════
+// POLL CARD – Interactive polls with up to 6 options.
+// Votes are recorded per-participant and results update live
+// via WebSocket fanout.
+// ════════════════════════════════════════════════════════════
+
+model PollCard {
+  id            String    @id @default(uuid())
+  messageId     String    @unique
+  message       Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  question      String
+  // Whether users can select multiple options
+  multiSelect   Boolean   @default(false)
+  // Whether results are visible before voting
+  showResults   Boolean   @default(true)
+  // Whether the poll is still accepting votes
+  isOpen        Boolean   @default(true)
+  // Auto-close after this time (optional)
+  closesAt      DateTime?
+
+  options       PollOption[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model PollOption {
+  id         String   @id @default(uuid())
+  pollCardId String
+  pollCard   PollCard @relation(fields: [pollCardId], references: [id], onDelete: Cascade)
+  label      String
+  index      Int      // display order (0-based)
+
+  votes      PollVote[]
+
+  @@index([pollCardId])
+}
+
+model PollVote {
+  id           String     @id @default(uuid())
+  optionId     String
+  option       PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  voterId      String     // userId of the voter
+  createdAt    DateTime   @default(now())
+
+  @@unique([optionId, voterId])
+  @@index([voterId])
+}
+
+// ════════════════════════════════════════════════════════════
+// THREAD CAPSULE – Summarized thread handoff for context switching.
+// When a user has been away from a long thread, this capsule gives
+// them a one-click summary of what happened, who said what, and
+// what decisions were made.
+// ════════════════════════════════════════════════════════════
+
+model ThreadCapsule {
+  id              String   @id @default(uuid())
+  messageId       String   @unique
+  message         Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  /// The conversation this capsule summarizes
+  conversationId  String
+  /// Number of messages summarized in this capsule
+  messageCount    Int
+  /// The range of messages covered (first message ID)
+  fromMessageId   String
+  /// The range of messages covered (last message ID)
+  toMessageId     String
+  /// AI-generated summary text
+  summary         String
+  /// Key decisions or action items extracted (JSON array)
+  actionItems     Json     @default("[]")
+  /// Participants mentioned in the summary
+  participants    Json     @default("[]")
+  /// Whether the user has read/acknowledged this capsule
+  acknowledged    Boolean  @default(false)
+
+  createdAt       DateTime @default(now())
+
+  @@index([conversationId])
+}
+
+// ════════════════════════════════════════════════════════════
+// AI CATCH-UP – AI-generated conversation digest.
+// When a user returns after being offline, this model provides
+// a structured summary of all missed conversations with
+// sentiment tracking and key topic extraction.
+// ════════════════════════════════════════════════════════════
+
+model AiCatchup {
+  id              String   @id @default(uuid())
+  messageId       String   @unique
+  message         Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  /// The user this catch-up is generated for
+  targetUserId    String
+  /// Number of conversations summarized
+  conversationCount Int
+  /// Number of unread messages summarized
+  unreadCount     Int
+  /// AI-generated digest text
+  digest          String
+  /// Key topics extracted (JSON array of strings)
+  keyTopics       Json     @default("[]")
+  /// Overall sentiment of missed messages (-1.0 to 1.0)
+  sentiment       Float    @default(0)
+  /// Priority-sorted list of conversations to review (JSON array)
+  priorityList    Json     @default("[]")
+  /// Whether the user has read/dismissed this catch-up
+  dismissed       Boolean  @default(false)
+  /// Time period covered (start)
+  periodStart     DateTime
+  /// Time period covered (end)
+  periodEnd       DateTime
+
+  createdAt       DateTime @default(now())
+
+  @@index([targetUserId])
+  @@index([periodStart, periodEnd])
+}
+
+// ════════════════════════════════════════════════════════════
+// CONVERSATIONS
+// Supports 1:1 DMs and group chats with a unified model.
+// ════════════════════════════════════════════════════════════
+
+enum ConversationType {
+  DIRECT
+  GROUP
+}
+
+model Conversation {
+  id           String              @id @default(uuid())
+  type         ConversationType    @default(DIRECT)
+  name         String?             // Display name for groups
+  avatarUrl    String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  // Per-conversation default disappearing-message TTL in seconds.
+  // null = disappearing messages OFF. When set, new messages sent in this
+  // conversation inherit this TTL unless the client overrides per-message.
+  // Allowed values are bounded server-side (see DISAPPEARING_* constants).
+  disappearingSecs Int?
+
+  participants ConversationParticipant[]
+  messages     Message[]
+  mediaAttachments MediaAttachment[]
+
+  @@index([updatedAt])
+}
+
+model ConversationParticipant {
+  id             String       @id @default(uuid())
+  conversationId String
+  userId         String
+  joinedAt       DateTime     @default(now())
+  lastReadAt     DateTime?    // Tracks read position per user
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+// ════════════════════════════════════════════════════════════
+// DIGITAL TWIN
+// Stores the AI "ghost mode" configuration per user.
+// The twin learns the user's tone and can draft auto-replies.
+// ════════════════════════════════════════════════════════════
+
+model DigitalTwin {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Whether ghost mode is currently active
+  ghostModeActive Boolean  @default(false)
+
+  // Compressed personality/tone profile derived from message history
+  // Stored as a JSON string for flexibility
+  toneProfile     String?
+
+  // Optional system prompt override for the AI agent
+  systemPrompt    String?
+
+  // Usage counters
+  autoRepliesCount Int     @default(0)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ════════════════════════════════════════════════════════════
+// MEDIA ATTACHMENTS
+// Tracks all media (images, videos, files) shared in chats.
+// Actual blobs are stored on S3; only metadata lives here.
+// ════════════════════════════════════════════════════════════
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
+  FILE
+  VOICE_MEMO
+}
+
+model MediaAttachment {
+  id             String        @id @default(uuid())
+  uploaderId     String
+  uploader       User          @relation(fields: [uploaderId], references: [id])
+
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  // S3 storage references
+  s3Key          String        @unique
+  cdnUrl         String
+  mimeType       String
+  sizeBytes      Int
+  mediaType      MediaType
+
+  // For video/audio: duration in seconds
+  durationSecs   Float?
+
+  // Optional thumbnail CDN URL (for video/image previews)
+  thumbnailUrl   String?
+
+  createdAt      DateTime      @default(now())
+
+  @@index([uploaderId])
+  @@index([conversationId])
+}
+
+// ════════════════════════════════════════════════════════════
+// ACT V: NEURAL HIVES (UPGRADED GROUPS)
+// ════════════════════════════════════════════════════════════
+
+model Hive {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  
+  members     HiveMember[]
+  messages    HiveMessage[]
+  
+  // The aggregated state matrix of the Hive tracked by the Opus Engine
+  state       HiveState?
+}
+
+model HiveMember {
+  id          String   @id @default(uuid())
+  userId      String
+  hiveId      String
+  role        String   @default("MEMBER") // ADMIN, CREATOR, MEMBER
+  joinedAt    DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id])
+  hive        Hive     @relation(fields: [hiveId], references: [id])
+
+  // Public representation of this user's current Multicast Sender Key state
+  senderKey   HiveSenderKey?
+
+  @@unique([userId, hiveId])
+}
+
+model HiveMessage {
+  id          String   @id @default(uuid())
+  hiveId      String
+  senderId    String
+  
+  // E2EE encrypted by the sender's SenderKey, decrypted by all members having that key
+  content     String   
+  
+  hive        Hive       @relation(fields: [hiveId], references: [id])
+  sender      User       @relation(fields: [senderId], references: [id])
+  createdAt   DateTime   @default(now())
+}
+
+model HiveSenderKey {
+  id             String     @id @default(uuid())
+  hiveMemberId   String     @unique
+  member         HiveMember @relation(fields: [hiveMemberId], references: [id])
+  
+  // Base64 serialized Sender Key Record (Signal Protocol constraint)
+  recordPayload  String     
+}
+
+model HiveState {
+  id             String   @id @default(uuid())
+  hiveId         String   @unique
+  hive           Hive     @relation(fields: [hiveId], references: [id])
+  
+  // Calculated by Opus AI (0.0 to 1.0)
+  synergyLevel   Float    @default(0.5)
+  conflictLevel  Float    @default(0.0)
+  humorIndex     Float    @default(0.2)
+  heatMap        String   @default("NEUTRAL") // NEUTRAL, NEON_BLUE (Collab), RED (Conflict)
+  
+  lastEvolvedAt  DateTime @default(now())
+}
+
+// ════════════════════════════════════════════════════════════
+// WORKSPACE / CHANNEL MODELS (Slack Killer)
+// ════════════════════════════════════════════════════════════
+
+model Workspace {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  iconEmoji   String?  @default("🚀")
+  createdAt   DateTime @default(now())
+
+  members     WorkspaceMember[]
+  channels    Channel[]
+}
+
+model WorkspaceMember {
+  id          String    @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        String    @default("MEMBER") // OWNER, ADMIN, MEMBER
+  joinedAt    DateTime  @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@unique([workspaceId, userId])
+}
+
+model Channel {
+  id          String   @id @default(uuid())
+  workspaceId String
+  name        String
+  description String?
+  isPrivate   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id])
+  messages    ChannelMessage[]
+  threads     Thread[]
+
+  @@unique([workspaceId, name])
+}
+
+model ChannelMessage {
+  id          String   @id @default(uuid())
+  channelId   String
+  senderId    String
+  content     String
+  createdAt   DateTime @default(now())
+
+  channel     Channel  @relation(fields: [channelId], references: [id])
+  sender      User     @relation(fields: [senderId], references: [id])
+  thread      Thread?
+
+  @@index([channelId, createdAt])
+}
+
+model Thread {
+  id              String   @id @default(uuid())
+  channelId       String
+  rootMessageId   String   @unique
+  creatorId       String
+  createdAt       DateTime @default(now())
+
+  channel         Channel        @relation(fields: [channelId], references: [id])
+  rootMessage     ChannelMessage @relation(fields: [rootMessageId], references: [id], onDelete: Cascade)
+  creator         User           @relation(fields: [creatorId], references: [id])
+  replies         ThreadReply[]
+
+  @@index([channelId])
+}
+
+model ThreadReply {
+  id        String   @id @default(uuid())
+  threadId  String
+  senderId  String
+  content   String
+  createdAt DateTime @default(now())
+
+  thread    Thread   @relation(fields: [threadId], references: [id])
+  sender    User     @relation(fields: [senderId], references: [id])
+
+  @@index([threadId, createdAt])
+}
+
+// ════════════════════════════════════════════════════════════
+// ATTENTION TOKEN ECONOMY & GIFTS
+//
+// Design principles (see GIFTS_DESIGN.md):
+//   * Tokens are a transparent in-app balance, NOT real money.
+//   * Earning is opt-in (user must enable call-minute rewards).
+//   * Daily earning is hard-capped to prevent addictive loops.
+//   * No public leaderboards ranking friends by attention.
+//   * Recipients can disable gifts entirely; senders never see
+//     a "gift not returned" signal.
+//   * Ledger is append-only for auditability (consumer-finance hygiene).
+// ════════════════════════════════════════════════════════════
+
+enum AttentionTokenReason {
+  CALL_MINUTE     // Earned from a completed call minute (opt-in)
+  DAILY_BONUS     // One-off daily login bonus (opt-in)
+  GIFT_SENT       // Spent sending a gift
+  GIFT_RECEIVED   // Earned small rebate when a gift is delivered
+  REFUND          // Refund for a failed / moderated gift
+  ADMIN_ADJUST    // Manual admin correction
+}
+
+model AttentionTokenLedger {
+  id          String               @id @default(uuid())
+  userId      String
+  delta       Int                  // positive = credit, negative = debit
+  balanceAfter Int
+  reason      AttentionTokenReason
+  // Optional opaque reference (e.g. giftTransactionId, callId)
+  refId       String?
+  note        String?
+  createdAt   DateTime             @default(now())
+
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([refId])
+}
+
+model CallMinuteLog {
+  id          String   @id @default(uuid())
+  userId      String
+  callId      String   // opaque identifier for the call
+  minuteBucket DateTime // truncated to the minute for dedupe
+  tokensAwarded Int    @default(0)
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, callId, minuteBucket])
+  @@index([userId, createdAt])
+}
+
+model Gift {
+  id           String   @id @default(uuid())
+  slug         String   @unique       // e.g. "rose", "crown", "bolt", "heart"
+  displayName  String
+  description  String?
+  // Token cost to send
+  costTokens   Int
+  // Three.js renderer hint ("rose" | "crown" | "bolt" | "heart" | "custom")
+  rendererKind String
+  // Optional custom GLTF CDN URL (if rendererKind = "custom")
+  modelUrl     String?
+  // Particle color palette, stored as a comma-separated list of hex values
+  palette      String
+  // Soft-delete flag so retired gifts still render in history
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  transactions GiftTransaction[]
+
+  @@index([isActive])
+}
+
+enum GiftTransactionStatus {
+  PENDING
+  DELIVERED
+  REFUNDED
+  BLOCKED      // Recipient has gifts disabled or sender blocked
+}
+
+model GiftTransaction {
+  id           String   @id @default(uuid())
+  giftId       String
+  senderId     String
+  recipientId  String
+  // Snapshot of the cost at send time (catalog may change later)
+  costTokens   Int
+  // Optional short message (capped, moderated) from the sender
+  note         String?
+  status       GiftTransactionStatus @default(PENDING)
+
+  // Optional call/conversation context (gifts can be sent outside calls too)
+  callId         String?
+  conversationId String?
+
+  createdAt    DateTime @default(now())
+  deliveredAt  DateTime?
+
+  gift         Gift     @relation(fields: [giftId], references: [id])
+  sender       User     @relation("GiftsSent", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient    User     @relation("GiftsReceived", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, createdAt])
+  @@index([senderId, createdAt])
+  @@index([status])
+}
+
+model GiftPreferences {
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  // Allow other users to send gifts at all
+  acceptGifts           Boolean  @default(true)
+  // Opt-in to earning tokens from call minutes
+  earnFromCalls         Boolean  @default(false)
+  // Show thank-you suggestions to THIS user when they receive a gift.
+  // Only shown to the recipient — never to the sender. Default off to
+  // avoid nudges unless the user opts in.
+  thankYouSuggestions   Boolean  @default(false)
+  // Show an opt-in, non-alarming call-streak counter in profile.
+  // Never surfaces a "don't break it" warning.
+  showCallStreakCounter Boolean  @default(false)
+  updatedAt             DateTime @updatedAt
+
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ════════════════════════════════════════════════════════════
+// MESSAGE REACTIONS
+// Persistent emoji reactions on messages. One reaction per user
+// per message (toggle model). Stored with cascade delete so
+// purging a message also purges all its reactions.
+// ════════════════════════════════════════════════════════════
+
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  emoji     String   @db.VarChar(32)
+  createdAt DateTime @default(now())
+
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  // One reaction per user per message
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
+}
+
+// ════════════════════════════════════════════════════════════
+// LOCATION SHARING
+// Short-lived location shares. The shareExpiresAt field lets a
+// PurgeWorker sweep old records. Privacy-first: no history beyond
+// the live share window, and sharing is always user-initiated.
+// ════════════════════════════════════════════════════════════
+
+model LocationShare {
+  id              String    @id @default(uuid())
+  senderId        String
+  conversationId  String
+  latitude        Float
+  longitude       Float
+  accuracyMeters  Float?
+  // Live share window (null = one-shot snapshot)
+  shareExpiresAt  DateTime?
+  // Whether the sender is still actively sharing
+  isLive          Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([conversationId, createdAt])
+  @@index([senderId, isLive])
+  // Fast sweep for expired live shares
+  @@index([shareExpiresAt, isLive])
+}
+
+// ════════════════════════════════════════════════════════════
+// CHAT BACKUP / EXPORT
+// Tracks async export jobs requested by users. The actual export
+// file is written to S3; only metadata lives here. Completed jobs
+// expose a time-limited download URL.
+// ════════════════════════════════════════════════════════════
+
+enum ExportFormat {
+  JSON
+  CSV
+  PDF
+}
+
+enum ExportStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
+model ChatExportJob {
+  id              String       @id @default(uuid())
+  requestedById   String
+  conversationId  String?      // null = full account export
+  format          ExportFormat @default(JSON)
+  status          ExportStatus @default(PENDING)
+  // S3 key once the export file is written
+  s3Key           String?
+  // CDN URL valid for 24 hours (set when status=DONE)
+  downloadUrl     String?
+  // Human-readable error when status=FAILED
+  errorMessage    String?
+  // Number of messages exported
+  messageCount    Int?
+  // Job window (start/end timestamps for partial exports)
+  exportFrom      DateTime?
+  exportTo        DateTime?
+  createdAt       DateTime     @default(now())
+  completedAt     DateTime?
+
+  @@index([requestedById, createdAt])
+  @@index([status, createdAt])
+}

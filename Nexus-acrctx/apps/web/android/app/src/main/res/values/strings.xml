@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Quantchat</string>
+    <string name="title_activity_main">Quantchat</string>
+    <string name="package_name">ai.quantchat.nexus</string>
+    <string name="custom_url_scheme">ai.quantchat.nexus</string>
+</resources>
