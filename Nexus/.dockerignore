@@ -7,3 +7,5 @@ node_modules
 .git
 .github
 cypress
+apps/web/android
+apps/web/ios

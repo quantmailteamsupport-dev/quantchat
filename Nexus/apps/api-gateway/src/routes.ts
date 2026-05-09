@@ -1119,7 +1119,7 @@ const ScheduleMessageSchema = z.object({
   contentType: z.enum(["text", "media", "voice-burst", "poll-card"]).optional(),
   scheduledAt: z.number().int().positive(),
   senderTimezone: z.string().max(64).optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 const QuietHoursSchema = z.object({

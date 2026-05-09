@@ -39,23 +39,38 @@ interface FileMetadata {
   messageId?: string;
 }
 
-// Configuration from environment
-const s3Config: S3Config = {
-  region: process.env.AWS_REGION || "us-east-1",
-  bucket: process.env.S3_BUCKET_NAME || "quantchat-attachments",
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
-  cloudFrontDomain: process.env.CLOUDFRONT_DOMAIN,
-};
+let cachedS3Client: S3Client | null = null;
 
-// Initialize S3 client
-const s3Client = new S3Client({
-  region: s3Config.region,
-  credentials: {
-    accessKeyId: s3Config.accessKeyId,
-    secretAccessKey: s3Config.secretAccessKey,
-  },
-});
+function requiredEnv(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
+function getS3Config(): S3Config {
+  return {
+    region: requiredEnv("AWS_REGION"),
+    bucket: requiredEnv("S3_BUCKET"),
+    accessKeyId: requiredEnv("AWS_ACCESS_KEY_ID"),
+    secretAccessKey: requiredEnv("AWS_SECRET_ACCESS_KEY"),
+    cloudFrontDomain: process.env.CDN_BASE_URL?.replace(/^https?:\/\//, "").replace(/\/$/, ""),
+  };
+}
+
+function getS3Client(config: S3Config): S3Client {
+  if (!cachedS3Client) {
+    cachedS3Client = new S3Client({
+      region: config.region,
+      credentials: {
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: config.secretAccessKey,
+      },
+    });
+  }
+  return cachedS3Client;
+}
 
 // Allowed file types for security
 const ALLOWED_MIME_TYPES = [
@@ -83,10 +98,13 @@ const ALLOWED_MIME_TYPES = [
 ];
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
-const PRESIGN_EXPIRY_SECONDS = parseInt(
-  process.env.S3_PRESIGN_EXPIRY_SECONDS || "3600",
-  10,
-);
+function getPresignExpirySeconds(): number {
+  const parsed = Number.parseInt(requiredEnv("S3_PRESIGN_EXPIRY_SECONDS"), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error("S3_PRESIGN_EXPIRY_SECONDS must be a positive integer");
+  }
+  return parsed;
+}
 
 export class S3Service {
   /**
@@ -141,6 +159,10 @@ export class S3Service {
     metadata: FileMetadata,
   ): Promise<PresignedUrlResult> {
     try {
+      const s3Config = getS3Config();
+      const s3Client = getS3Client(s3Config);
+      const presignExpirySeconds = getPresignExpirySeconds();
+
       // Validate inputs
       const validation = this.validateFile(metadata.fileType, metadata.fileSize);
       if (!validation.valid) {
@@ -170,7 +192,7 @@ export class S3Service {
 
       // Generate presigned URL
       const uploadUrl = await getSignedUrl(s3Client, command, {
-        expiresIn: PRESIGN_EXPIRY_SECONDS,
+        expiresIn: presignExpirySeconds,
       });
 
       // Determine download URL (CloudFront or direct S3)
@@ -210,7 +232,7 @@ export class S3Service {
       return {
         uploadUrl,
         downloadUrl,
-        expiresIn: PRESIGN_EXPIRY_SECONDS,
+        expiresIn: presignExpirySeconds,
         fileKey,
       };
     } catch (err) {
@@ -251,6 +273,7 @@ export class S3Service {
    * Gets CloudFront/S3 download URL for a file
    */
   static getDownloadUrl(fileKey: string): string {
+    const s3Config = getS3Config();
     if (s3Config.cloudFrontDomain) {
       return `https://${s3Config.cloudFrontDomain}/${fileKey}`;
     }

@@ -15,6 +15,8 @@
       "@repo/security": ["../../packages/security/src/index.ts"],
       "@repo/security/*": ["../../packages/security/src/*"],
       "@repo/ui/*": ["../../packages/ui/src/*"],
+      "next-auth": ["../../node_modules/next-auth/index.d.ts"],
+      "next-auth/*": ["../../node_modules/next-auth/*"],
       "@infinity-trinity/shared-kernel/*": [
         "../../../../shared-kernel/dist/*"
       ]

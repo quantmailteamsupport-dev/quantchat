@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "build": "node-gyp rebuild",
-    "install": "node-gyp rebuild"
+    "build": "node -e \"console.log('webrtc-native placeholder build: no native sources configured')\"",
+    "install": "node -e \"console.log('webrtc-native placeholder install: no native sources configured')\""
   },
   "dependencies": {
     "node-addon-api": "^8.0.0"

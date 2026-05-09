@@ -17,7 +17,7 @@
     "cypress": "^13.17.0"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "packageManager": "npm@10.9.3",
   "workspaces": [

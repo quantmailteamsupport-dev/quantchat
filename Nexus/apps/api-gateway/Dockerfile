@@ -1,6 +1,6 @@
 # apps/api-gateway/Dockerfile
 # Multi-stage Dockerfile optimized for Turborepo & Node.js Express Server
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 
 # 1. Prune the monorepo to extract only what is needed for api-gateway
 FROM base AS builder
@@ -20,6 +20,7 @@ WORKDIR /app
 COPY .gitignore .gitignore
 COPY --from=builder /app/out/json/ .
 COPY --from=builder /app/out/package-lock.json ./package-lock.json
+ENV CYPRESS_INSTALL_BINARY=0
 RUN npm ci
 
 # Build the project
@@ -48,7 +49,6 @@ COPY --from=installer --chown=expressuser:expressgroup /app/packages/database ./
 USER expressuser
 
 # Bind port
-ENV PORT=4000
 EXPOSE 4000
 
 # Start the Gateway

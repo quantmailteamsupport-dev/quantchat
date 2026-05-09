@@ -4,6 +4,19 @@ import GoogleProvider from "next-auth/providers/google";
 import { resolveQuantmailApiBase } from "./quantmailBridge";
 import { extractJwtSubject } from "./socketIdentity";
 
+function resolveQuantchatApiBase(): string {
+  const configured = (process.env.QUANTCHAT_API_URL ?? process.env.NEXT_PUBLIC_QUANTCHAT_API_URL)?.trim();
+  if (!configured) {
+    throw new Error("QUANTCHAT_API_URL or NEXT_PUBLIC_QUANTCHAT_API_URL is required.");
+  }
+  return configured.replace(/\/$/, "");
+}
+
+function quantchatApiPath(path: string): string {
+  const base = resolveQuantchatApiBase();
+  return `${base}${base.endsWith("/api") ? "" : "/api"}${path}`;
+}
+
 let generatedDevSecret: string | undefined;
 
 function getDevSecret() {
@@ -53,26 +66,43 @@ async function validateQuantmailBridgeToken(
     return null;
   }
 
-  // ── Primary path: shared-kernel JWT verification ─────────────────
-  // This uses the same AuthenticationService singleton that all 9 apps
-  // share, verifying the HMAC-SHA256 signature, checking token expiry,
-  // and confirming the Prisma-backed session is active (not revoked).
+  // ── Primary path: QuantChat gateway token validation ──────────────
   try {
-    const { authService } = await import(
-      "@infinity-trinity/shared-kernel/AuthenticationService"
-    );
-    const payload = await authService.verifyAccessToken(accessToken);
-    if (payload && payload.sub === tokenUserId) {
+    const response = await fetch(quantchatApiPath("/v1/auth/sso/validate"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: accessToken }),
+      cache: "no-store",
+    });
+    if (response.ok) {
+      const payload = (await response.json()) as QuantmailValidationResponse;
+      if (payload.valid && payload.userId === tokenUserId) {
+        return payload;
+      }
+    }
+  } catch {
+    // Fall through to Quantmail legacy validation.
+  }
+
+  // ── Local JWT payload fallback for already-exchanged QuantChat tokens ─
+  try {
+    const payload = JSON.parse(Buffer.from(accessToken.split(".")[1] ?? "", "base64url").toString("utf8")) as {
+      sub?: string;
+      email?: string;
+      username?: string;
+      sessionId?: string;
+    };
+    if (payload.sub === tokenUserId) {
       return {
         valid: true,
-        userId: payload.sub,
+        userId: tokenUserId,
         email: payload.email,
         displayName: payload.username,
         sessionId: payload.sessionId,
       };
     }
   } catch {
-    // Token is not a valid shared-kernel JWT; fall through to legacy path.
+    // Fall through to legacy path.
   }
 
   // ── Fallback path: Quantmail /auth/verify endpoint ───────────────

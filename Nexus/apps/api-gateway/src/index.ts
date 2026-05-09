@@ -17,15 +17,22 @@ import { scheduledMessageQueue } from "./services/ScheduledMessageQueue";
 // Auth: Quantmail Biometric SSO (JWT)
 // ═══════════════════════════════════════════════════════════════
 
-const NODE_ENV = process.env.NODE_ENV || "development";
-const ALLOWED_ORIGINS = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(",")
-  : ["http://localhost:3000", "http://localhost:3001"];
+function requireEnv(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
 
-// Validate CORS configuration in production
-if (NODE_ENV === "production" && !process.env.CORS_ORIGINS) {
-  logger.error("CORS_ORIGINS environment variable must be set in production");
-  throw new Error("Missing required CORS_ORIGINS in production environment");
+const NODE_ENV = requireEnv("NODE_ENV");
+const ALLOWED_ORIGINS = requireEnv("CORS_ORIGINS")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+if (ALLOWED_ORIGINS.length === 0) {
+  throw new Error("CORS_ORIGINS must contain at least one origin");
 }
 
 const app = express();
@@ -78,10 +85,13 @@ async function boot(): Promise<void> {
   logger.info("[Gateway] SessionController and ScheduledMessageQueue active");
 
   // 4. Start listening
-  const PORT = process.env.PORT || 4000;
+  const PORT = Number.parseInt(requireEnv("PORT"), 10);
+  if (!Number.isFinite(PORT) || PORT <= 0) {
+    throw new Error("PORT must be a positive integer");
+  }
   server.listen(PORT, () => {
     logger.info({ port: PORT }, "[Gateway] Listening");
-    logger.info({ mode: process.env.NODE_ENV || "development" }, "[Gateway] Mode");
+    logger.info({ mode: NODE_ENV }, "[Gateway] Mode");
     logger.info({ origins: ALLOWED_ORIGINS }, "[Gateway] CORS origins");
   });
 

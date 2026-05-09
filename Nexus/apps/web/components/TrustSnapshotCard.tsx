@@ -184,7 +184,7 @@ export function TrustSnapshotCard({
   const [usingFallbackData, setUsingFallbackData] = useState(false);
   const [loading, setLoading] = useState(true);
   const [verifiedAt, setVerifiedAt] = useState<string | null>(null);
-  const effectiveUserId = identity.userId || identity.requestedUserId;
+  const effectiveUserId = identity.userId || identity.requestedUserId || "local-preview";
 
   const loadSnapshot = useCallback(async () => {
     setLoading(true);
@@ -300,7 +300,7 @@ export function TrustSnapshotCard({
             padding: "1px 7px",
           }}
         >
-          {identity.tokenUserId ? "Token-authenticated" : "Local identity"}
+          {"tokenUserId" in identity && identity.tokenUserId ? "Token-authenticated" : "Local identity"}
         </span>
         <span
           style={{

@@ -915,7 +915,7 @@ export function registerSocketHandlers(io: Server): void {
       const authToken = token ?? handshakeToken;
       const handshakeAuth = socket.handshake.auth as Record<string, unknown> | undefined;
       let authenticatedUserId: string | null = null;
-      let verifiedTokenPayload: ReturnType<typeof verifyBiometricToken> | null = null;
+      let verifiedTokenPayload: Awaited<ReturnType<typeof verifyBiometricToken>> | null = null;
 
       if (authToken) {
         try {
@@ -968,7 +968,7 @@ export function registerSocketHandlers(io: Server): void {
         normalizeOptionalString(handshakeAuth?.deviceId, 256) ??
         normalizeOptionalString(socket.handshake.headers["x-quantchat-device-id"], 256) ??
         normalizeOptionalString(socket.handshake.headers["x-device-id"], 256);
-      const requestedSessionId = providedSessionId ?? verifiedTokenPayload?.sid ?? null;
+      const requestedSessionId = providedSessionId ?? verifiedTokenPayload?.sessionId ?? null;
 
       if (requestedSessionId) {
         try {
@@ -989,7 +989,7 @@ export function registerSocketHandlers(io: Server): void {
       try {
         const companionSession = await touchCompanionSession({
           userId: authenticatedUserId,
-          tokenId: verifiedTokenPayload?.jti ?? null,
+          tokenId: null,
           providedSessionId: requestedSessionId,
           deviceId,
           userAgent: normalizeOptionalString(socket.handshake.headers["user-agent"], 1024),

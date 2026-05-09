@@ -104,7 +104,7 @@ export default function LinkedDevicesPage() {
   const [errorText, setErrorText] = useState("");
   const [usingFallbackData, setUsingFallbackData] = useState(false);
   const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null);
-  const effectiveUserId = identity.userId || identity.requestedUserId;
+  const effectiveUserId = identity.userId || identity.requestedUserId || "local-preview";
 
   const loadSessions = useCallback(async () => {
     setLoading(true);

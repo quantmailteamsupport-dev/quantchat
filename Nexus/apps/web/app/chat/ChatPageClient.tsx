@@ -99,11 +99,10 @@ export default function ChatPage() {
   const { preferences } = useFrontendPreferences();
   const { userId: activeUserId, isConnected, sendEncryptedMessage, subscribeToMessages, subscribeToReceipts, sendTyping, socket } =
     useSignalSocket(requestedUserId, authToken);
-  const [showHandshake, setShowHandshake] = useState(false);
-  const [isHandshakeVerified, setIsHandshakeVerified] = useState(false);
 
   // â”€â”€â”€ Subscribe to incoming messages globally â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
+    if (!activeUserId) return;
     const unsub = subscribeToMessages(async (msg) => {
       await storeIncomingMessage(activeUserId, {
         id: msg.id,
@@ -125,44 +124,6 @@ export default function ChatPage() {
   }, [activeUserId, subscribeToMessages]);
 
   // â”€â”€â”€ Subscribe to delivery receipts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  useEffect(() => {
-    const unsub = subscribeToReceipts(async (receipt) => {
-      const status = receipt.status === "DELIVERED" ? "delivered" : "read";
-      await updateMessageStatus(
-        receipt.messageId,
-        status,
-        receipt.deliveredAt ? new Date(receipt.deliveredAt).getTime()
-          : receipt.readAt ? new Date(receipt.readAt).getTime()
-          : undefined
-      );
-    });
-    return unsub;
-  }, [subscribeToReceipts]);
-
-
-  // ————————————————————— Subscribe to incoming messages globally ——————————————————
-  useEffect(() => {
-    const unsub = subscribeToMessages(async (msg) => {
-      await storeIncomingMessage(activeUserId, {
-        id: msg.id,
-        senderId: msg.senderId,
-        text: msg.plaintext,
-        createdAt: msg.createdAt,
-      });
-      // Ensure sender exists as a contact
-      await upsertContact({
-        id: msg.senderId,
-        name: msg.senderId, // Replace with profile lookup
-        avatarColor: "#6d4aff",
-        avatarLetter: msg.senderId[0]?.toUpperCase() ?? "?",
-        lastMessageText: msg.plaintext,
-        lastMessageAt: Date.now(),
-      });
-    });
-    return unsub;
-  }, [activeUserId, subscribeToMessages]);
-
-  // ————————————————————— Subscribe to delivery receipts ———————————————————————————
   useEffect(() => {
     const unsub = subscribeToReceipts(async (receipt) => {
       const status = receipt.status === "DELIVERED" ? "delivered" : "read";
@@ -211,12 +172,31 @@ export default function ChatPage() {
     setActiveContact(contact);
     setActiveChannelId(undefined);
 
-    if (preferences.readReceiptsEnabled && preferences.readReceiptMode === "instant") {
+    if (activeUserId && preferences.readReceiptsEnabled && preferences.readReceiptMode === "instant") {
       void markConversationRead(activeUserId, contact.id);
     } else {
       void clearConversationUnread(contact.id);
     }
   }, [activeUserId, preferences.readReceiptMode, preferences.readReceiptsEnabled]);
+
+  if (!activeUserId) {
+    return (
+      <div className="qc qc-chat-app" data-testid="chat-auth-required" style={{
+        minHeight: "100%",
+        display: "grid",
+        placeItems: "center",
+        background: "var(--qc-bg)",
+        color: "var(--qc-ink)",
+        padding: 24,
+        textAlign: "center",
+      }}>
+        <div style={{ maxWidth: 420 }}>
+          <h1 style={{ fontSize: 28, marginBottom: 10 }}>Sign in to open secure chat</h1>
+          <p style={{ color: "var(--qc-ink-3)", lineHeight: 1.6 }}>QuantChat needs a verified identity before starting encrypted realtime sessions.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="qc qc-chat-app" data-density={preferences.compactChatLayout ? "compact" : "regular"} style={{
@@ -287,7 +267,7 @@ export default function ChatPage() {
             </motion.div>
           ) : (
             <div key="list" style={{ position: "absolute", inset: 0 }} className="mobile-contact-list">
-              <ContactList onSelect={openContact} activeContactId={activeContact?.id} />
+              <ContactList onSelect={openContact} activeContactId={undefined} />
             </div>
           )}
         </AnimatePresence>
@@ -856,6 +836,17 @@ function ChatConversation({
           peerName={contact.name}
           open={isAudioCallOpen}
           onClose={() => setIsAudioCallOpen(false)}
+        />
+      )}
+
+      {showHandshake && (
+        <BiometricHandshake
+          partnerName={contact.name}
+          onCancel={() => setShowHandshake(false)}
+          onVerified={() => {
+            setIsHandshakeVerified(true);
+            setShowHandshake(false);
+          }}
         />
       )}
 

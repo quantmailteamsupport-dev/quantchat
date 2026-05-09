@@ -12,8 +12,6 @@ const STORAGE_KEYS = {
   behavioralConfidence: "quantchat:behavioralConfidence",
 } as const;
 
-const DEFAULT_QUANTMAIL_API_BASE = "http://localhost:3001";
-
 interface AuthenticationOptionsJson {
   challenge: string;
   timeout?: number;
@@ -187,7 +185,10 @@ function resolveQuantmailApiEnv(): string | undefined {
 
 export function resolveQuantmailApiBase(): string {
   const configured = resolveQuantmailApiEnv()?.trim();
-  return (configured || DEFAULT_QUANTMAIL_API_BASE).replace(/\/$/, "");
+  if (!configured) {
+    throw new Error("NEXT_PUBLIC_QUANTMAIL_API_URL or QUANTMAIL_API_URL is required.");
+  }
+  return configured.replace(/\/$/, "");
 }
 
 export function isValidEmail(value: string): boolean {
@@ -386,14 +387,20 @@ interface QuantchatSSOExchangeResponse {
   latencyMs: number;
 }
 
-const DEFAULT_QUANTCHAT_API_BASE = "/api";
-
 function resolveQuantchatApiBase(): string {
   const configured = (
     process.env.NEXT_PUBLIC_QUANTCHAT_API_URL ??
     process.env.QUANTCHAT_API_URL
   )?.trim();
-  return (configured || DEFAULT_QUANTCHAT_API_BASE).replace(/\/$/, "");
+  if (!configured) {
+    throw new Error("NEXT_PUBLIC_QUANTCHAT_API_URL or QUANTCHAT_API_URL is required.");
+  }
+  return configured.replace(/\/$/, "");
+}
+
+function quantchatApiPath(path: string): string {
+  const base = resolveQuantchatApiBase();
+  return `${base}${base.endsWith("/api") ? "" : "/api"}${path}`;
 }
 
 /**
@@ -409,7 +416,7 @@ export async function exchangeForQuantchatSession(
   email?: string,
 ): Promise<QuantmailPasskeyAuthResult> {
   const response = await fetch(
-    `${resolveQuantchatApiBase()}/v1/auth/sso/exchange`,
+    quantchatApiPath("/v1/auth/sso/exchange"),
     {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -451,7 +458,7 @@ export async function refreshQuantchatSession(
 ): Promise<{ accessToken: string; refreshToken: string; expiresIn: number } | null> {
   try {
     const response = await fetch(
-      `${resolveQuantchatApiBase()}/v1/auth/refresh`,
+      quantchatApiPath("/v1/auth/refresh"),
       {
         method: "POST",
         headers: { "content-type": "application/json" },

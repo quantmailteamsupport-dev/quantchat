@@ -6,7 +6,11 @@ import { logger } from "./logger";
 // In docker-compose, REDIS_URL = redis://redis:6379
 // Locally, REDIS_URL = redis://localhost:6379
 
-const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
+const REDIS_URL = process.env.REDIS_URL?.trim();
+
+if (!REDIS_URL) {
+  throw new Error("Missing required environment variable: REDIS_URL");
+}
 
 export const pubClient: RedisClientType = createClient({
   url: REDIS_URL,

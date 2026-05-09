@@ -18,7 +18,10 @@ import { resolveSocketIdentity } from "./socketIdentity";
 // Backend stays fully blind — it routes opaque EncryptedEnvelopes.
 // ═══════════════════════════════════════════════════════════════
 
-const API_URL = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_WS_URL;
+if (!API_URL) {
+  throw new Error("NEXT_PUBLIC_WS_URL is required for realtime chat.");
+}
 const KEY_ROTATION_INTERVAL_MS = 24 * 3600 * 1000;
 
 export interface IncomingMessage {
@@ -103,8 +106,10 @@ function isPreKeyBundle(value: unknown): value is PreKeyBundle {
 
 export function useSignalSocket(userId: string | null | undefined, authToken?: string) {
   const normalizedUserId =
-    typeof userId === "string" && userId.trim().length > 0 ? userId.trim() : "local-user";
-  const identity = resolveSocketIdentity(normalizedUserId, authToken);
+    typeof userId === "string" && userId.trim().length > 0 ? userId.trim() : null;
+  const identity = normalizedUserId
+    ? resolveSocketIdentity(normalizedUserId, authToken)
+    : { userId: null, token: authToken ?? null };
   const effectiveUserId = identity.userId;
   const resolvedToken = identity.token;
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -113,6 +118,10 @@ export function useSignalSocket(userId: string | null | undefined, authToken?: s
   const lastRotationAtRef = useRef<number>(0);
 
   useEffect(() => {
+    if (!effectiveUserId) {
+      sessionManagerRef.current = null;
+      return;
+    }
     sessionManagerRef.current = new SessionManager(effectiveUserId);
     lastRotationAtRef.current = 0;
   }, [effectiveUserId]);
@@ -142,6 +151,12 @@ export function useSignalSocket(userId: string | null | undefined, authToken?: s
   }, [socket, rotateKeys]);
 
   useEffect(() => {
+    if (!effectiveUserId) {
+      setSocket(null);
+      setIsConnected(false);
+      return;
+    }
+
     const newSocket = io(API_URL, {
       transports: ["websocket", "polling"],
       reconnection: true,

@@ -82,8 +82,6 @@ export class MetricsService {
       // User metrics
       const now = new Date();
       const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
       const [
         totalUsers,
         activeUsers24h,
@@ -131,14 +129,16 @@ export class MetricsService {
         },
       });
 
-      // Average message length
-      const avgMessageLengthRaw = await prisma.message.aggregate({
-        _avg: {
-          content: true,
-        },
+      const messageLengthSample = await prisma.message.findMany({
+        select: { content: true },
+        orderBy: { createdAt: "desc" },
+        take: 1000,
       });
-      const averageMessageLength = avgMessageLengthRaw._avg.content
-        ? Math.round(avgMessageLengthRaw._avg.content as any as number)
+      const averageMessageLength = messageLengthSample.length > 0
+        ? Math.round(
+            messageLengthSample.reduce((sum, message) => sum + message.content.length, 0) /
+              messageLengthSample.length,
+          )
         : 0;
 
       const responseTime = Date.now() - startTime;
@@ -282,15 +282,6 @@ export class MetricsService {
       );
 
       // Average thread length
-      const threadStats = await prisma.message.aggregate({
-        _avg: {
-          threadId: true,
-        },
-        _max: {
-          threadId: true,
-        },
-      });
-
       // Count messages with file attachments
       const filesAttached = await prisma.message.count({
         where: {
@@ -301,16 +292,12 @@ export class MetricsService {
       });
 
       // Count encrypted messages
-      const encryptedMessages = await prisma.message.count({
-        where: {
-          encrypted: true,
-        },
-      });
+      const encryptedMessages = totalMessages;
 
       // Count disappearing messages
       const disappearingMessages = await prisma.message.count({
         where: {
-          disappearingSecs: {
+          expiresAt: {
             not: null,
           },
         },

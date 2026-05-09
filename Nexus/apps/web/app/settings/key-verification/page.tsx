@@ -37,7 +37,7 @@ function formatTimestamp(value: string | null): string {
 
 export default function KeyVerificationPage() {
   const identity = useQuantchatIdentity();
-  const userId = identity.userId || identity.requestedUserId;
+  const userId = identity.userId || identity.requestedUserId || "local-preview";
   const safetyCode = useMemo(() => buildSafetyCode(userId), [userId]);
   const { preferences, setPreference } = useFrontendPreferences();
   const [verifiedAt, setVerifiedAt] = useState<string | null>(() => readVerificationTimestamp(userId));
