@@ -8,6 +8,9 @@ import ChatView from './ChatView';
 import UserSearch from './UserSearch';
 import Settings from './Settings';
 import EmptyState from './EmptyState';
+import Contacts from './Contacts';
+import Groups from './Groups';
+import Stories from './Stories';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -192,6 +195,15 @@ export default function ChatApp() {
             currentUserId={user?.id}
           />
         )}
+        {view === 'contacts' && (
+          <Contacts onStartChat={startConversation} />
+        )}
+        {view === 'groups' && (
+          <Groups onSelectConv={(conv) => { setActiveConv(conv); setView('chats'); setMobileView('chat'); }} userId={user?.id} />
+        )}
+        {view === 'stories' && (
+          <Stories userId={user?.id} />
+        )}
         {view === 'settings' && (
           <Settings user={user} />
         )}
@@ -209,6 +221,9 @@ export default function ChatApp() {
             typingUsers={typingUsers}
             emitTyping={emitTyping}
             onBack={() => setMobileView('list')}
+            conversations={conversations}
+            token={token}
+            onReloadMessages={loadMessages}
           />
         ) : (
           <EmptyState />
