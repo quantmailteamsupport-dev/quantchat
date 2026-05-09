@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { User, Mail, Edit3, Save, Shield } from 'lucide-react';
-
-const API = process.env.REACT_APP_BACKEND_URL;
+import { API } from '../lib/api';
 
 export default function Settings({ user }) {
   const [editing, setEditing] = useState(false);

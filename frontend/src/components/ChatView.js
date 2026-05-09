@@ -2,8 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { Send, ArrowLeft, User, Check, CheckCheck, MoreVertical, Smile, Trash2, Forward, CornerUpRight, X } from 'lucide-react';
 import axios from 'axios';
-
-const API = process.env.REACT_APP_BACKEND_URL;
+import { API } from '../lib/api';
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
 
 function formatMsgTime(time) {

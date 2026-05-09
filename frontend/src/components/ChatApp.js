@@ -11,8 +11,7 @@ import EmptyState from './EmptyState';
 import Contacts from './Contacts';
 import Groups from './Groups';
 import Stories from './Stories';
-
-const API = process.env.REACT_APP_BACKEND_URL;
+import { API } from '../lib/api';
 
 export default function ChatApp() {
   const { user, token, logout } = useAuth();

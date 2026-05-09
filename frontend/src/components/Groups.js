@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Users, Plus, User, Loader, X, Check } from 'lucide-react';
-
-const API = process.env.REACT_APP_BACKEND_URL;
+import { API } from '../lib/api';
 
 export default function Groups({ onSelectConv, userId }) {
   const [groups, setGroups] = useState([]);

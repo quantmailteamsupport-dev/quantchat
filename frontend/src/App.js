@@ -4,8 +4,7 @@ import axios from 'axios';
 import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
 import ChatApp from './components/ChatApp';
-
-const API = process.env.REACT_APP_BACKEND_URL;
+import { API } from './lib/api';
 
 // Configure axios
 axios.defaults.withCredentials = true;

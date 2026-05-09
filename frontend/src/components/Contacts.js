@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { User, MessageCircle, Loader } from 'lucide-react';
-
-const API = process.env.REACT_APP_BACKEND_URL;
+import { API } from '../lib/api';
 
 export default function Contacts({ onStartChat }) {
   const [contacts, setContacts] = useState([]);

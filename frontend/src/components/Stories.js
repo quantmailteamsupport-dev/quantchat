@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Radio, Plus, User, X, Send, Loader } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-
-const API = process.env.REACT_APP_BACKEND_URL;
+import { API } from '../lib/api';
 const COLORS = ['#0066FF', '#FF3333', '#00FF66', '#FF6600', '#9933FF', '#FF0099', '#00CCFF'];
 
 export default function Stories({ userId }) {
