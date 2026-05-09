@@ -10,7 +10,7 @@
 - **Admin**: admin@quantchat.com / QuantChat@2026
 
 ## URLs
-- **Preview**: https://429c1d91-316b-4697-8b20-c620d85c13d4.preview.emergentagent.com
+- **Preview**: https://interface-upgrade-37.preview.emergentagent.com
 - **Azure Target**: http://20.249.208.224
 
 ## API Endpoints

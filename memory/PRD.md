@@ -33,7 +33,7 @@ User wants to deploy QuantChat (Nexus) - a social messaging app like WhatsApp/Te
 - All features verified working
 
 ## Deployment
-- **Preview**: https://429c1d91-316b-4697-8b20-c620d85c13d4.preview.emergentagent.com
+- **Preview**: https://interface-upgrade-37.preview.emergentagent.com
 - **Azure Target**: 20.249.208.224
 - **Deploy Archive**: /app/quantchat-deploy.tar.gz
 
