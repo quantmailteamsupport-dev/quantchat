@@ -65,3 +65,9 @@
 - Hardened S3 configuration: placeholder values are rejected, S3-compatible endpoint support added, and `/api/media/s3/status` reports missing real credentials without exposing secrets.
 - Final regression: 5 passed, 1 skipped; screenshot verified chat/login gate.
 - Real AWS S3 keys were not present in the provided environment, so S3 is production-ready but remains unconfigured until real AWS values are supplied.
+
+
+## Final Cleanup Update
+- Added `/call` and `/channels` A1 guard pages to remove base-route 404/prefetch noise.
+- Rebuilt and redeployed web container.
+- Final regression: 5/5 public ingress checks passed.
