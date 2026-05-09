@@ -1,112 +1,115 @@
 {
-  "theme": "Dark",
-  "archetype": "4 (Swiss & High-Contrast)",
-  "vibe": "Objective, rigid, ultra-fast, command-center functional",
-  "design_rules": {
-    "color_palette": {
-      "background": "#000000",
-      "surface_base": "#0A0A0A",
-      "surface_elevated": "#141414",
-      "surface_highlight": "#1E1E1E",
-      "primary_accent": "#0066FF",
-      "primary_accent_hover": "#3385FF",
-      "text_primary": "#FFFFFF",
-      "text_secondary": "#8A8A8A",
-      "text_tertiary": "#525252",
-      "border": "#262626",
-      "success": "#00FF66",
-      "error": "#FF3333"
+  "project_name": "Full-Stack Chat Application",
+  "theme": "Light Mode Base (with Dark Mode toggle)",
+  "archetype": "Archetype 3 (Pastel & Soft) infused with Neo-Brutalist contrast",
+  "design_philosophy": "E1 Anti-AI Designer Protocol: Fusion of brutalist raw honesty with neobrutalist playfulness. Rejects generic chat UI for high-contrast, thick-outlined pastel aesthetics.",
+  "typography": {
+    "headings": {
+      "font_family": "Cabinet Grotesk, sans-serif",
+      "weights": ["font-black", "font-bold"],
+      "tracking": "tracking-tighter",
+      "usage": "Use for App Name, Empty State Titles, and Sidebar Headers. Prohibited: Inter."
     },
-    "typography": {
-      "primary_font": "IBM Plex Sans",
-      "heading_font": "Cabinet Grotesk",
-      "mono_font": "JetBrains Mono",
-      "hierarchy": {
-        "h1": "text-4xl sm:text-5xl font-black tracking-tighter",
-        "h2": "text-2xl sm:text-3xl font-bold tracking-tight",
-        "h3": "text-xl sm:text-2xl font-semibold tracking-tight",
-        "h4": "text-lg font-medium",
-        "body": "text-base font-normal leading-relaxed",
-        "small": "text-sm font-medium",
-        "timestamp": "text-xs font-mono tracking-wider text-secondary"
-      }
+    "body": {
+      "font_family": "IBM Plex Mono, monospace",
+      "weights": ["font-normal", "font-medium"],
+      "tracking": "tracking-normal",
+      "usage": "Use for chat bubbles, input fields, timestamps, and general text to give a structured, raw terminal feel."
     },
-    "layout_and_spacing": {
-      "grid_strategy": "Control Room Grid (Dense, structural, 100% height)",
-      "container_padding": "p-4 sm:p-6",
-      "border_radius": {
-        "buttons": "rounded-sm",
-        "avatars": "rounded-md",
-        "chat_bubbles": "rounded-md",
-        "panels": "rounded-none"
-      }
-    },
-    "surface_strategy": {
-      "style": "Grid Borders (The Technical Look)",
-      "implementation": "border-collapse style layout. 1px borders on right/bottom of grid items. Pure solid colors. No glassmorphism. Absolute minimal shadows."
-    },
-    "animation": {
-      "hover_states": "Hard cuts or very fast transitions (0.15s ease-out). Hover backgrounds shift from #0A0A0A to #141414.",
-      "interactions": "No bouncy physics. Strictly linear/ease-out fades and slides."
-    },
-    "iconography": {
-      "library": "@phosphor-icons/react",
-      "style": "Regular or Bold weight, highly legible at small sizes.",
-      "installation_command": "npm install @phosphor-icons/react"
+    "scale": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl",
+      "h3": "text-xl sm:text-2xl",
+      "body": "text-base sm:text-sm",
+      "labels": "text-xs tracking-[0.2em] uppercase"
     }
   },
-  "component_guidelines": {
-    "app_shell": "3-column fluid grid. Left: Sidebar (narrow, icon only or icon+text). Middle: Chat List (fixed width). Right: Active Chat (fluid).",
-    "avatars": "Square with slight rounded corners (rounded-md). Unread status shown by a solid 2px border of primary_accent with ring-offset-black.",
-    "chat_list_item": "Hover shifts surface color. Title is white, subtitle/message preview is secondary gray. Unread count in a sharp square badge.",
-    "chat_bubbles": "Sender: bg-[#0066FF] text-white. Receiver: bg-[#141414] text-white border border-[#262626]. Both rounded-md.",
-    "message_input": "Bottom anchored block. No floating pill. Solid 1px top border. Input field takes full width, no background.",
-    "stories_status": "Horizontal scroll in a dedicated top section of the Chat List. Square avatars.",
-    "testing": "All interactive elements MUST include data-testid attribute in kebab-case."
+  "colors": {
+    "light_mode": {
+      "background": "#FDFBF7", 
+      "surface": "#FFFFFF",
+      "text_primary": "#0A0A0A",
+      "text_secondary": "#4A4A4A",
+      "border": "#0A0A0A",
+      "accent_primary": "#A7C7E7", 
+      "accent_secondary": "#B2D8D8", 
+      "accent_tertiary": "#FFB6C1" 
+    },
+    "dark_mode": {
+      "background": "#050505",
+      "surface": "#121212",
+      "text_primary": "#FDFBF7",
+      "text_secondary": "#A0A0A0",
+      "border": "#FDFBF7",
+      "accent_primary": "#5A7D9C",
+      "accent_secondary": "#2A4D4D",
+      "accent_tertiary": "#9C5A6C"
+    },
+    "rules": "Never use pure #000000 or #808080. Hard black borders (2px to 4px) are mandatory for neo-brutalist feel. Use pastel fills with stark contrast."
+  },
+  "spacing_and_layout": {
+    "grid_system": "The 'Control Room' Grid layout modified for Chat. 12-column base.",
+    "sidebar": "col-span-1 md:col-span-3 lg:col-span-3 border-r-2 border-black",
+    "main_chat": "col-span-1 md:col-span-9 lg:col-span-6 border-r-2 border-black",
+    "details_panel": "hidden lg:block lg:col-span-3",
+    "spacing_scale": "Generous Spacing: p-4 for chat bubbles, p-6 for containers. Grid gaps should be tight (gap-0) to emphasize borders.",
+    "radius": "rounded-none or max rounded-md (4px) for a harsh, boxy feel, contrasting with the soft colors."
+  },
+  "surfaces_and_borders": {
+    "chat_bubbles": "2px solid black border, pastel fill, offset shadow (e.g. shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]) for Neo-Brutalist tactility.",
+    "input_bar": "Fixed at bottom, oversized input field with monospace font. Send button is a thick-bordered square or circle.",
+    "hover_states": "-translate-y-1 with increased offset shadow. Always explicitly set text color."
+  },
+  "components_strategy": {
+    "forms_and_inputs": "Use Shadcn customized heavily. Strip rounded corners, add 2px black border, solid color focus rings (ring-2 ring-black).",
+    "buttons": "Neo-brutalist buttons: bg-pastel text-black border-2 border-black shadow-[4px_4px_0px_#0A0A0A] active:shadow-none active:translate-x-[4px] active:translate-y-[4px].",
+    "reactions": "Popovers must have harsh borders and no blur (solid background) to maintain the brutalist identity.",
+    "stories_status": "Top of sidebar. Avatars in squares instead of circles, with 2px solid pastel borders indicating unseen status."
+  },
+  "motion": {
+    "philosophy": "Micro-interactions that feel mechanical and snappy.",
+    "hover": "Instant or very fast (100ms) border/shadow transitions.",
+    "page_transitions": "Slide-in with zero bounce.",
+    "accessibility": "Respect prefers-reduced-motion."
   },
   "media": {
-    "login_background": {
-      "url": "https://static.prod-images.emergentagent.com/jobs/c89ece03-01c5-4a75-b33a-08299e675ee7/images/a62178a5ab19bff6e21b2bde8467d10900640014d49f7a1e3478ec88b7535716.png",
-      "description": "Macro photography of a sleek, dark metallic grid for login page."
-    },
-    "user_avatars": [
+    "avatars": [
       {
-        "url": "https://images.unsplash.com/photo-1576558656222-ba66febe3dec?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2MzR8MHwxfHNlYXJjaHwzfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMHBvcnRyYWl0fGVufDB8fHx8MTc3ODI5MDg3MXww&ixlib=rb-4.1.0&q=85",
-        "description": "man wearing grey jacket"
+        "url": "https://images.unsplash.com/photo-1747710016871-a603dda0e414?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwxfHxkaXZlcnNlJTIwcG9ydHJhaXQlMjBoZWFkc2hvdHxlbnwwfHx8fDE3NzgzNTkzNDF8MA&ixlib=rb-4.1.0&q=85",
+        "category": "User Avatar 1",
+        "description": "Curly hair woman"
       },
       {
-        "url": "https://images.unsplash.com/photo-1655249493799-9cee4fe983bb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2MzR8MHwxfHNlYXJjaHw0fHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMHBvcnRyYWl0fGVufDB8fHx8MTc3ODI5MDg3MXww&ixlib=rb-4.1.0&q=85",
-        "description": "a person with a grey sweater"
+        "url": "https://images.unsplash.com/photo-1769335537598-a35d635baeeb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHw0fHxkaXZlcnNlJTIwcG9ydHJhaXQlMjBoZWFkc2hvdHxlbnwwfHx8fDE3NzgzNTkzNDF8MA&ixlib=rb-4.1.0&q=85",
+        "category": "User Avatar 2",
+        "description": "Young boy"
       },
       {
-        "url": "https://images.unsplash.com/photo-1762522926157-bcc04bf0b10a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2MzR8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMHBvcnRyYWl0fGVufDB8fHx8MTc3ODI5MDg3MXww&ixlib=rb-4.1.0&q=85",
-        "description": "Man in white shirt smiling"
+        "url": "https://images.unsplash.com/photo-1747710016904-2b93d97ffb72?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwyfHxkaXZlcnNlJTIwcG9ydHJhaXQlMjBoZWFkc2hvdHxlbnwwfHx8fDE3NzgzNTkzNDF8MA&ixlib=rb-4.1.0&q=85",
+        "category": "User Avatar 3",
+        "description": "Smiling woman"
       },
       {
-        "url": "https://images.unsplash.com/photo-1769636929388-99eff95d3bf1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2MzR8MHwxfHNlYXJjaHwyfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMHBvcnRyYWl0fGVufDB8fHx8MTc3ODI5MDg3MXww&ixlib=rb-4.1.0&q=85",
-        "description": "Young woman with short black hair"
+        "url": "https://images.unsplash.com/photo-1618593706014-06782cd3bb3b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwzfHxkaXZlcnNlJTIwcG9ydHJhaXQlMjBoZWFkc2hvdHxlbnwwfHx8fDE3NzgzNTkzNDF8MA&ixlib=rb-4.1.0&q=85",
+        "category": "User Avatar 4",
+        "description": "Man in collared shirt"
       }
     ],
-    "shared_media_examples": [
+    "backgrounds": [
       {
-        "url": "https://images.unsplash.com/photo-1674159057061-394f68e750a5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwxfHxjeWJlcnB1bmslMjBjaXR5JTIwbmlnaHR8ZW58MHx8fHwxNzc4MjA3OTE1fDA&ixlib=rb-4.1.0&q=85",
-        "description": "Cyberpunk city night traffic"
-      },
-      {
-        "url": "https://images.unsplash.com/photo-1607555509198-84b77411468d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwyfHxjeWJlcnB1bmslMjBjaXR5JTIwbmlnaHR8ZW58MHx8fHwxNzc4MjA3OTE1fDA&ixlib=rb-4.1.0&q=85",
-        "description": "Cyberpunk skyline night time"
+        "url": "https://images.unsplash.com/photo-1761798981573-a972f5cef7f5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTN8MHwxfHNlYXJjaHwxfHxtaW5pbWFsaXN0JTIwYWJzdHJhY3QlMjBwYXN0ZWwlMjBiYWNrZ3JvdW5kfGVufDB8fHx8MTc3ODM1OTM3M3ww&ixlib=rb-4.1.0&q=85",
+        "category": "Chat Background Texture",
+        "description": "Abstract colorful gradient swirl for empty states or chat thread bg"
       }
     ]
   },
   "instructions_to_main_agent": [
-    "Strictly follow the Dark-First pure black (#000000) background. Do not revert to generic white screens.",
-    "Implement the 'Control Room Grid'. The app must feel like a dense, highly efficient dashboard.",
-    "Do not use Shadcn card rounded styles (no rounded-xl). Override to rounded-sm or rounded-none to maintain the brutalist feel.",
-    "Use Phosphor icons. Size them consistently.",
-    "Inject the media URLs exactly as provided. Never use placeholder services.",
-    "Ensure the UI layout extends 100% height (h-screen) with overflow managed inside the columns.",
-    "Use JetBrains Mono for all timestamps and unread counters.",
-    "Implement data-testid on everything.",
-    "File extensions are .js (e.g. JSX components are in .js files), avoid TypeScript specific setups."
+    "DO NOT use Inter or generic default templates. Implement Cabinet Grotesk for headings and IBM Plex Mono for chat text/body.",
+    "Implement the UI strictly with Neo-Brutalist aesthetics: 2px black borders on containers, hard shadows (e.g., shadow-[4px_4px_0px_#000]), and pastel backgrounds.",
+    "Ensure dark mode is supported. Flip borders and shadows to #FDFBF7 when in dark mode, maintaining the harsh contrast.",
+    "For the requested 'all features' (reactions, read receipts, voice notes), build them as distinct brutalist elements (e.g. square reaction pills with outlines).",
+    "All interactive elements MUST have data-testid attributes for testing.",
+    "Use Phosphor Icons or Iconoir to match the bold line-art aesthetic.",
+    "Never use placeholder URLs for images; only use the provided media URLs."
   ]
 }

@@ -79,6 +79,8 @@ def serialize_message(msg: dict) -> dict:
         "status": msg.get("status", "sent"),
         "reactions": msg.get("reactions", {}),
         "forwarded": msg.get("forwarded", False),
+        "is_edited": msg.get("is_edited", False),
+        "reply_to": msg.get("reply_to"),
         "created_at": msg.get("created_at", "").isoformat() if isinstance(msg.get("created_at"), datetime) else str(msg.get("created_at", "")),
     }
 
@@ -99,6 +101,7 @@ def serialize_conversation(conv: dict, current_user_id: str = None) -> dict:
         "last_message": conv.get("last_message"),
         "last_message_time": conv.get("last_message_time", "").isoformat() if isinstance(conv.get("last_message_time"), datetime) else str(conv.get("last_message_time", "")),
         "unread_count": conv.get("unread_counts", {}).get(current_user_id, 0) if current_user_id else 0,
+        "pinned_message_id": conv.get("pinned_message_id"),
         "other_user": {"user_id": str(other.get("user_id", "")), "name": other.get("name", ""), "avatar": other.get("avatar", "")} if other else None,
     }
 
@@ -136,6 +139,7 @@ class LoginBody(BaseModel):
 class MessageBody(BaseModel):
     content: str
     type: str = "text"
+    reply_to: Optional[str] = None
 
 class CreateConversationBody(BaseModel):
     participant_id: str
@@ -148,11 +152,17 @@ class CreateGroupBody(BaseModel):
 class UpdateProfileBody(BaseModel):
     name: Optional[str] = None
     bio: Optional[str] = None
+class PinMessageBody(BaseModel):
+    message_id: Optional[str] = None
+
     avatar: Optional[str] = None
 
 class StoryBody(BaseModel):
     content: str
     type: str = "text"
+class EditMessageBody(BaseModel):
+    content: str
+
 
 # --- Startup ---
 @fastapi_app.on_event("startup")
@@ -436,6 +446,7 @@ async def send_message(conv_id: str, body: MessageBody, request: Request):
         "content": body.content,
         "type": body.type,
         "status": "sent",
+        "reply_to": body.reply_to,
         "created_at": datetime.now(timezone.utc),
     }
     result = await db.messages.insert_one(msg)
@@ -513,6 +524,28 @@ async def add_group_member(conv_id: str, request: Request):
     await db.conversations.update_one({"_id": ObjectId(conv_id)}, {
         "$push": {"participant_ids": member_id, "participants": {"user_id": member_id, "name": new_user.get("name", ""), "avatar": new_user.get("avatar", "")}},
         "$set": {f"unread_counts.{member_id}": 0}
+@fastapi_app.post("/api/conversations/{conv_id}/pin_message")
+async def pin_chat_message(conv_id: str, body: PinMessageBody, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    conv = await db.conversations.find_one({"_id": ObjectId(conv_id), "participant_ids": uid})
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+        
+    await db.conversations.update_one(
+        {"_id": ObjectId(conv_id)},
+        {"$set": {"pinned_message_id": body.message_id}}
+    )
+    
+    # Broadcast to participants
+    for pid in conv["participant_ids"]:
+        await sio.emit("message_pinned", {
+            "conversation_id": conv_id, 
+            "message_id": body.message_id
+        }, room=f"user_{pid}")
+        
+    return {"message": "Pinned message updated"}
+
     })
     return {"message": "Member added"}
 
@@ -528,6 +561,19 @@ async def leave_group(conv_id: str, request: Request):
         "$unset": {f"unread_counts.{uid}": ""}
     })
     return {"message": "Left group"}
+
+@fastapi_app.patch("/api/messages/{msg_id}")
+async def edit_message(msg_id: str, body: EditMessageBody, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    msg = await db.messages.find_one({"_id": ObjectId(msg_id), "sender_id": uid})
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+    await db.messages.update_one({"_id": ObjectId(msg_id)}, {"$set": {"content": body.content, "is_edited": True}})
+    conv_id = msg["conversation_id"]
+    for pid in (await db.conversations.find_one({"_id": ObjectId(conv_id)})).get("participant_ids", []):
+        await sio.emit("message_edited", {"message_id": msg_id, "conversation_id": conv_id, "content": body.content}, room=f"user_{pid}")
+    return {"message": "Edited"}
 
 # --- Message Actions ---
 @fastapi_app.delete("/api/messages/{msg_id}")

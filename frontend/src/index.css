@@ -2,6 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg: #F0F2F5;
+  --surface: #FFFFFF;
+  --surface-hover: #F5F6F6;
+  --text-primary: #111B21;
+  --text-secondary: #667781;
+  --border: #E9EDEF;
+  --accent-primary: #00A884; /* WhatsApp Green */
+  --accent-secondary: #008069;
+  --chat-bg: #EFEAE2;
+  --bubble-mine: #D9FDD3;
+  --bubble-other: #FFFFFF;
+}
+
+.dark {
+  --bg: #111B21;
+  --surface: #202C33;
+  --surface-hover: #2A3942;
+  --text-primary: #E9EDEF;
+  --text-secondary: #8696A0;
+  --border: #222D34;
+  --accent-primary: #00A884;
+  --accent-secondary: #005C4B;
+  --chat-bg: #0B141A;
+  --bubble-mine: #005C4B;
+  --bubble-other: #202C33;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -10,41 +38,36 @@
 
 html, body, #root {
   height: 100%;
-  background: #000;
-  color: #fff;
-  font-family: 'IBM Plex Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
 }
 
-.safe-bottom {
-  padding-bottom: max(0.625rem, env(safe-area-inset-bottom));
-}
-
 ::-webkit-scrollbar {
-  width: 4px;
+  width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0A0A0A;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #262626;
-  border-radius: 2px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #333;
+  background: rgba(134, 150, 160, 0.2);
 }
 
-input, textarea {
+.chat-bg-pattern {
+  background-color: var(--chat-bg);
+  background-image: url("https://static.whatsapp.net/rsrc.php/v3/yl/r/gi_DckOUM5a.png");
+  background-repeat: repeat;
+  background-size: 400px;
+  opacity: 0.4;
+}
+.dark .chat-bg-pattern {
+  opacity: 0.06;
+}
+
+input, textarea, button {
   outline: none;
-}
-
-.font-heading {
-  font-family: 'Cabinet Grotesk', sans-serif;
-}
-
-.font-mono {
-  font-family: 'JetBrains Mono', monospace;
 }
 
 @keyframes fadeIn {
@@ -54,22 +77,4 @@ input, textarea {
 
 .animate-fadeIn {
   animation: fadeIn 0.15s ease-out;
-}
-
-@keyframes slideIn {
-  from { opacity: 0; transform: translateX(-8px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-.animate-slideIn {
-  animation: slideIn 0.15s ease-out;
-}
-
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-
-.animate-pulse-dot {
-  animation: pulse-dot 1.5s ease-in-out infinite;
 }

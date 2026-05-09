@@ -6,12 +6,9 @@ import RegisterPage from './components/RegisterPage';
 import ChatApp from './components/ChatApp';
 import { API } from './lib/api';
 
-// Configure axios
 axios.defaults.withCredentials = true;
 
-// Auth Context
 const AuthContext = createContext(null);
-
 export function useAuth() {
   return useContext(AuthContext);
 }
@@ -20,6 +17,20 @@ function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('qc_token') || null);
+  
+  const [darkMode, setDarkMode] = useState(localStorage.getItem('qc_theme') === 'dark');
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('qc_theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('qc_theme', 'light');
+    }
+  }, [darkMode]);
+
+  const toggleTheme = () => setDarkMode(!darkMode);
 
   const checkAuth = useCallback(async () => {
     try {
@@ -65,7 +76,7 @@ function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, setUser }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, setUser, darkMode, toggleTheme }}>
       {children}
     </AuthContext.Provider>
   );
@@ -76,7 +87,7 @@ function ProtectedRoute({ children }) {
   if (loading) {
     return (
       <div className="h-screen bg-qc-bg flex items-center justify-center">
-        <div className="text-qc-accent font-mono text-sm">INITIALIZING...</div>
+        <div className="text-qc-accent-primary font-medium">Connecting...</div>
       </div>
     );
   }

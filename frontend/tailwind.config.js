@@ -1,28 +1,26 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ["./src/**/*.{js,jsx,ts,tsx}"],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
         qc: {
-          bg: '#000000',
-          surface: '#0A0A0A',
-          elevated: '#141414',
-          highlight: '#1E1E1E',
-          accent: '#0066FF',
-          'accent-hover': '#3385FF',
-          'text-primary': '#FFFFFF',
-          'text-secondary': '#8A8A8A',
-          'text-tertiary': '#525252',
-          border: '#262626',
-          success: '#00FF66',
-          error: '#FF3333',
+          bg: 'var(--bg)',
+          surface: 'var(--surface)',
+          'surface-hover': 'var(--surface-hover)',
+          'text-primary': 'var(--text-primary)',
+          'text-secondary': 'var(--text-secondary)',
+          border: 'var(--border)',
+          'accent-primary': 'var(--accent-primary)',
+          'accent-secondary': 'var(--accent-secondary)',
+          'chat-bg': 'var(--chat-bg)',
+          'bubble-mine': 'var(--bubble-mine)',
+          'bubble-other': 'var(--bubble-other)',
         },
       },
       fontFamily: {
-        sans: ['IBM Plex Sans', 'sans-serif'],
-        heading: ['Cabinet Grotesk', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        sans: ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
       },
     },
   },

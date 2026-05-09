@@ -13,9 +13,7 @@ export default function Groups({ onSelectConv, userId }) {
   const [creating, setCreating] = useState(false);
   const token = localStorage.getItem('qc_token');
 
-  useEffect(() => {
-    loadGroups();
-  }, []);
+  useEffect(() => { loadGroups(); }, []);
 
   const loadGroups = async () => {
     try {
@@ -56,59 +54,64 @@ export default function Groups({ onSelectConv, userId }) {
   };
 
   return (
-    <div data-testid="groups-panel" className="flex flex-col h-full">
-      <div className="p-4 border-b border-qc-border flex items-center justify-between">
-        <h2 className="font-heading font-bold text-lg text-white">Groups</h2>
-        <button data-testid="create-group-btn" onClick={openCreate} className="w-8 h-8 flex items-center justify-center bg-qc-accent hover:bg-qc-accent-hover text-white transition-colors duration-150">
-          <Plus size={16}/>
+    <div data-testid="groups-panel" className="flex flex-col h-full bg-qc-surface relative">
+      <div className="p-5 border-b-2 border-qc-border flex items-center justify-between bg-[#00FF66]">
+        <h2 className="font-heading font-black text-2xl text-qc-text-primary uppercase tracking-tighter">SQUADS</h2>
+        <button data-testid="create-group-btn" onClick={openCreate} className="w-8 h-8 flex items-center justify-center border-2 border-qc-border bg-qc-surface shadow-[2px_2px_0px_#0A0A0A] hover:translate-y-0.5 hover:translate-x-0.5 hover:shadow-none transition-all">
+          <Plus size={18}/>
         </button>
       </div>
 
       {showCreate && (
-        <div className="p-4 border-b border-qc-border bg-qc-elevated space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-[10px] text-qc-accent tracking-widest uppercase">New Group</span>
-            <button onClick={() => setShowCreate(false)} className="text-qc-text-secondary hover:text-white"><X size={14}/></button>
+        <div className="absolute inset-0 z-30 bg-qc-surface flex flex-col">
+          <div className="p-4 border-b-2 border-qc-border flex items-center justify-between bg-qc-bg">
+            <span className="font-heading font-black text-xl uppercase">FORM_SQUAD</span>
+            <button onClick={() => setShowCreate(false)} className="border-2 border-qc-border p-1 bg-qc-surface hover:bg-[#FF3333] hover:text-white shadow-[2px_2px_0px_#0A0A0A]"><X size={18}/></button>
           </div>
-          <input data-testid="group-name-input" type="text" value={groupName} onChange={e => setGroupName(e.target.value)}
-            placeholder="Group name..." className="w-full bg-qc-surface border border-qc-border text-white text-sm px-3 py-2 focus:border-qc-accent transition-colors duration-150"/>
-          <div className="max-h-40 overflow-y-auto space-y-1">
-            {allUsers.map(u => (
-              <button key={u.id} data-testid={`group-select-${u.id}`} onClick={() => toggleUser(u.id)}
-                className={`w-full flex items-center gap-2 px-2 py-1.5 text-left text-sm ${selectedUsers.includes(u.id) ? 'bg-qc-accent/20 text-qc-accent' : 'text-white hover:bg-qc-highlight'}`}>
-                <div className="w-6 h-6 rounded bg-qc-highlight flex items-center justify-center overflow-hidden">
-                  {u.avatar ? <img src={u.avatar} alt="" className="w-full h-full object-cover"/> : <User size={12} className="text-qc-text-secondary"/>}
-                </div>
-                <span className="flex-1 truncate">{u.name}</span>
-                {selectedUsers.includes(u.id) && <Check size={14} className="text-qc-accent"/>}
-              </button>
-            ))}
+          <div className="p-4 space-y-4 flex-1 overflow-y-auto">
+            <input data-testid="group-name-input" type="text" value={groupName} onChange={e => setGroupName(e.target.value)}
+              placeholder="SQUAD_DESIGNATION..." className="w-full bg-qc-bg border-2 border-qc-border p-3 font-mono font-bold focus:bg-qc-surface focus:ring-2 focus:ring-qc-accent-primary"/>
+            <div className="space-y-2">
+              <p className="font-mono text-xs font-bold uppercase tracking-widest text-qc-text-secondary border-b-2 border-qc-border pb-1">SELECT_OPERATIVES</p>
+              {allUsers.map(u => (
+                <button key={u.id} data-testid={`group-select-${u.id}`} onClick={() => toggleUser(u.id)}
+                  className={`w-full flex items-center gap-3 p-2 border-2 border-qc-border text-left ${selectedUsers.includes(u.id) ? 'bg-[#00FF66] shadow-[2px_2px_0px_#0A0A0A] -translate-y-0.5' : 'bg-qc-bg hover:bg-qc-surface'}`}>
+                  <div className="w-8 h-8 border-2 border-qc-border bg-qc-surface flex items-center justify-center overflow-hidden">
+                    {u.avatar ? <img src={u.avatar} alt="" className="w-full h-full object-cover grayscale"/> : <User size={16}/>}
+                  </div>
+                  <span className="flex-1 font-mono text-sm font-bold uppercase truncate">{u.name}</span>
+                  {selectedUsers.includes(u.id) && <Check size={18} className="text-black"/>}
+                </button>
+              ))}
+            </div>
           </div>
-          <button data-testid="create-group-submit" onClick={createGroup} disabled={creating || !groupName.trim() || selectedUsers.length === 0}
-            className="w-full bg-qc-accent hover:bg-qc-accent-hover text-white text-sm py-2 disabled:opacity-40 transition-colors duration-150">
-            {creating ? 'Creating...' : `Create Group (${selectedUsers.length} members)`}
-          </button>
+          <div className="p-4 border-t-2 border-qc-border bg-qc-bg">
+            <button data-testid="create-group-submit" onClick={createGroup} disabled={creating || !groupName.trim() || selectedUsers.length === 0}
+              className="w-full border-2 border-qc-border bg-qc-accent-primary font-mono font-bold uppercase py-3 shadow-[4px_4px_0px_#0A0A0A] hover:-translate-y-1 hover:shadow-[6px_6px_0px_#0A0A0A] active:translate-y-1 active:translate-x-1 active:shadow-none transition-all disabled:opacity-50 disabled:pointer-events-none">
+              {creating ? 'PROCESSING...' : `DEPLOY_SQUAD (${selectedUsers.length})`}
+            </button>
+          </div>
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {loading ? (
-          <div className="flex items-center justify-center py-8"><Loader size={18} className="text-qc-accent animate-spin"/></div>
+          <div className="flex items-center justify-center py-8"><Loader size={24} className="text-qc-text-primary animate-spin"/></div>
         ) : groups.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center px-6">
-            <Users size={28} className="text-qc-text-tertiary mb-3"/>
-            <p className="text-qc-text-secondary text-sm">No groups yet</p>
-            <p className="text-qc-text-tertiary text-xs mt-1">Create a group to chat with multiple people</p>
+          <div className="border-4 border-qc-border bg-qc-bg p-6 shadow-brutal text-center">
+            <Users size={32} className="mx-auto mb-2"/>
+            <p className="font-heading font-black text-xl uppercase mb-1">NO_SQUADS_ACTIVE</p>
+            <p className="font-mono text-xs font-bold uppercase text-qc-text-secondary">Deploy a squad to initiate group comms.</p>
           </div>
         ) : groups.map(g => (
           <button key={g.id} data-testid={`group-item-${g.id}`} onClick={() => onSelectConv(g)}
-            className="w-full flex items-center gap-3 px-4 py-3 border-b border-qc-border hover:bg-qc-elevated transition-colors duration-150 text-left">
-            <div className="w-10 h-10 rounded-md bg-qc-accent/20 flex items-center justify-center flex-shrink-0">
-              <Users size={18} className="text-qc-accent"/>
+            className="w-full flex items-center gap-3 p-3 border-2 border-qc-border bg-qc-bg hover:bg-[#00FF66] hover:shadow-[4px_4px_0px_#0A0A0A] hover:-translate-y-1 transition-all text-left">
+            <div className="w-12 h-12 border-2 border-qc-border bg-qc-surface flex items-center justify-center flex-shrink-0">
+              <Users size={24}/>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{g.name}</p>
-              <p className="text-xs text-qc-text-secondary">{g.participants?.length || 0} members</p>
+              <p className="text-sm font-bold font-mono uppercase truncate">{g.name}</p>
+              <p className="text-[10px] font-mono font-bold uppercase text-qc-text-secondary mt-1 border-2 border-qc-border px-1 w-max bg-qc-surface">{g.participants?.length || 0}_UNITS</p>
             </div>
           </button>
         ))}
