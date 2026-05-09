@@ -57,6 +57,8 @@ services:
       - S3_BUCKET=${S3_BUCKET:?S3_BUCKET is required}
       - CDN_BASE_URL=${CDN_BASE_URL:?CDN_BASE_URL is required}
       - S3_PRESIGN_EXPIRY_SECONDS=${S3_PRESIGN_EXPIRY_SECONDS:?S3_PRESIGN_EXPIRY_SECONDS is required}
+      - S3_ENDPOINT=${S3_ENDPOINT:-}
+      - S3_FORCE_PATH_STYLE=${S3_FORCE_PATH_STYLE:-false}
     ports:
       - "${API_PORT:?API_PORT is required}:${API_PORT:?API_PORT is required}"
     depends_on:

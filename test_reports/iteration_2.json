@@ -1,0 +1,47 @@
+{
+  "summary": "Retested Nexus public ingress deployment against the Cloudflare main URL. Backend ingress endpoints and S3 status passed; home and chat UI loaded with polished gate/shell. Local type-check and production build also passed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Homepage prefetch requests",
+        "issue": "Browser console logs show 404 prefetch attempts for /call and /channels base routes (dynamic routes exist as /call/[peerId] and /channels/[id]).",
+        "affected_selectors": [
+          "N/A (network prefetch)"
+        ]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/tests/test_nexus_deployment_public.py",
+    "/app/test_reports/pytest/nexus_ingress_chat_results.xml"
+  ],
+  "action_items": [
+    "Fix/disable homepage prefetch links targeting non-existent /call and /channels index routes to remove 404 console noise.",
+    "Re-run browser console verification after prefetch route cleanup.",
+    "MOCKED: Keep /api/media/s3/status behavior until real AWS credentials are provided (currently configured=false with missing keys).",
+    "MOCKED: Public exposure is still via Cloudflare quick tunnel, not a permanent owned domain/DNS setup."
+  ],
+  "critical_code_review_comments": [
+    "apps/api-gateway/src/routes.ts is 1400+ lines (>700 guideline) and should be split into focused route modules.",
+    "S3 status endpoint correctly avoids secret values; only missing variable names are exposed."
+  ],
+  "updated_files": [
+    "/app/tests/test_nexus_deployment_public.py",
+    "/app/test_reports/iteration_2.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "95%"
+  },
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Main ingress URL now reachable and validated from this environment. Pytest suite updated to assert ingress home/chat/health/ready/s3 status with 5/5 pass. Browser automation confirms polished login gate on /chat.",
+  "rca of the issue": "Console 404s are caused by requests to /call and /channels without required dynamic params. Route manifest includes /call/[peerId] and /channels/[id], so prefetching base paths is invalid. Mitigation: update links/prefetch targets to valid concrete routes or disable prefetch on placeholder links."
+}

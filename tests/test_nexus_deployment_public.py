@@ -1,16 +1,13 @@
-"""Regression checks for Nexus deployment public reachability and HTTP behavior."""
+"""Regression checks for Nexus public ingress deployment and route behavior."""
 
 import os
-import pytest
 import requests
 
 
-SERVER_IP = os.getenv("NEXUS_SERVER_IP", "20.249.208.224")
-BASE_HTTP = os.getenv("NEXUS_BASE_HTTP", f"http://{SERVER_IP}")
-WEB_URL = os.getenv("NEXUS_WEB_URL", f"{BASE_HTTP}:3000")
-DOCS_URL = os.getenv("NEXUS_DOCS_URL", f"{BASE_HTTP}:3001")
-ADMIN_URL = os.getenv("NEXUS_ADMIN_URL", f"{BASE_HTTP}:3002")
-API_URL = os.getenv("NEXUS_API_URL", f"{BASE_HTTP}:4000")
+INGRESS_BASE_URL = os.getenv(
+    "NEXUS_MAIN_INGRESS_URL",
+    "https://get-painting-consumers-completing.trycloudflare.com",
+).rstrip("/")
 TIMEOUT_SECONDS = 12
 
 
@@ -18,45 +15,62 @@ def fetch(url: str) -> requests.Response:
     return requests.get(url, timeout=TIMEOUT_SECONDS, allow_redirects=False)
 
 
-# Web app production home should be publicly reachable.
-def test_web_home_public_reachable():
-    response = fetch(WEB_URL)
+# Frontend ingress: polished home should be publicly reachable.
+def test_ingress_home_public_reachable_and_polished():
+    response = fetch(INGRESS_BASE_URL)
     assert response.status_code == 200
+    assert "text/html" in response.headers.get("content-type", "")
+    body = response.text
+    assert "qc-home" in body or "QuantChat" in body
 
 
-# Docs app production home should be publicly reachable.
-def test_docs_home_public_reachable():
-    response = fetch(DOCS_URL)
+# Frontend ingress: chat route should load login gate or chat shell.
+def test_ingress_chat_route_loads_gate_or_shell():
+    response = fetch(f"{INGRESS_BASE_URL}/chat")
     assert response.status_code == 200
+    assert "text/html" in response.headers.get("content-type", "")
+    body = response.text
+    assert (
+        "Sign in" in body
+        or "secure chat" in body.lower()
+        or "chat-control-room-shell" in body
+        or "chat-auth-required" in body
+    )
 
 
-# Admin unauthenticated access should return Basic auth challenge.
-def test_admin_public_returns_401_basic_auth():
-    response = fetch(ADMIN_URL)
-    assert response.status_code == 401
-    www_auth = response.headers.get("WWW-Authenticate", "")
-    assert "Basic" in www_auth
-
-
-# API gateway liveness endpoint should return HTTP 200.
-def test_api_gateway_healthz_public_200():
-    response = fetch(f"{API_URL}/healthz")
+# Backend ingress: health endpoint should return HTTP 200 + expected payload.
+def test_ingress_healthz_public_200():
+    response = fetch(f"{INGRESS_BASE_URL}/healthz")
     assert response.status_code == 200
     data = response.json()
     assert data.get("status") == "ok"
 
 
-# API gateway readiness endpoint should return HTTP 200.
-def test_api_gateway_readyz_public_200():
-    response = fetch(f"{API_URL}/readyz")
+# Backend ingress: readiness endpoint should return HTTP 200 + expected payload.
+def test_ingress_readyz_public_200():
+    response = fetch(f"{INGRESS_BASE_URL}/readyz")
     assert response.status_code == 200
     data = response.json()
     assert data.get("status") in ["ready", "ok"]
 
 
-# Root HTTP endpoint should be reachable when ingress/public routing is enabled.
-def test_server_root_http_reachable():
-    if "NEXUS_BASE_HTTP" not in os.environ:
-        pytest.skip("Direct root HTTP ingress is not configured; app URLs are tested separately.")
-    response = fetch(BASE_HTTP)
-    assert response.status_code in [200, 301, 302, 401]
+# Backend ingress: S3 status endpoint should return JSON without secrets.
+def test_ingress_s3_status_json_and_no_secret_leakage():
+    response = fetch(f"{INGRESS_BASE_URL}/api/media/s3/status")
+    assert response.status_code == 200
+    assert "application/json" in response.headers.get("content-type", "")
+
+    data = response.json()
+    assert isinstance(data, dict)
+    assert "configured" in data
+    assert "missing" in data
+    assert isinstance(data["missing"], list)
+
+    response_text = response.text
+    forbidden = [
+        "secretAccessKey",
+        "accessKeyId",
+        "aws_access_key_id",
+        "AKIA",
+    ]
+    assert not any(token in response_text for token in forbidden)

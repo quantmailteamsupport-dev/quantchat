@@ -21,6 +21,8 @@ interface S3Config {
   accessKeyId: string;
   secretAccessKey: string;
   cloudFrontDomain?: string;
+  endpoint?: string;
+  forcePathStyle?: boolean;
 }
 
 interface PresignedUrlResult {
@@ -41,9 +43,14 @@ interface FileMetadata {
 
 let cachedS3Client: S3Client | null = null;
 
+function isPlaceholder(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return normalized === "not-configured" || normalized.startsWith("<") || normalized.includes("replace-with");
+}
+
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
-  if (!value) {
+  if (!value || isPlaceholder(value)) {
     throw new Error(`Missing required environment variable: ${name}`);
   }
   return value;
@@ -56,6 +63,8 @@ function getS3Config(): S3Config {
     accessKeyId: requiredEnv("AWS_ACCESS_KEY_ID"),
     secretAccessKey: requiredEnv("AWS_SECRET_ACCESS_KEY"),
     cloudFrontDomain: process.env.CDN_BASE_URL?.replace(/^https?:\/\//, "").replace(/\/$/, ""),
+    endpoint: process.env.S3_ENDPOINT?.trim() || undefined,
+    forcePathStyle: process.env.S3_FORCE_PATH_STYLE === "true",
   };
 }
 
@@ -63,6 +72,8 @@ function getS3Client(config: S3Config): S3Client {
   if (!cachedS3Client) {
     cachedS3Client = new S3Client({
       region: config.region,
+      endpoint: config.endpoint,
+      forcePathStyle: config.forcePathStyle,
       credentials: {
         accessKeyId: config.accessKeyId,
         secretAccessKey: config.secretAccessKey,
@@ -107,6 +118,23 @@ function getPresignExpirySeconds(): number {
 }
 
 export class S3Service {
+  static getConfigurationStatus(): { configured: boolean; missing: string[]; bucket?: string; region?: string; endpoint?: string } {
+    const required = ["AWS_REGION", "S3_BUCKET", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "S3_PRESIGN_EXPIRY_SECONDS"];
+    const missing = required.filter((name) => {
+      const value = process.env[name]?.trim();
+      return !value || isPlaceholder(value);
+    });
+    const bucket = process.env.S3_BUCKET?.trim();
+    const region = process.env.AWS_REGION?.trim();
+    return {
+      configured: missing.length === 0,
+      missing,
+      bucket: bucket && !isPlaceholder(bucket) ? bucket : undefined,
+      region: region && !isPlaceholder(region) ? region : undefined,
+      endpoint: process.env.S3_ENDPOINT?.trim() || undefined,
+    };
+  }
+
   /**
    * Validates file type and size before upload
    */
@@ -198,6 +226,8 @@ export class S3Service {
       // Determine download URL (CloudFront or direct S3)
       const downloadUrl = s3Config.cloudFrontDomain
         ? `https://${s3Config.cloudFrontDomain}/${fileKey}`
+        : s3Config.endpoint
+          ? `${s3Config.endpoint.replace(/\/$/, "")}/${s3Config.bucket}/${fileKey}`
         : `https://${s3Config.bucket}.s3.${s3Config.region}.amazonaws.com/${fileKey}`;
 
       // Log presign event
@@ -276,6 +306,9 @@ export class S3Service {
     const s3Config = getS3Config();
     if (s3Config.cloudFrontDomain) {
       return `https://${s3Config.cloudFrontDomain}/${fileKey}`;
+    }
+    if (s3Config.endpoint) {
+      return `${s3Config.endpoint.replace(/\/$/, "")}/${s3Config.bucket}/${fileKey}`;
     }
     return `https://${s3Config.bucket}.s3.${s3Config.region}.amazonaws.com/${fileKey}`;
   }

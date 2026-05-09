@@ -199,7 +199,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="qc qc-chat-app" data-density={preferences.compactChatLayout ? "compact" : "regular"} style={{
+    <div className="qc qc-chat-app" data-testid="chat-control-room-shell" data-density={preferences.compactChatLayout ? "compact" : "regular"} style={{
       display: "grid",
       gridTemplateColumns: "260px 320px 1fr 280px",
       height: "100%", minHeight: 0,
@@ -222,7 +222,7 @@ export default function ChatPage() {
       </aside>
 
       {/* ── Main content area ── */}
-      <main style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+      <main className="qc-chat-stage" data-testid="chat-main-stage" style={{ flex: 1, position: "relative", overflow: "hidden" }}>
         <AnimatePresence mode="wait">
           {activeContact ? (
             <motion.div
@@ -695,9 +695,9 @@ function ChatConversation({
     { emoji: "PAY", label: "Payment", color: "#00897B" },
   ];
   return (
-    <div style={{
+    <div className="qc-conversation-stage" data-testid="chat-conversation-stage" style={{
       width: "100%", height: "100%", display: "flex", flexDirection: "column",
-      background: "var(--emotion-bg-gradient, #0b141a)", position: "relative",
+      background: "#ffffff", position: "relative",
     }}>
       {/* Background pattern */}
       <div style={{
@@ -713,28 +713,28 @@ function ChatConversation({
       />
 
       {/* Header */}
-      <div style={{
+      <div className="qc-conversation-header" data-testid="chat-conversation-header" style={{
         display: "flex", alignItems: "center", padding: "10px 12px", gap: 10,
-        background: "var(--emotion-surface, #202c33)", zIndex: 10, flexShrink: 0,
+        background: "#ffffff", zIndex: 10, flexShrink: 0,
         boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
       }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "#aebac1", fontSize: 20, padding: 4 }}>←</button>
+        <button data-testid="chat-back-button" onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "#002FA7", fontSize: 20, padding: 4 }}>←</button>
         <ContactAvatar contact={contact} size={40} />
         <div style={{ flex: 1 }}>
-          <div style={{ color: "#e9edef", fontWeight: 600, fontSize: 15, fontFamily: "-apple-system,sans-serif" }}>
+          <div data-testid="chat-active-contact-name" className="qc-display" style={{ color: "#09090b", fontWeight: 800, fontSize: 18 }}>
             {contact.name}
           </div>
-          <div style={{ color: "#8696a0", fontSize: 12, fontFamily: "-apple-system,sans-serif" }}>
+          <div data-testid="chat-active-contact-status" className="mono" style={{ color: "#52525B", fontSize: 11 }}>
             {isContactTyping ? (
               <motion.span
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                style={{ color: "#00a884" }}
+                style={{ color: "#00C853" }}
               >
                 typing…
               </motion.span>
             ) : "tap for contact info"}
-            <span style={{ marginLeft: 6, color: "#53bdeb" }}>
+            <span style={{ marginLeft: 6, color: "#002FA7" }}>
               {`Receipts ${readReceiptsEnabled ? formatReceiptMode(readReceiptMode) : "Off"}`}
             </span>
           </div>
@@ -742,16 +742,18 @@ function ChatConversation({
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           {/* Enter Chill Room button */}
           <motion.button
+            data-testid="chat-open-chill-room-button"
+            className="qc-chat-action-button"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setChillRoomOpen(true)}
             style={{
-              background: "linear-gradient(135deg, #6d4aff 0%, #00f3ff 100%)",
+              background: "#ffffff",
               border: "none",
               borderRadius: 20,
               padding: "5px 10px",
               cursor: "pointer",
-              color: "#fff",
+              color: "#09090b",
               fontSize: 11,
               fontWeight: 700,
               letterSpacing: "0.04em",
@@ -759,26 +761,28 @@ function ChatConversation({
               display: "flex",
               alignItems: "center",
               gap: 4,
-              boxShadow: "0 0 12px rgba(109, 74, 255, 0.4)",
+              boxShadow: "none",
               whiteSpace: "nowrap",
             }}
           >
-            ☄️ Chill Room
+            Chill Room
           </motion.button>
 
           {/* Biometric Handshake trigger */}
           {!isHandshakeVerified && (
             <motion.button
+              data-testid="chat-handshake-button"
+              className="qc-chat-action-button"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={onInitiateHandshake}
               style={{
-                background: "rgba(191, 90, 242, 0.15)",
-                border: "1px solid rgba(191, 90, 242, 0.5)",
+                background: "#ffffff",
+                border: "1px solid rgba(9,9,11,0.14)",
                 borderRadius: 20,
                 padding: "5px 10px",
                 cursor: "pointer",
-                color: "#bf5af2",
+                color: "#002FA7",
                 fontSize: 11,
                 fontWeight: 700,
                 letterSpacing: "0.04em",
@@ -786,11 +790,11 @@ function ChatConversation({
                 display: "flex",
                 alignItems: "center",
                 gap: 4,
-                boxShadow: "0 0 12px rgba(191, 90, 242, 0.2)",
+                boxShadow: "none",
                 whiteSpace: "nowrap",
               }}
             >
-              🛡️ Handshake
+              Handshake
             </motion.button>
           )}
 
@@ -800,7 +804,7 @@ function ChatConversation({
               border: "1px solid rgba(0, 245, 255, 0.5)",
               borderRadius: 20,
               padding: "5px 10px",
-              color: "#00f5ff",
+              color: "#002FA7",
               fontSize: 10,
               fontWeight: 800,
               letterSpacing: "0.05em",
@@ -809,26 +813,28 @@ function ChatConversation({
               alignItems: "center",
               gap: 4,
             }}>
-              💎 Obsidian Class
+              Obsidian Class
             </div>
           )}
 
-          <span style={{ cursor: "pointer", color: "#aebac1", fontSize: 20 }}>📽️</span>
+          <span data-testid="chat-video-placeholder-button" className="mono" style={{ cursor: "pointer", color: "#002FA7", fontSize: 11, fontWeight: 800 }}>VIDEO</span>
           <button
+            data-testid="chat-audio-call-button"
             onClick={() => setIsAudioCallOpen(true)}
             style={{
               background: "none",
               border: "none",
               cursor: "pointer",
-              color: "#aebac1",
-              fontSize: 20,
+              color: "#002FA7",
+              fontSize: 11,
+              fontWeight: 800,
               padding: 0,
             }}
             aria-label={`Start encrypted audio call with ${contact.name}`}
           >
-            📞
+            CALL
           </button>
-          <span style={{ cursor: "pointer", color: "#aebac1", fontSize: 20 }}>⋮</span>
+          <span data-testid="chat-more-menu-placeholder" className="mono" style={{ cursor: "pointer", color: "#52525B", fontSize: 16 }}>•••</span>
         </div>
       </div>
 
@@ -854,15 +860,15 @@ function ChatConversation({
       )}
 
       {/* Messages */}
-      <div style={{
+      <div className="qc-message-stream" data-testid="chat-message-stream" style={{
         flex: 1, overflowY: "auto", padding: "12px 10px",
         scrollbarWidth: "none", zIndex: 5, position: "relative",
         display: "flex", flexDirection: "column", gap: compactLayout ? 1 : 2,
       }}>
         {messages.length === 0 && (
-          <div style={{
+          <div className="qc-chat-empty-state" data-testid="chat-empty-state" style={{
             flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#8696a0", fontSize: 13, fontFamily: "-apple-system,sans-serif",
+            color: "#52525B", fontSize: 13, fontFamily: "var(--qc-font-ui)",
             padding: "60px 20px", textAlign: "center",
           }}>
             Messages are E2EE — only you and {contact.name} can read them.
@@ -890,8 +896,10 @@ function ChatConversation({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 80, opacity: 0 }}
             transition={{ type: "spring", stiffness: 350, damping: 30 }}
+            className="qc-attach-tray"
+            data-testid="chat-attachment-tray"
             style={{
-              background: "var(--emotion-surface, #202c33)", padding: "20px 16px 12px",
+              background: "#ffffff", padding: "20px 16px 12px",
               zIndex: 20, flexShrink: 0,
               display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px 8px",
             }}
@@ -927,12 +935,13 @@ function ChatConversation({
       />
 
       {/* Input bar */}
-      <div style={{
+        <div className="qc-input-bar" data-testid="chat-input-bar" style={{
         display: "flex", alignItems: "flex-end", gap: 8,
-        padding: "8px 10px 10px", background: "var(--emotion-bg, #0b141a)", flexShrink: 0, zIndex: 10,
+        padding: "10px 12px 12px", background: "#ffffff", flexShrink: 0, zIndex: 10,
       }}>
         <motion.button
           type="button"
+          data-testid="chat-spoiler-toggle-button"
           onClick={() => setSpoilerShieldEnabled((enabled) => !enabled)}
           animate={{
             background: spoilerShieldEnabled ? "rgba(83,189,235,0.2)" : "rgba(255,255,255,0.04)",
@@ -989,7 +998,7 @@ function ChatConversation({
           flex: 1, display: "flex", alignItems: "center", gap: 6,
           padding: "9px 14px", minHeight: 46, position: "relative",
         }}>
-          <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20 }}>😊</button>
+          <button data-testid="chat-tone-button" className="mono" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#002FA7", fontWeight: 800 }}>TONE</button>
 
           {/* Ghost-text + real input wrapper */}
           <div style={{ flex: 1, position: "relative", display: "flex", alignItems: "center" }}>
@@ -1015,6 +1024,7 @@ function ChatConversation({
               </div>
             )}
             <input
+              data-testid="chat-message-input"
               value={input}
               onChange={(e) => handleInputChange(e.target.value)}
               onKeyDown={(e) => {
@@ -1032,7 +1042,7 @@ function ChatConversation({
                   handleSend();
                 }
               }}
-              placeholder={ghostSuggestion ? "" : "Message"}
+              placeholder={ghostSuggestion ? "" : "Write a secure message"}
               style={{
                 background: "transparent", border: "none", outline: "none",
                 color: "#e9edef", fontSize: 15, flex: 1, width: "100%",
@@ -1070,10 +1080,12 @@ function ChatConversation({
             </motion.div>
           )}
 
-          <button onClick={() => setShowAttach((a) => !a)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22 }}>📎</button>
-          <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22 }}>📷</button>
+          <button data-testid="chat-attach-button" className="mono" onClick={() => setShowAttach((a) => !a)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#002FA7", fontWeight: 800 }}>ADD</button>
+          <button data-testid="chat-camera-button" className="mono" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#002FA7", fontWeight: 800 }}>CAM</button>
         </div>
         <button
+          data-testid="chat-send-message-button"
+          className="qc-send-button"
           onClick={handleSend}
           style={{
             width: 48, height: 48, borderRadius: "50%",
@@ -1085,7 +1097,7 @@ function ChatConversation({
             boxShadow: (input ?? "").trim() ? "var(--emotion-shadow-md, 0 2px 8px rgba(0,168,132,0.4))" : "none",
           }}
         >
-          ➤
+          SEND
         </button>
       </div>
     </div>

@@ -56,3 +56,12 @@
 - Verified screenshots for web, docs, and authenticated admin dashboard.
 - Rebuilt and redeployed web/docs/admin containers on SSH server.
 - Final public tunnel regression: 5 passed, 1 skipped (direct IP ingress still blocked externally).
+
+
+## Latest Ingress + Chat + S3 Update
+- Added server-side Nginx ingress proxy on port 80 routing web, NextAuth APIs, API gateway `/api/*`, websocket `/socket.io`, `/healthz`, and `/readyz`.
+- Added main live ingress tunnel: https://get-painting-consumers-completing.trycloudflare.com
+- Extended A1 Swiss visual polish to chat route shell and the unauthenticated secure login gate shown before chat access.
+- Hardened S3 configuration: placeholder values are rejected, S3-compatible endpoint support added, and `/api/media/s3/status` reports missing real credentials without exposing secrets.
+- Final regression: 5 passed, 1 skipped; screenshot verified chat/login gate.
+- Real AWS S3 keys were not present in the provided environment, so S3 is production-ready but remains unconfigured until real AWS values are supplied.

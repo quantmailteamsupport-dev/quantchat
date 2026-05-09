@@ -403,6 +403,10 @@ router.delete(
 // BLOCKER-S3 FIX: Real AWS S3 presigned URLs with CloudFront CDN
 import { S3Service } from "./services/S3Service";
 
+router.get("/api/media/s3/status", restRateLimit, (_req: Request, res: Response) => {
+  res.json(S3Service.getConfigurationStatus());
+});
+
 router.post(
   "/api/media/presign",
   restRateLimit,
