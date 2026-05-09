@@ -5,25 +5,24 @@ module.exports = {
     extend: {
       colors: {
         qc: {
-          bg: '#000000',
-          surface: '#0A0A0A',
-          elevated: '#141414',
-          highlight: '#1E1E1E',
-          accent: '#0066FF',
-          'accent-hover': '#3385FF',
-          'text-primary': '#FFFFFF',
-          'text-secondary': '#8A8A8A',
-          'text-tertiary': '#525252',
-          border: '#262626',
-          success: '#00FF66',
-          error: '#FF3333',
+          bg: 'var(--bg)',
+          surface: 'var(--surface)',
+          'text-primary': 'var(--text-primary)',
+          'text-secondary': 'var(--text-secondary)',
+          border: 'var(--border)',
+          'accent-primary': 'var(--accent-primary)',
+          'accent-secondary': 'var(--accent-secondary)',
+          'accent-tertiary': 'var(--accent-tertiary)',
         },
       },
       fontFamily: {
-        sans: ['IBM Plex Sans', 'sans-serif'],
         heading: ['Cabinet Grotesk', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        mono: ['IBM Plex Mono', 'monospace'],
       },
+      boxShadow: {
+        'brutal': '4px 4px 0px 0px var(--border)',
+        'brutal-lg': '6px 6px 0px 0px var(--border)',
+      }
     },
   },
   plugins: [],

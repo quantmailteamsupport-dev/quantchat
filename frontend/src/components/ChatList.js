@@ -18,7 +18,7 @@ function TimeStamp({ time }) {
   if (!time || time === 'None' || time === '') return null;
   try {
     return (
-      <span className="font-mono text-[10px] text-qc-text-tertiary tracking-wider">
+      <span className="font-mono text-xs text-qc-text-secondary font-bold uppercase tracking-wider">
         {formatDistanceToNow(new Date(time), { addSuffix: false })}
       </span>
     );
@@ -29,22 +29,22 @@ function TimeStamp({ time }) {
 
 export default function ChatList({ conversations, activeConv, onSelect, onlineUsers, typingUsers, userId }) {
   return (
-    <div data-testid="chat-list" className="flex flex-col h-full">
-      {/* Header */}
-      <div className="p-4 border-b border-qc-border flex items-center justify-between">
-        <h2 data-testid="chat-list-title" className="font-heading font-bold text-lg text-white">Messages</h2>
-        <span className="font-mono text-[10px] text-qc-text-tertiary tracking-widest uppercase">
-          {conversations.length} active
+    <div data-testid="chat-list" className="flex flex-col h-full bg-qc-surface">
+      <div className="p-5 border-b-2 border-qc-border flex items-center justify-between bg-qc-accent-primary">
+        <h2 data-testid="chat-list-title" className="font-heading font-black text-2xl text-qc-text-primary uppercase tracking-tighter">Messages</h2>
+        <span className="font-mono text-xs text-qc-text-primary font-bold border-2 border-qc-border bg-qc-surface px-2 py-1 shadow-[2px_2px_0px_#0A0A0A]">
+          {conversations.length}
         </span>
       </div>
 
-      {/* Conversation list */}
       <div className="flex-1 overflow-y-auto">
         {conversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
-            <MessageSquare size={32} className="text-qc-text-tertiary mb-3" />
-            <p className="text-qc-text-secondary text-sm">No conversations yet</p>
-            <p className="text-qc-text-tertiary text-xs mt-1">Search for users to start chatting</p>
+            <div className="w-16 h-16 border-2 border-qc-border flex items-center justify-center bg-qc-accent-secondary mb-4 shadow-brutal">
+              <MessageSquare size={32} className="text-qc-text-primary" />
+            </div>
+            <p className="text-qc-text-primary font-bold uppercase tracking-widest text-sm mb-2">No Comm Links</p>
+            <p className="text-qc-text-secondary font-mono text-xs uppercase">Search directory to establish connection</p>
           </div>
         ) : (
           conversations.map(conv => {
@@ -58,42 +58,40 @@ export default function ChatList({ conversations, activeConv, onSelect, onlineUs
                 key={conv.id}
                 data-testid={`chat-list-item-${conv.id}`}
                 onClick={() => onSelect(conv)}
-                className={`w-full flex items-center gap-3 px-4 py-3 border-b border-qc-border transition-colors duration-150 text-left ${
-                  isActive ? 'bg-qc-elevated' : 'hover:bg-qc-elevated/50'
+                className={`w-full flex items-center gap-4 p-4 border-b-2 border-qc-border transition-all text-left ${
+                  isActive ? 'bg-qc-accent-secondary shadow-[inset_4px_0px_0px_#0A0A0A]' : 'hover:bg-qc-bg'
                 }`}
               >
-                {/* Avatar */}
                 <div className="relative flex-shrink-0">
-                  <div className={`w-10 h-10 rounded-md overflow-hidden bg-qc-highlight flex items-center justify-center ${
-                    conv.unread_count > 0 ? 'ring-2 ring-qc-accent ring-offset-2 ring-offset-qc-surface' : ''
+                  <div className={`w-12 h-12 border-2 border-qc-border bg-qc-accent-tertiary flex items-center justify-center overflow-hidden ${
+                    conv.unread_count > 0 ? 'shadow-[2px_2px_0px_#0A0A0A]' : ''
                   }`}>
                     {info.avatar ? (
-                      <img src={info.avatar} alt={info.name} className="w-full h-full object-cover" />
+                      <img src={info.avatar} alt={info.name} className="w-full h-full object-cover grayscale contrast-125" />
                     ) : (
-                      <User size={18} className="text-qc-text-secondary" />
+                      <User size={24} className="text-qc-text-primary" />
                     )}
                   </div>
                   {isOnline && (
-                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-qc-success border-2 border-qc-surface rounded-full" />
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#00FF66] border-2 border-qc-border shadow-[1px_1px_0px_#0A0A0A]" />
                   )}
                 </div>
 
-                {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-white truncate">{info.name}</span>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-bold text-qc-text-primary uppercase tracking-wider truncate pr-2">{info.name}</span>
                     <TimeStamp time={conv.last_message_time} />
                   </div>
-                  <div className="flex items-center justify-between mt-0.5">
+                  <div className="flex items-center justify-between">
                     {isTyping ? (
-                      <span className="text-xs text-qc-accent font-mono animate-pulse-dot">typing...</span>
+                      <span className="text-xs text-qc-text-primary bg-qc-accent-primary border-2 border-qc-border px-1 font-mono font-bold animate-pulse">TYPING...</span>
                     ) : (
-                      <span className="text-xs text-qc-text-secondary truncate max-w-[160px]">
-                        {conv.last_message || 'No messages yet'}
+                      <span className={`text-xs font-mono truncate max-w-[160px] ${conv.unread_count > 0 ? 'text-qc-text-primary font-bold' : 'text-qc-text-secondary'}`}>
+                        {conv.last_message || 'NO DATA'}
                       </span>
                     )}
                     {conv.unread_count > 0 && (
-                      <span data-testid={`unread-badge-${conv.id}`} className="bg-qc-accent text-white text-[10px] font-mono font-bold min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                      <span data-testid={`unread-badge-${conv.id}`} className="bg-[#FF3333] border-2 border-qc-border text-white text-xs font-mono font-black w-6 h-6 flex items-center justify-center shadow-[1px_1px_0px_#0A0A0A]">
                         {conv.unread_count}
                       </span>
                     )}
@@ -103,13 +101,6 @@ export default function ChatList({ conversations, activeConv, onSelect, onlineUs
             );
           })
         )}
-      </div>
-
-      {/* Mobile nav */}
-      <div className="sm:hidden flex border-t border-qc-border">
-        <button className="flex-1 py-3 flex items-center justify-center text-qc-accent">
-          <MessageSquare size={20} />
-        </button>
       </div>
     </div>
   );

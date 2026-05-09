@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
-import { Lock, ArrowRight, AlertCircle } from 'lucide-react';
+import { Lock, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 function formatError(detail) {
-  if (detail == null) return 'Something went wrong.';
+  if (detail == null) return 'System Error.';
   if (typeof detail === 'string') return detail;
   if (Array.isArray(detail)) return detail.map(e => e?.msg || JSON.stringify(e)).join(' ');
   if (detail?.msg) return detail.msg;
@@ -16,6 +16,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -39,104 +40,108 @@ export default function LoginPage() {
   };
 
   return (
-    <div data-testid="login-page" className="h-screen bg-qc-bg flex">
+    <div data-testid="login-page" className="h-screen bg-qc-bg flex overflow-hidden">
       {/* Left - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden items-center justify-center"
-        style={{
-          backgroundImage: 'url(https://static.prod-images.emergentagent.com/jobs/c89ece03-01c5-4a75-b33a-08299e675ee7/images/a62178a5ab19bff6e21b2bde8467d10900640014d49f7a1e3478ec88b7535716.png)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}>
-        <div className="absolute inset-0 bg-black/60" />
+      <div className="hidden lg:flex lg:w-1/2 relative bg-qc-accent-primary border-r-2 border-qc-border items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 grid grid-cols-[repeat(20,minmax(0,1fr))] grid-rows-[repeat(20,minmax(0,1fr))] opacity-10 pointer-events-none">
+          {Array.from({length: 400}).map((_, i) => (
+             <div key={i} className="border-r border-b border-black"></div>
+          ))}
+        </div>
         <div className="relative z-10 px-16">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-qc-accent flex items-center justify-center">
-              <span className="font-heading font-black text-white text-xl">Q</span>
+          <div className="flex items-center gap-3 mb-8 border-2 border-qc-border bg-qc-surface p-2 w-max shadow-brutal">
+            <div className="w-10 h-10 bg-qc-accent-tertiary border-2 border-qc-border flex items-center justify-center">
+              <span className="font-heading font-black text-qc-text-primary text-xl">Q</span>
             </div>
-            <span className="font-heading font-black text-3xl text-white tracking-tighter">QuantChat</span>
+            <span className="font-heading font-black text-3xl text-qc-text-primary tracking-tighter uppercase mr-2">QuantChat</span>
           </div>
-          <p className="font-mono text-xs text-qc-accent tracking-widest uppercase mb-4">Secure Communications</p>
-          <h1 className="font-heading font-black text-5xl text-white leading-tight mb-6">
-            Private chat with<br />operational certainty.
+          <h1 className="font-heading font-black text-6xl text-qc-text-primary leading-[1.1] mb-6">
+            RAW. UNFILTERED.<br />MESSAGING.
           </h1>
-          <p className="text-qc-text-secondary text-lg leading-relaxed max-w-md">
-            Realtime messaging, trusted-device identity, and production-grade telemetry.
+          <p className="text-qc-text-primary bg-qc-surface border-2 border-qc-border shadow-brutal p-4 font-mono font-medium max-w-md">
+            ENTER THE GRID. SYNC WITH YOUR TEAM.
           </p>
         </div>
       </div>
 
       {/* Right - Form */}
-      <div className="flex-1 flex items-center justify-center px-8">
-        <div className="w-full max-w-sm">
-          <div className="lg:hidden flex items-center gap-3 mb-12">
-            <div className="w-8 h-8 bg-qc-accent flex items-center justify-center">
-              <span className="font-heading font-black text-white">Q</span>
+      <div className="flex-1 flex items-center justify-center p-8 bg-qc-bg">
+        <div className="w-full max-w-md">
+          <div className="lg:hidden flex items-center gap-3 mb-12 border-2 border-qc-border bg-qc-surface p-2 w-max shadow-brutal">
+            <div className="w-8 h-8 bg-qc-accent-tertiary border-2 border-qc-border flex items-center justify-center">
+              <span className="font-heading font-black text-qc-text-primary">Q</span>
             </div>
-            <span className="font-heading font-black text-2xl text-white tracking-tighter">QuantChat</span>
+            <span className="font-heading font-black text-2xl text-qc-text-primary tracking-tighter uppercase mr-2">QuantChat</span>
           </div>
 
-          <h2 data-testid="login-heading" className="font-heading font-bold text-2xl text-white mb-1">Sign in</h2>
-          <p className="text-qc-text-secondary text-sm mb-8">Enter your credentials to continue</p>
+          <div className="bg-qc-surface border-2 border-qc-border shadow-brutal p-8">
+            <h2 data-testid="login-heading" className="font-heading font-black text-4xl text-qc-text-primary mb-2 uppercase">Authenticate</h2>
+            <p className="text-qc-text-secondary font-mono text-sm mb-8 uppercase tracking-widest">Input Credentials</p>
 
-          {error && (
-            <div data-testid="login-error" className="flex items-center gap-2 bg-qc-error/10 border border-qc-error/20 text-qc-error text-sm px-3 py-2 mb-4">
-              <AlertCircle size={14} />
-              <span>{error}</span>
+            {error && (
+              <div data-testid="login-error" className="flex items-center gap-2 bg-[#FF3333] border-2 border-qc-border text-white text-sm font-mono p-3 mb-6 shadow-[2px_2px_0px_#0A0A0A]">
+                <AlertCircle size={16} />
+                <span className="uppercase font-bold">{error}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="text-sm font-bold text-qc-text-primary font-mono tracking-wider uppercase block mb-2">Email_Address</label>
+                <input
+                  data-testid="login-email-input"
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="w-full bg-qc-bg border-2 border-qc-border text-qc-text-primary px-4 py-3 font-mono focus:bg-qc-surface focus:ring-2 focus:ring-qc-accent-primary transition-all"
+                  placeholder="USER@DOMAIN.COM"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-sm font-bold text-qc-text-primary font-mono tracking-wider uppercase block mb-2">Pass_Key</label>
+                <div className="relative">
+                  <input
+                    data-testid="login-password-input"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    className="w-full bg-qc-bg border-2 border-qc-border text-qc-text-primary px-4 py-3 font-mono focus:bg-qc-surface focus:ring-2 focus:ring-qc-accent-primary transition-all pr-12"
+                    placeholder="••••••••"
+                    required
+                  />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-qc-text-secondary hover:text-qc-text-primary">
+                    {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+                  </button>
+                </div>
+              </div>
+              <button
+                data-testid="login-submit-button"
+                type="submit"
+                disabled={loading}
+                className="w-full bg-qc-accent-secondary text-qc-text-primary font-bold font-mono tracking-widest uppercase py-4 flex items-center justify-center gap-3 btn-brutal disabled:opacity-50"
+              >
+                {loading ? (
+                  <span>AUTHENTICATING...</span>
+                ) : (
+                  <>
+                    <Lock size={18} />
+                    <span>Login</span>
+                    <ArrowRight size={18} />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-8 pt-6 border-t-2 border-qc-border text-center">
+              <p className="text-qc-text-secondary font-mono text-sm uppercase">
+                No Access?{' '}
+                <Link data-testid="login-register-link" to="/register" className="text-qc-text-primary font-bold underline hover:bg-qc-accent-primary transition-colors px-1">
+                  Request_Access
+                </Link>
+              </p>
+              <p className="mt-4 text-qc-text-secondary text-xs font-mono bg-qc-bg border-2 border-qc-border p-2 inline-block">DEMO: arjun@quantchat.com / Demo@1234</p>
             </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-xs text-qc-text-secondary font-mono tracking-wider uppercase block mb-1.5">Email</label>
-              <input
-                data-testid="login-email-input"
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="w-full bg-qc-surface border border-qc-border text-white px-3 py-2.5 text-sm focus:border-qc-accent transition-colors duration-150"
-                placeholder="you@example.com"
-                required
-              />
-            </div>
-            <div>
-              <label className="text-xs text-qc-text-secondary font-mono tracking-wider uppercase block mb-1.5">Password</label>
-              <input
-                data-testid="login-password-input"
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full bg-qc-surface border border-qc-border text-white px-3 py-2.5 text-sm focus:border-qc-accent transition-colors duration-150"
-                placeholder="Enter password"
-                required
-              />
-            </div>
-            <button
-              data-testid="login-submit-button"
-              type="submit"
-              disabled={loading}
-              className="w-full bg-qc-accent hover:bg-qc-accent-hover text-white font-medium py-2.5 text-sm flex items-center justify-center gap-2 transition-colors duration-150 disabled:opacity-50"
-            >
-              {loading ? (
-                <span className="font-mono text-xs">AUTHENTICATING...</span>
-              ) : (
-                <>
-                  <Lock size={14} />
-                  <span>Sign In</span>
-                  <ArrowRight size={14} />
-                </>
-              )}
-            </button>
-          </form>
-
-          <p className="text-qc-text-secondary text-sm mt-6 text-center">
-            No account?{' '}
-            <Link data-testid="login-register-link" to="/register" className="text-qc-accent hover:text-qc-accent-hover transition-colors duration-150">
-              Create one
-            </Link>
-          </p>
-
-          <div className="mt-8 border-t border-qc-border pt-4">
-            <p className="text-qc-text-tertiary text-xs font-mono text-center">DEMO: arjun@quantchat.com / Demo@1234</p>
           </div>
         </div>
       </div>

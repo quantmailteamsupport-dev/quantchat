@@ -1,28 +1,18 @@
 import React from 'react';
-import { MessageSquare, Shield, Zap } from 'lucide-react';
+import { Terminal } from 'lucide-react';
 
 export default function EmptyState() {
   return (
-    <div data-testid="empty-state" className="flex-1 flex items-center justify-center bg-qc-bg">
-      <div className="text-center max-w-sm">
-        <div className="w-16 h-16 bg-qc-surface border border-qc-border flex items-center justify-center mx-auto mb-6">
-          <MessageSquare size={28} className="text-qc-accent" />
-        </div>
-        <h2 className="font-heading font-bold text-xl text-white mb-2">QuantChat</h2>
-        <p className="text-qc-text-secondary text-sm mb-6">
-          Select a conversation or search for users to start messaging.
-        </p>
-        <div className="flex items-center justify-center gap-6">
-          <div className="flex items-center gap-2">
-            <Shield size={14} className="text-qc-success" />
-            <span className="font-mono text-[10px] text-qc-text-tertiary tracking-wider">E2E ENCRYPTED</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Zap size={14} className="text-qc-accent" />
-            <span className="font-mono text-[10px] text-qc-text-tertiary tracking-wider">&lt;140MS DELIVERY</span>
-          </div>
-        </div>
+    <div className="flex flex-col items-center justify-center h-full w-full bg-qc-bg p-8 text-center relative overflow-hidden">
+      <div className="w-24 h-24 bg-qc-surface border-4 border-qc-border shadow-brutal-lg flex items-center justify-center mb-8 rotate-3 relative z-10">
+        <Terminal size={48} className="text-qc-text-primary" />
       </div>
+      <h2 className="font-heading font-black text-5xl text-qc-text-primary uppercase tracking-tighter mb-4 relative z-10 bg-qc-accent-primary border-2 border-qc-border px-4 py-2 shadow-brutal -rotate-1">
+        NO TARGET SELECTED
+      </h2>
+      <p className="font-mono text-sm text-qc-text-primary bg-qc-surface border-2 border-qc-border p-3 shadow-[2px_2px_0px_#0A0A0A] max-w-sm uppercase font-bold relative z-10">
+        INITIALIZE A CONNECTION FROM THE SIDEBAR TO BEGIN TRANSMISSION.
+      </p>
     </div>
   );
 }

@@ -79,6 +79,7 @@ def serialize_message(msg: dict) -> dict:
         "status": msg.get("status", "sent"),
         "reactions": msg.get("reactions", {}),
         "forwarded": msg.get("forwarded", False),
+        "is_edited": msg.get("is_edited", False),
         "created_at": msg.get("created_at", "").isoformat() if isinstance(msg.get("created_at"), datetime) else str(msg.get("created_at", "")),
     }
 
@@ -153,6 +154,9 @@ class UpdateProfileBody(BaseModel):
 class StoryBody(BaseModel):
     content: str
     type: str = "text"
+class EditMessageBody(BaseModel):
+    content: str
+
 
 # --- Startup ---
 @fastapi_app.on_event("startup")
@@ -528,6 +532,19 @@ async def leave_group(conv_id: str, request: Request):
         "$unset": {f"unread_counts.{uid}": ""}
     })
     return {"message": "Left group"}
+
+@fastapi_app.patch("/api/messages/{msg_id}")
+async def edit_message(msg_id: str, body: EditMessageBody, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    msg = await db.messages.find_one({"_id": ObjectId(msg_id), "sender_id": uid})
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+    await db.messages.update_one({"_id": ObjectId(msg_id)}, {"$set": {"content": body.content, "is_edited": True}})
+    conv_id = msg["conversation_id"]
+    for pid in (await db.conversations.find_one({"_id": ObjectId(conv_id)})).get("participant_ids", []):
+        await sio.emit("message_edited", {"message_id": msg_id, "conversation_id": conv_id, "content": body.content}, room=f"user_{pid}")
+    return {"message": "Edited"}
 
 # --- Message Actions ---
 @fastapi_app.delete("/api/messages/{msg_id}")

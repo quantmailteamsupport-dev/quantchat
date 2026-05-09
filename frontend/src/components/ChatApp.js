@@ -11,11 +11,39 @@ import EmptyState from './EmptyState';
 import Contacts from './Contacts';
 import Groups from './Groups';
 import Stories from './Stories';
+import { MessageSquare, Search, Settings as SettingsIcon, Users, Radio, Contact, LogOut, Moon, Sun } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
+function BottomNav({ view, setView, user, logout, darkMode, toggleTheme }) {
+  const tabs = [
+    { id: 'chats', icon: MessageSquare, label: 'CHATS' },
+    { id: 'contacts', icon: Contact, label: 'CONTACTS' },
+    { id: 'groups', icon: Users, label: 'GROUPS' },
+    { id: 'stories', icon: Radio, label: 'STORIES' },
+    { id: 'search', icon: Search, label: 'SEARCH' },
+  ];
+
+  return (
+    <div data-testid="bottom-nav" className="flex items-center justify-around bg-qc-surface border-t-2 border-qc-border px-1 py-2 flex-shrink-0 relative z-20">
+      {tabs.map(({ id, icon: Icon, label }) => (
+        <button key={id} data-testid={`bnav-${id}`} onClick={() => setView(id)}
+          className={`flex flex-col items-center justify-center py-2 px-3 border-2 border-qc-border ${view === id ? 'bg-qc-accent-secondary shadow-[2px_2px_0px_#0A0A0A]' : 'bg-qc-bg hover:bg-qc-accent-tertiary'}`}>
+          <Icon size={18} className="text-qc-text-primary" />
+        </button>
+      ))}
+      <button onClick={toggleTheme} className="flex flex-col items-center justify-center py-2 px-3 border-2 border-qc-border bg-qc-bg hover:bg-qc-accent-primary">
+        {darkMode ? <Sun size={18} className="text-qc-text-primary" /> : <Moon size={18} className="text-qc-text-primary" />}
+      </button>
+      <button data-testid="bnav-logout" onClick={logout} className="flex flex-col items-center justify-center py-2 px-3 border-2 border-qc-border bg-[#FF3333] hover:shadow-[2px_2px_0px_#0A0A0A]">
+        <LogOut size={18} className="text-white" />
+      </button>
+    </div>
+  );
+}
+
 export default function ChatApp() {
-  const { user, token, logout } = useAuth();
+  const { user, token, logout, darkMode, toggleTheme } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [activeConv, setActiveConv] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -23,7 +51,6 @@ export default function ChatApp() {
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const [typingUsers, setTypingUsers] = useState({});
   const socketRef = useRef(null);
-  // Mobile: 'list' = show left panel, 'chat' = show chat panel
   const [mobileScreen, setMobileScreen] = useState('list');
 
   useEffect(() => {
@@ -54,6 +81,12 @@ export default function ChatApp() {
         return c;
       }).sort((a, b) => new Date(b.last_message_time) - new Date(a.last_message_time)));
     });
+    socket.on('message_edited', (data) => {
+      setMessages(prev => prev.map(m => m.id === data.message_id ? { ...m, content: data.content, is_edited: true } : m));
+      if (activeConv?.id === data.conversation_id) {
+        setConversations(prev => prev.map(c => c.id === data.conversation_id && c.last_message === data.content ? c : c));
+      }
+    });
     socket.on('user_online', (data) => setOnlineUsers(prev => new Set([...prev, data.user_id])));
     socket.on('user_offline', (data) => setOnlineUsers(prev => { const n = new Set(prev); n.delete(data.user_id); return n; }));
     socket.on('user_typing', (data) => {
@@ -62,7 +95,7 @@ export default function ChatApp() {
     });
     socket.on('messages_read', (data) => setMessages(prev => prev.map(m => m.conversation_id === data.conversation_id && m.sender_id === user?.id ? { ...m, status: 'read' } : m)));
     return () => socket.disconnect();
-  }, [token, user?.id]);
+  }, [token, user?.id, activeConv?.id]);
 
   const loadConversations = useCallback(async () => {
     try {
@@ -87,10 +120,17 @@ export default function ChatApp() {
   useEffect(() => { if (activeConv) loadMessages(activeConv.id); }, [activeConv, loadMessages]);
 
   const sendMessage = async (content, type = 'text') => {
-    if (!activeConv || !content.trim()) return;
+    if (!activeConv || (!content.trim() && type === 'text')) return;
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       await axios.post(`${API}/api/conversations/${activeConv.id}/messages`, { content, type }, { headers });
+    } catch {}
+  };
+
+  const editMessage = async (msgId, content) => {
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.patch(`${API}/api/messages/${msgId}`, { content }, { headers });
     } catch {}
   };
 
@@ -125,7 +165,6 @@ export default function ChatApp() {
     setActiveConv(null);
   };
 
-  // Render the left panel content based on current view
   const renderLeftContent = () => {
     switch (view) {
       case 'chats': return <ChatList conversations={conversations} activeConv={activeConv} onSelect={selectConversation} onlineUsers={onlineUsers} typingUsers={typingUsers} userId={user?.id} />;
@@ -139,24 +178,21 @@ export default function ChatApp() {
   };
 
   return (
-    <div data-testid="chat-app" className="h-screen bg-qc-bg flex flex-col md:flex-row overflow-hidden">
+    <div data-testid="chat-app" className="h-screen bg-qc-bg flex flex-col md:flex-row overflow-hidden font-mono selection:bg-qc-accent-primary selection:text-black">
 
-      {/* ===== MOBILE LAYOUT (< md) ===== */}
+      {/* MOBILE */}
       <div className="flex flex-col h-full w-full md:hidden">
         {mobileScreen === 'list' ? (
           <>
-            {/* Left content full screen */}
             <div className="flex-1 flex flex-col overflow-hidden">
               {renderLeftContent()}
             </div>
-            {/* Bottom nav bar */}
-            <BottomNav view={view} setView={handleViewChange} user={user} logout={logout} />
+            <BottomNav view={view} setView={handleViewChange} user={user} logout={logout} darkMode={darkMode} toggleTheme={toggleTheme} />
           </>
         ) : (
-          /* Chat view full screen */
           activeConv ? (
             <ChatView
-              conversation={activeConv} messages={messages} onSend={sendMessage} userId={user?.id}
+              conversation={activeConv} messages={messages} onSend={sendMessage} onEdit={editMessage} userId={user?.id}
               onlineUsers={onlineUsers} typingUsers={typingUsers} emitTyping={emitTyping}
               onBack={handleMobileBack} conversations={conversations} token={token} onReloadMessages={loadMessages}
               isMobile={true}
@@ -164,64 +200,40 @@ export default function ChatApp() {
           ) : (
             <>
               <div className="flex-1 flex flex-col overflow-hidden">{renderLeftContent()}</div>
-              <BottomNav view={view} setView={handleViewChange} user={user} logout={logout} />
+              <BottomNav view={view} setView={handleViewChange} user={user} logout={logout} darkMode={darkMode} toggleTheme={toggleTheme} />
             </>
           )
         )}
       </div>
 
-      {/* ===== DESKTOP LAYOUT (>= md) ===== */}
+      {/* DESKTOP */}
       <div className="hidden md:flex md:flex-row h-full w-full">
-        {/* Desktop sidebar */}
-        <Sidebar view={view} setView={handleViewChange} user={user} logout={logout} />
-        {/* Middle panel */}
-        <div className="w-80 border-r border-qc-border flex-shrink-0 flex flex-col bg-qc-surface">
+        <Sidebar view={view} setView={handleViewChange} user={user} logout={logout} darkMode={darkMode} toggleTheme={toggleTheme} />
+        <div className="w-[340px] border-r-2 border-qc-border flex-shrink-0 flex flex-col bg-qc-surface z-10">
           {renderLeftContent()}
         </div>
-        {/* Right panel */}
-        <div className="flex-1 flex flex-col bg-qc-bg">
-          {activeConv ? (
-            <ChatView
-              conversation={activeConv} messages={messages} onSend={sendMessage} userId={user?.id}
-              onlineUsers={onlineUsers} typingUsers={typingUsers} emitTyping={emitTyping}
-              onBack={() => setActiveConv(null)} conversations={conversations} token={token} onReloadMessages={loadMessages}
-              isMobile={false}
-            />
-          ) : (
-            <EmptyState />
-          )}
+        <div className="flex-1 flex flex-col bg-qc-bg relative">
+          {/* Background grid texture */}
+          <div className="absolute inset-0 grid grid-cols-[repeat(20,minmax(0,1fr))] grid-rows-[repeat(20,minmax(0,1fr))] opacity-[0.03] pointer-events-none z-0">
+            {Array.from({length: 400}).map((_, i) => (
+              <div key={i} className="border-r border-b border-black"></div>
+            ))}
+          </div>
+
+          <div className="relative z-10 flex-1 flex flex-col h-full">
+            {activeConv ? (
+              <ChatView
+                conversation={activeConv} messages={messages} onSend={sendMessage} onEdit={editMessage} userId={user?.id}
+                onlineUsers={onlineUsers} typingUsers={typingUsers} emitTyping={emitTyping}
+                onBack={() => setActiveConv(null)} conversations={conversations} token={token} onReloadMessages={loadMessages}
+                isMobile={false}
+              />
+            ) : (
+              <EmptyState />
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-/* ===== Mobile Bottom Navigation ===== */
-import { MessageSquare, Search, Settings as SettingsIcon, Users, Radio, Contact, LogOut, User } from 'lucide-react';
-
-function BottomNav({ view, setView, user, logout }) {
-  const tabs = [
-    { id: 'chats', icon: MessageSquare, label: 'Chats' },
-    { id: 'contacts', icon: Contact, label: 'Contacts' },
-    { id: 'groups', icon: Users, label: 'Groups' },
-    { id: 'stories', icon: Radio, label: 'Stories' },
-    { id: 'search', icon: Search, label: 'Search' },
-    { id: 'settings', icon: SettingsIcon, label: 'Settings' },
-  ];
-
-  return (
-    <div data-testid="bottom-nav" className="flex items-center justify-around bg-qc-surface border-t border-qc-border px-1 py-1 flex-shrink-0 safe-bottom">
-      {tabs.map(({ id, icon: Icon, label }) => (
-        <button key={id} data-testid={`bnav-${id}`} onClick={() => setView(id)}
-          className={`flex flex-col items-center justify-center py-1.5 px-2 min-w-0 ${view === id ? 'text-qc-accent' : 'text-qc-text-tertiary'}`}>
-          <Icon size={18} />
-          <span className="text-[9px] mt-0.5 font-mono tracking-wider truncate">{label}</span>
-        </button>
-      ))}
-      <button data-testid="bnav-logout" onClick={logout} className="flex flex-col items-center justify-center py-1.5 px-2 text-qc-text-tertiary">
-        <LogOut size={18} />
-        <span className="text-[9px] mt-0.5 font-mono tracking-wider">Exit</span>
-      </button>
     </div>
   );
 }
