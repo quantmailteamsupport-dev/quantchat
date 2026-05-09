@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageSquare, Search, Settings, LogOut, User, Users, Radio, Contact } from 'lucide-react';
+import { MessageSquare, Search, Settings, LogOut, User, Users, Radio, Contact, Video } from 'lucide-react';
 
 export default function Sidebar({ view, setView, user, logout }) {
   const items = [
@@ -8,6 +8,7 @@ export default function Sidebar({ view, setView, user, logout }) {
     { id: 'groups', icon: Users, label: 'Groups' },
     { id: 'stories', icon: Radio, label: 'Stories' },
     { id: 'search', icon: Search, label: 'Search' },
+    { id: 'reels', icon: Video, label: 'Reels' },
     { id: 'settings', icon: Settings, label: 'Settings' },
   ];
 

@@ -15,7 +15,7 @@ function formatMsgTime(time) {
   } catch { return ''; }
 }
 
-function MessageBubble({ msg, isMine, userId, onReact, onDelete, onForward, participants }) {
+function MessageBubble({ msg, isMine, userId, onReact, onDelete, onForward, onReply, onPin, participants }) {
   const [showActions, setShowActions] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
   const reactions = msg.reactions || {};
@@ -29,20 +29,27 @@ function MessageBubble({ msg, isMine, userId, onReact, onDelete, onForward, part
       onTouchStart={() => setShowActions(true)}>
 
       {showActions && (
-        <div className={`absolute -top-7 ${isMine ? 'right-0' : 'left-0'} flex items-center gap-1 z-10`}>
-          <button onClick={() => setShowEmoji(!showEmoji)} className="w-7 h-7 flex items-center justify-center bg-qc-elevated border border-qc-border text-qc-text-secondary hover:text-white rounded-sm"><Smile size={13}/></button>
-          {isMine && <button onClick={() => onDelete(msg.id)} className="w-7 h-7 flex items-center justify-center bg-qc-elevated border border-qc-border text-qc-text-secondary hover:text-qc-error rounded-sm"><Trash2 size={13}/></button>}
-          <button onClick={() => onForward(msg.id)} className="w-7 h-7 flex items-center justify-center bg-qc-elevated border border-qc-border text-qc-text-secondary hover:text-white rounded-sm"><Forward size={13}/></button>
+        <div className={`absolute -top-7 ${isMine ? 'right-0' : 'left-0'} flex items-center gap-1 z-10 bg-qc-elevated border border-qc-border p-1 rounded-md shadow-lg`}>
+          <button onClick={() => setShowEmoji(!showEmoji)} className="w-6 h-6 flex items-center justify-center text-qc-text-secondary hover:text-white"><Smile size={13}/></button>
+          <button onClick={() => onReply(msg)} className="w-6 h-6 flex items-center justify-center text-qc-text-secondary hover:text-white" title="Reply"><CornerUpRight size={13}/></button>
+          <button onClick={() => onPin(msg.id)} className="w-6 h-6 flex items-center justify-center text-qc-text-secondary hover:text-white" title="Pin"><Check size={13}/></button>
+          {isMine && <button onClick={() => onDelete(msg.id)} className="w-6 h-6 flex items-center justify-center text-qc-text-secondary hover:text-qc-error"><Trash2 size={13}/></button>}
+          <button onClick={() => onForward(msg.id)} className="w-6 h-6 flex items-center justify-center text-qc-text-secondary hover:text-white"><Forward size={13}/></button>
         </div>
       )}
-
+      
       {showEmoji && (
         <div className={`absolute -top-14 ${isMine ? 'right-0' : 'left-0'} bg-qc-elevated border border-qc-border p-1 flex gap-1 z-20 rounded-sm`}>
           {EMOJIS.map(e => <button key={e} onClick={() => { onReact(msg.id, e); setShowEmoji(false); setShowActions(false); }} className="w-8 h-8 flex items-center justify-center hover:bg-qc-highlight text-base">{e}</button>)}
         </div>
-      )}
+      )}}
 
       <div className={`max-w-[80%] sm:max-w-[70%] px-3 py-2 ${isMine ? 'bg-qc-accent text-white rounded-md rounded-br-none' : 'bg-qc-elevated text-white border border-qc-border rounded-md rounded-bl-none'}`}>
+        {msg.reply_to_content && (
+          <div className="mb-2 p-2 bg-black/20 border-l-2 border-white/50 rounded-sm text-xs opacity-80 line-clamp-2">
+            {msg.reply_to_content}
+          </div>
+        )}
         {senderName && <p className="text-[10px] font-mono text-qc-accent mb-0.5">{senderName}</p>}
         {msg.forwarded && <p className="text-[10px] italic text-white/50 mb-0.5 flex items-center gap-1"><CornerUpRight size={9}/>Forwarded</p>}
         <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
@@ -66,9 +73,10 @@ function getConvInfo(conv, userId) {
   return { name: other?.name || 'Unknown', avatar: other?.avatar || '', user_id: other?.user_id, isGroup: false };
 }
 
-export default function ChatView({ conversation, messages, onSend, userId, onlineUsers, typingUsers, emitTyping, onBack, conversations, token, onReloadMessages, isMobile }) {
+export default function ChatView({ conversation, messages, onSend, userId, onlineUsers, typingUsers, emitTyping, onBack, conversations, token, onReloadMessages, isMobile, onPinMessage, onUnpinMessage }) {
   const [input, setInput] = useState('');
   const [forwardMsgId, setForwardMsgId] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null);
   const messagesEndRef = useRef(null);
   const typingTimeout = useRef(null);
   const info = getConvInfo(conversation, userId);
@@ -80,7 +88,8 @@ export default function ChatView({ conversation, messages, onSend, userId, onlin
   const handleSend = (e) => {
     e.preventDefault();
     if (!input.trim()) return;
-    onSend(input.trim());
+    onSend(input.trim(), 'text', replyingTo?.id);
+    setReplyingTo(null);
     setInput('');
     emitTyping(conversation.id, false);
   };
@@ -156,6 +165,18 @@ export default function ChatView({ conversation, messages, onSend, userId, onlin
           <div className="w-9 h-9 rounded-md overflow-hidden bg-qc-highlight flex items-center justify-center">
             {info.avatar ? <img src={info.avatar} alt={info.name} className="w-full h-full object-cover"/> : <User size={16} className="text-qc-text-secondary"/>}
           </div>
+      {conversation.pinned_message && (
+        <div className="bg-qc-elevated border-b border-qc-border px-3 py-2 flex items-center justify-between shadow-sm z-10 flex-shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Check size={16} className="text-qc-accent flex-shrink-0"/>
+            <div className="min-w-0">
+              <p className="text-[10px] text-qc-accent font-mono uppercase tracking-wider">Pinned Message</p>
+              <p className="text-xs text-white truncate max-w-sm">{conversation.pinned_message.content}</p>
+            </div>
+          </div>
+          <button onClick={() => onUnpinMessage(conversation.id)} className="text-qc-text-secondary hover:text-white ml-2 flex-shrink-0"><X size={14}/></button>
+        </div>
+      )}
           {isOnline && <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-qc-success border-2 border-qc-surface rounded-full"/>}
         </div>
         <div className="flex-1 min-w-0">
@@ -178,14 +199,28 @@ export default function ChatView({ conversation, messages, onSend, userId, onlin
           </div>
         ) : messages.map(msg => (
           <MessageBubble key={msg.id} msg={msg} isMine={msg.sender_id === userId} userId={userId}
-            onReact={handleReact} onDelete={handleDelete} onForward={setForwardMsgId}
+            onReact={handleReact} onDelete={handleDelete} onForward={setForwardMsgId} onReply={setReplyingTo} onPin={(msgId) => onPinMessage(conversation.id, msgId)}
             participants={conversation.participants} />
         ))}
         <div ref={messagesEndRef}/>
       </div>
 
       {/* Input */}
-      <form data-testid="message-form" onSubmit={handleSend}
+      {replyingTo && (
+        <div className="px-3 py-2 bg-qc-elevated border-t border-qc-border flex items-center justify-between flex-shrink-0">
+          <div className="border-l-2 border-qc-accent pl-2 min-w-0">
+            <p className="text-[10px] text-qc-accent font-mono">Replying to message</p>
+            <p className="text-xs text-white truncate max-w-sm opacity-80">{replyingTo.content}</p>
+          </div>
+          <button onClick={() => setReplyingTo(null)} className="text-qc-text-secondary hover:text-white"><X size={16}/></button>
+        </div>
+      )}
+      {conversation.is_channel && (!conversation.admins || !conversation.admins.includes(userId)) ? (
+        <div className="p-3 text-center bg-qc-surface border-t border-qc-border text-qc-text-secondary text-sm font-mono flex-shrink-0 safe-bottom">
+          Only admins can send messages
+        </div>
+      ) : (
+        <form data-testid="message-form" onSubmit={handleSend}
         className="border-t border-qc-border bg-qc-surface px-3 py-2.5 flex items-center gap-2 flex-shrink-0 safe-bottom">
         <input data-testid="message-input" type="text" value={input} onChange={handleInputChange} onKeyDown={handleKeyDown}
           placeholder="Type a message..." className="flex-1 bg-qc-elevated border border-qc-border text-white text-sm px-3 py-2.5 rounded-sm placeholder:text-qc-text-tertiary outline-none focus:border-qc-accent transition-colors"/>
@@ -194,6 +229,7 @@ export default function ChatView({ conversation, messages, onSend, userId, onlin
           <Send size={16}/>
         </button>
       </form>
+      )}
     </div>
   );
 }

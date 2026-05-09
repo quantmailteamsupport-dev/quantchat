@@ -11,6 +11,7 @@ import EmptyState from './EmptyState';
 import Contacts from './Contacts';
 import Groups from './Groups';
 import Stories from './Stories';
+import Reels from './Reels';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -61,6 +62,14 @@ export default function ChatApp() {
       if (data.is_typing) setTimeout(() => setTypingUsers(prev => prev[data.conversation_id] === data.user_id ? { ...prev, [data.conversation_id]: null } : prev), 3000);
     });
     socket.on('messages_read', (data) => setMessages(prev => prev.map(m => m.conversation_id === data.conversation_id && m.sender_id === user?.id ? { ...m, status: 'read' } : m)));
+    socket.on('message_pinned', (data) => {
+      setConversations(prev => prev.map(c => c.id === data.conversation_id ? { ...c, pinned_message: data.pinned_message } : c));
+      setActiveConv(prev => prev?.id === data.conversation_id ? { ...prev, pinned_message: data.pinned_message } : prev);
+    });
+    socket.on('message_unpinned', (data) => {
+      setConversations(prev => prev.map(c => c.id === data.conversation_id ? { ...c, pinned_message: null } : c));
+      setActiveConv(prev => prev?.id === data.conversation_id ? { ...prev, pinned_message: null } : prev);
+    });
     return () => socket.disconnect();
   }, [token, user?.id]);
 
@@ -86,11 +95,11 @@ export default function ChatApp() {
 
   useEffect(() => { if (activeConv) loadMessages(activeConv.id); }, [activeConv, loadMessages]);
 
-  const sendMessage = async (content, type = 'text') => {
+  const sendMessage = async (content, type = 'text', replyTo = null) => {
     if (!activeConv || !content.trim()) return;
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      await axios.post(`${API}/api/conversations/${activeConv.id}/messages`, { content, type }, { headers });
+      await axios.post(`${API}/api/conversations/${activeConv.id}/messages`, { content, type, reply_to: replyTo }, { headers });
     } catch {}
   };
 
@@ -102,6 +111,24 @@ export default function ChatApp() {
       setActiveConv(data.conversation);
       setView('chats');
       setMobileScreen('chat');
+    } catch {}
+  };
+
+  const handlePinMessage = async (convId, msgId) => {
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const { data } = await axios.post(`${API}/api/conversations/${convId}/messages/${msgId}/pin_chat`, {}, { headers });
+      setConversations(prev => prev.map(c => c.id === convId ? { ...c, pinned_message: data.pinned_message } : c));
+      if (activeConv?.id === convId) setActiveConv(prev => ({ ...prev, pinned_message: data.pinned_message }));
+    } catch {}
+  };
+
+  const handleUnpinMessage = async (convId) => {
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.post(`${API}/api/conversations/${convId}/unpin_chat`, {}, { headers });
+      setConversations(prev => prev.map(c => c.id === convId ? { ...c, pinned_message: null } : c));
+      if (activeConv?.id === convId) setActiveConv(prev => ({ ...prev, pinned_message: null }));
     } catch {}
   };
 
@@ -133,6 +160,7 @@ export default function ChatApp() {
       case 'contacts': return <Contacts onStartChat={startConversation} />;
       case 'groups': return <Groups onSelectConv={(conv) => { setActiveConv(conv); setView('chats'); setMobileScreen('chat'); }} userId={user?.id} />;
       case 'stories': return <Stories userId={user?.id} />;
+      case 'reels': return <Reels userId={user?.id} />;
       case 'settings': return <Settings user={user} />;
       default: return <ChatList conversations={conversations} activeConv={activeConv} onSelect={selectConversation} onlineUsers={onlineUsers} typingUsers={typingUsers} userId={user?.id} />;
     }
@@ -159,7 +187,7 @@ export default function ChatApp() {
               conversation={activeConv} messages={messages} onSend={sendMessage} userId={user?.id}
               onlineUsers={onlineUsers} typingUsers={typingUsers} emitTyping={emitTyping}
               onBack={handleMobileBack} conversations={conversations} token={token} onReloadMessages={loadMessages}
-              isMobile={true}
+              isMobile={true} onPinMessage={handlePinMessage} onUnpinMessage={handleUnpinMessage}
             />
           ) : (
             <>
@@ -185,7 +213,7 @@ export default function ChatApp() {
               conversation={activeConv} messages={messages} onSend={sendMessage} userId={user?.id}
               onlineUsers={onlineUsers} typingUsers={typingUsers} emitTyping={emitTyping}
               onBack={() => setActiveConv(null)} conversations={conversations} token={token} onReloadMessages={loadMessages}
-              isMobile={false}
+              isMobile={false} onPinMessage={handlePinMessage} onUnpinMessage={handleUnpinMessage}
             />
           ) : (
             <EmptyState />
@@ -197,7 +225,7 @@ export default function ChatApp() {
 }
 
 /* ===== Mobile Bottom Navigation ===== */
-import { MessageSquare, Search, Settings as SettingsIcon, Users, Radio, Contact, LogOut, User } from 'lucide-react';
+import { MessageSquare, Search, Settings as SettingsIcon, Users, Radio, Contact, LogOut, User, Video } from 'lucide-react';
 
 function BottomNav({ view, setView, user, logout }) {
   const tabs = [
@@ -206,6 +234,7 @@ function BottomNav({ view, setView, user, logout }) {
     { id: 'groups', icon: Users, label: 'Groups' },
     { id: 'stories', icon: Radio, label: 'Stories' },
     { id: 'search', icon: Search, label: 'Search' },
+    { id: 'reels', icon: Video, label: 'Reels' },
     { id: 'settings', icon: SettingsIcon, label: 'Settings' },
   ];
 

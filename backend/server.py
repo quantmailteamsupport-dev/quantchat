@@ -79,6 +79,8 @@ def serialize_message(msg: dict) -> dict:
         "status": msg.get("status", "sent"),
         "reactions": msg.get("reactions", {}),
         "forwarded": msg.get("forwarded", False),
+        "reply_to": str(msg.get("reply_to", "")) if msg.get("reply_to") else None,
+        "reply_to_content": msg.get("reply_to_content"),
         "created_at": msg.get("created_at", "").isoformat() if isinstance(msg.get("created_at"), datetime) else str(msg.get("created_at", "")),
     }
 
@@ -100,6 +102,9 @@ def serialize_conversation(conv: dict, current_user_id: str = None) -> dict:
         "last_message_time": conv.get("last_message_time", "").isoformat() if isinstance(conv.get("last_message_time"), datetime) else str(conv.get("last_message_time", "")),
         "unread_count": conv.get("unread_counts", {}).get(current_user_id, 0) if current_user_id else 0,
         "other_user": {"user_id": str(other.get("user_id", "")), "name": other.get("name", ""), "avatar": other.get("avatar", "")} if other else None,
+        "is_channel": conv.get("is_channel", False),
+        "admins": conv.get("admins", []),
+        "pinned_message": conv.get("pinned_message"),
     }
 
 async def get_current_user(request: Request) -> dict:
@@ -136,6 +141,7 @@ class LoginBody(BaseModel):
 class MessageBody(BaseModel):
     content: str
     type: str = "text"
+    reply_to: Optional[str] = None
 
 class CreateConversationBody(BaseModel):
     participant_id: str
@@ -144,6 +150,7 @@ class CreateConversationBody(BaseModel):
 class CreateGroupBody(BaseModel):
     name: str
     participant_ids: List[str]
+    is_channel: bool = False
 
 class UpdateProfileBody(BaseModel):
     name: Optional[str] = None
@@ -154,6 +161,13 @@ class StoryBody(BaseModel):
     content: str
     type: str = "text"
 
+class ReelBody(BaseModel):
+    media_url: str
+    caption: str = ""
+
+class CommentBody(BaseModel):
+    text: str
+
 # --- Startup ---
 @fastapi_app.on_event("startup")
 async def startup():
@@ -162,6 +176,7 @@ async def startup():
     await db.messages.create_index("conversation_id")
     await db.conversations.create_index("participant_ids")
     await db.stories.create_index("created_at", expireAfterSeconds=86400)
+    await db.reels.create_index("created_at")
     await seed_admin()
     await seed_demo_users()
 
@@ -397,6 +412,8 @@ async def create_group(body: CreateGroupBody, request: Request):
         "avatar": "",
         "participant_ids": participant_ids,
         "participants": participants,
+        "is_channel": body.is_channel,
+        "admins": [uid],
         "last_message": None,
         "last_message_time": datetime.now(timezone.utc),
         "unread_counts": {pid: 0 for pid in participant_ids},
@@ -430,12 +447,24 @@ async def send_message(conv_id: str, body: MessageBody, request: Request):
     conv = await db.conversations.find_one({"_id": ObjectId(conv_id), "participant_ids": uid})
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
+        
+    if conv.get("is_channel") and uid not in conv.get("admins", []):
+        raise HTTPException(status_code=403, detail="Only admins can post in this channel")
+
+    reply_to_content = None
+    if body.reply_to:
+        replied_msg = await db.messages.find_one({"_id": ObjectId(body.reply_to)})
+        if replied_msg:
+            reply_to_content = replied_msg.get("content")
+
     msg = {
         "conversation_id": conv_id,
         "sender_id": uid,
         "content": body.content,
         "type": body.type,
         "status": "sent",
+        "reply_to": body.reply_to,
+        "reply_to_content": reply_to_content,
         "created_at": datetime.now(timezone.utc),
     }
     result = await db.messages.insert_one(msg)
@@ -690,6 +719,129 @@ async def forward_message(msg_id: str, request: Request):
 @fastapi_app.get("/api/health")
 async def health():
     return {"status": "ok", "service": "quantchat-api"}
+
+
+# --- Pinned Messages (Telegram) ---
+@fastapi_app.post("/api/conversations/{conv_id}/messages/{msg_id}/pin_chat")
+async def pin_chat_message(conv_id: str, msg_id: str, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    conv = await db.conversations.find_one({"_id": ObjectId(conv_id), "participant_ids": uid})
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+        
+    if conv.get("is_channel") and uid not in conv.get("admins", []):
+        raise HTTPException(status_code=403, detail="Only admins can pin messages")
+
+    msg = await db.messages.find_one({"_id": ObjectId(msg_id), "conversation_id": conv_id})
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    pinned_msg = {
+        "id": str(msg["_id"]),
+        "content": msg.get("content", ""),
+        "sender_id": msg.get("sender_id", "")
+    }
+    await db.conversations.update_one({"_id": ObjectId(conv_id)}, {"$set": {"pinned_message": pinned_msg}})
+    for pid in conv["participant_ids"]:
+        await sio.emit("message_pinned", {"conversation_id": conv_id, "pinned_message": pinned_msg}, room=f"user_{pid}")
+    return {"pinned_message": pinned_msg}
+
+@fastapi_app.post("/api/conversations/{conv_id}/unpin_chat")
+async def unpin_chat_message(conv_id: str, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    conv = await db.conversations.find_one({"_id": ObjectId(conv_id), "participant_ids": uid})
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    if conv.get("is_channel") and uid not in conv.get("admins", []):
+        raise HTTPException(status_code=403, detail="Only admins can unpin messages")
+
+    await db.conversations.update_one({"_id": ObjectId(conv_id)}, {"$set": {"pinned_message": None}})
+    for pid in conv["participant_ids"]:
+        await sio.emit("message_unpinned", {"conversation_id": conv_id}, room=f"user_{pid}")
+    return {"message": "Unpinned"}
+
+# --- Reels (Snapchat/Insta) ---
+def serialize_reel(r: dict, user_id: str) -> dict:
+    likes = r.get("likes", [])
+    return {
+        "id": str(r["_id"]),
+        "user_id": str(r["user_id"]),
+        "user_name": r.get("user_name", ""),
+        "user_avatar": r.get("user_avatar", ""),
+        "media_url": r.get("media_url", ""),
+        "caption": r.get("caption", ""),
+        "likes_count": len(likes),
+        "is_liked": user_id in likes,
+        "comments": [
+            {"id": str(c["id"]), "user_id": c["user_id"], "user_name": c["user_name"], "text": c["text"], "created_at": c["created_at"].isoformat() if isinstance(c["created_at"], datetime) else str(c["created_at"])} 
+            for c in r.get("comments", [])
+        ],
+        "created_at": r.get("created_at", "").isoformat() if isinstance(r.get("created_at"), datetime) else str(r.get("created_at", "")),
+    }
+
+@fastapi_app.get("/api/reels")
+async def get_reels(request: Request, limit: int = 20):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    reels = await db.reels.find().sort("created_at", -1).limit(limit).to_list(limit)
+    return {"reels": [serialize_reel(r, uid) for r in reels]}
+
+@fastapi_app.post("/api/reels")
+async def create_reel(body: ReelBody, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    reel = {
+        "user_id": uid,
+        "user_name": user.get("name", ""),
+        "user_avatar": user.get("avatar", ""),
+        "media_url": body.media_url,
+        "caption": body.caption,
+        "likes": [],
+        "comments": [],
+        "created_at": datetime.now(timezone.utc),
+    }
+    result = await db.reels.insert_one(reel)
+    reel["_id"] = result.inserted_id
+    return {"reel": serialize_reel(reel, uid)}
+
+@fastapi_app.post("/api/reels/{reel_id}/like")
+async def like_reel(reel_id: str, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    reel = await db.reels.find_one({"_id": ObjectId(reel_id)})
+    if not reel:
+        raise HTTPException(status_code=404, detail="Reel not found")
+    
+    likes = reel.get("likes", [])
+    if uid in likes:
+        likes.remove(uid)
+    else:
+        likes.append(uid)
+    await db.reels.update_one({"_id": ObjectId(reel_id)}, {"$set": {"likes": likes}})
+    return {"is_liked": uid in likes, "likes_count": len(likes)}
+
+@fastapi_app.post("/api/reels/{reel_id}/comment")
+async def comment_reel(reel_id: str, body: CommentBody, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    reel = await db.reels.find_one({"_id": ObjectId(reel_id)})
+    if not reel:
+        raise HTTPException(status_code=404, detail="Reel not found")
+    
+    comment = {
+        "id": str(ObjectId()),
+        "user_id": uid,
+        "user_name": user.get("name", ""),
+        "text": body.text,
+        "created_at": datetime.now(timezone.utc)
+    }
+    await db.reels.update_one({"_id": ObjectId(reel_id)}, {"$push": {"comments": comment}})
+    comment["created_at"] = comment["created_at"].isoformat()
+    return {"comment": comment}
+
 
 # --- Socket.IO Events ---
 online_users = {}  # sid -> user_id
