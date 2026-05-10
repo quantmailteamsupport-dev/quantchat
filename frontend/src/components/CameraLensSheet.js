@@ -9,13 +9,14 @@ const LENSES = [
   { id: 'dream', label: 'Dream', filter: 'saturate(1.22) brightness(1.08) blur(0.2px)' },
 ];
 
-export default function CameraLensSheet({ open, onClose }) {
+export default function CameraLensSheet({ open, onClose, onPublish }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
   const [lens, setLens] = useState('neon');
   const [streamError, setStreamError] = useState('');
   const [capturedImage, setCapturedImage] = useState('');
+  const [publishing, setPublishing] = useState('');
 
   const activeFilter = useMemo(() => LENSES.find((item) => item.id === lens)?.filter || 'none', [lens]);
 
@@ -67,6 +68,17 @@ export default function CameraLensSheet({ open, onClose }) {
     event.target.value = '';
   };
 
+  const handlePublish = async (mode) => {
+    if (!capturedImage || !onPublish) return;
+    setPublishing(mode);
+    try {
+      await onPublish(mode, capturedImage);
+      setCapturedImage('');
+      onClose?.();
+    } catch {}
+    setPublishing('');
+  };
+
   return (
     <div className="fixed inset-0 z-[80] bg-black/78 backdrop-blur-md flex items-end md:items-center justify-center" onClick={onClose}>
       <div data-testid="camera-lens-sheet" className="w-full md:max-w-[430px] md:h-[86vh] h-[100dvh] rounded-t-[34px] md:rounded-[34px] overflow-hidden border border-white/10 bg-[#05070d] shadow-[0_24px_80px_rgba(0,0,0,0.48)] flex flex-col" onClick={(event) => event.stopPropagation()}>
@@ -108,6 +120,24 @@ export default function CameraLensSheet({ open, onClose }) {
               </button>
             ))}
           </div>
+
+          {capturedImage && (
+            <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4">
+              <div className="text-[10px] uppercase tracking-[0.22em] text-white/46">Publish capture</div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {[
+                  ['snap', 'Snap streak'],
+                  ['story', 'Story'],
+                  ['feed', 'Feed'],
+                  ['reel', 'Reel'],
+                ].map(([id, label]) => (
+                  <button key={id} type="button" data-testid={`camera-publish-${id}`} onClick={() => handlePublish(id)} disabled={publishing === id} className="rounded-[18px] border border-white/10 bg-black/22 px-4 py-3 text-sm text-white disabled:opacity-40">
+                    {publishing === id ? 'Publishing...' : label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="px-4 py-4 border-t border-white/8 bg-[#06080f] flex items-center justify-between gap-3 pb-[calc(1rem+env(safe-area-inset-bottom))]">

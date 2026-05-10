@@ -73,6 +73,7 @@ def serialize_user(user: dict) -> dict:
     return {
         "id": str(user["_id"]),
         "email": user.get("email", ""),
+        "phone_number": user.get("phone_number", ""),
         "name": user.get("name", ""),
         "avatar": user.get("avatar", ""),
         "bio": user.get("bio", ""),
@@ -180,6 +181,7 @@ def serialize_conversation(conv: dict, current_user_id: str = None) -> dict:
         "disappearing_minutes": conv.get("disappearing_minutes", 0),
         "streak_count": conv.get("streak_count", 0),
         "streak_best": conv.get("streak_best", conv.get("streak_count", 0)),
+        "is_starred": current_user_id in conv.get("starred_by", []) if current_user_id else False,
     }
 
 def parse_object_id(value: str, field_name: str) -> ObjectId:
@@ -340,6 +342,44 @@ async def purge_expired_messages(conv_id: Optional[str] = None) -> None:
     for affected_conv_id in affected_conversations:
         await refresh_conversation_state(affected_conv_id)
 
+async def deliver_due_scheduled_messages(user_id: Optional[str] = None, conversation_id: Optional[str] = None) -> None:
+    now = datetime.now(timezone.utc)
+    query = {"status": "scheduled", "deliver_at": {"$lte": now}}
+    if user_id:
+        query["sender_id"] = user_id
+    if conversation_id:
+        query["conversation_id"] = conversation_id
+
+    due_items = await db.scheduled_messages.find(query).sort("deliver_at", 1).to_list(50)
+    for item in due_items:
+        conv = await db.conversations.find_one({"_id": parse_object_id(item["conversation_id"], "conversation_id")})
+        if not conv:
+            await db.scheduled_messages.update_one({"_id": item["_id"]}, {"$set": {"status": "cancelled"}})
+            continue
+        msg = {
+            "conversation_id": item["conversation_id"],
+            "sender_id": item["sender_id"],
+            "content": item["content"],
+            "type": item.get("type", "text"),
+            "status": "sent",
+            "reply_to": item.get("reply_to"),
+            "reply_to_content": item.get("reply_to_content"),
+            "created_at": now,
+        }
+        if conv.get("disappearing_minutes", 0) > 0:
+            msg["expires_at"] = now + timedelta(minutes=conv["disappearing_minutes"])
+        result = await db.messages.insert_one(msg)
+        msg["_id"] = result.inserted_id
+        unread_inc = {f"unread_counts.{pid}": 1 for pid in conv.get("participant_ids", []) if pid != item["sender_id"]}
+        await db.conversations.update_one(
+            {"_id": conv["_id"]},
+            {"$set": {"last_message": item["content"], "last_message_time": now}, "$inc": unread_inc}
+        )
+        await db.scheduled_messages.update_one({"_id": item["_id"]}, {"$set": {"status": "sent", "delivered_message_id": str(result.inserted_id), "delivered_at": now}})
+        serialized = serialize_message(msg)
+        for pid in conv.get("participant_ids", []):
+            await sio.emit("new_message", {"message": serialized, "conversation_id": item["conversation_id"]}, room=f"user_{pid}")
+
 def compute_streak_day_key(moment: datetime) -> str:
     return moment.astimezone(timezone.utc).date().isoformat()
 
@@ -466,6 +506,24 @@ class FeedPostBody(BaseModel):
     lat: Optional[float] = None
     lng: Optional[float] = None
 
+class PhoneOTPRequestBody(BaseModel):
+    phone_number: str
+    purpose: str = "login"
+
+class PhoneOTPVerifyBody(BaseModel):
+    phone_number: str
+    code: str
+    purpose: str = "login"
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
+
+class ScheduleMessageBody(BaseModel):
+    content: str
+    delay_minutes: int = 5
+    type: str = "text"
+    reply_to: Optional[str] = None
+
 # --- Startup ---
 @fastapi_app.on_event("startup")
 async def startup():
@@ -479,6 +537,9 @@ async def startup():
     await db.assistant_messages.create_index([("user_id", 1), ("session_id", 1), ("created_at", -1)])
     await db.ai_configs.create_index("user_id", unique=True)
     await db.posts.create_index([("visibility", 1), ("created_at", -1)])
+    await db.phone_otps.create_index("expires_at", expireAfterSeconds=0)
+    await db.saved_messages.create_index([("user_id", 1), ("saved_at", -1)])
+    await db.scheduled_messages.create_index([("status", 1), ("deliver_at", 1)])
     await seed_admin()
     await seed_demo_users()
     await seed_demo_content()
@@ -745,6 +806,70 @@ async def logout(response: Response):
     response.delete_cookie("refresh_token", path="/")
     return {"message": "Logged out"}
 
+@fastapi_app.post("/api/auth/phone/request")
+async def request_phone_otp(body: PhoneOTPRequestBody):
+    phone_number = body.phone_number.strip()
+    if len(phone_number) < 8:
+        raise HTTPException(status_code=400, detail="Valid phone number required")
+    code = f"{secrets.randbelow(900000) + 100000}"
+    await db.phone_otps.insert_one({
+        "phone_number": phone_number,
+        "purpose": body.purpose,
+        "code": code,
+        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=5),
+        "created_at": datetime.now(timezone.utc),
+        "provider": "firebase-demo-structure",
+    })
+    return {"status": "otp_requested", "firebase_ready": False, "debug_code": code, "expires_in": 300}
+
+@fastapi_app.post("/api/auth/phone/verify")
+async def verify_phone_otp(body: PhoneOTPVerifyBody, response: Response):
+    phone_number = body.phone_number.strip()
+    otp = await db.phone_otps.find_one({"phone_number": phone_number, "purpose": body.purpose, "code": body.code})
+    if not otp:
+        raise HTTPException(status_code=400, detail="Invalid OTP code")
+
+    user = await db.users.find_one({"phone_number": phone_number})
+    if body.purpose == "signup":
+        if not body.email or not body.password or not body.name:
+            raise HTTPException(status_code=400, detail="Name, email, and password required for signup")
+        if user:
+            raise HTTPException(status_code=400, detail="Phone already linked")
+        existing_email = await db.users.find_one({"email": body.email.strip().lower()})
+        if existing_email:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        result = await db.users.insert_one({
+            "email": body.email.strip().lower(),
+            "password_hash": hash_password(body.password),
+            "name": body.name.strip(),
+            "phone_number": phone_number,
+            "role": "user",
+            "avatar": "",
+            "bio": "",
+            "online": False,
+            "last_seen": datetime.now(timezone.utc),
+            "created_at": datetime.now(timezone.utc),
+        })
+        user = await db.users.find_one({"_id": result.inserted_id})
+    elif body.purpose == "link":
+        if not body.email or not body.password:
+            raise HTTPException(status_code=400, detail="Existing account email and password required")
+        user = await db.users.find_one({"email": body.email.strip().lower()})
+        if not user or not verify_password(body.password, user["password_hash"]):
+            raise HTTPException(status_code=401, detail="Invalid account credentials")
+        await db.users.update_one({"_id": user["_id"]}, {"$set": {"phone_number": phone_number}})
+        user = await db.users.find_one({"_id": user["_id"]})
+    else:
+        if not user:
+            raise HTTPException(status_code=404, detail="Phone number not linked to any account yet")
+
+    await db.phone_otps.delete_many({"phone_number": phone_number})
+    access_token = create_access_token(str(user["_id"]), user["email"])
+    refresh_token = create_refresh_token(str(user["_id"]))
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="lax", max_age=3600, path="/")
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=False, samesite="lax", max_age=604800, path="/")
+    return {"user": serialize_user(user), "token": access_token, "firebase_ready": False}
+
 @fastapi_app.get("/api/auth/me")
 async def get_me(request: Request):
     user = await get_current_user(request)
@@ -821,6 +946,7 @@ async def update_profile(body: UpdateProfileBody, request: Request):
 async def get_conversations(request: Request):
     user = await get_current_user(request)
     uid = str(user["_id"])
+    await deliver_due_scheduled_messages(uid)
     await purge_expired_messages()
     convs = await db.conversations.find({"participant_ids": uid}).sort("last_message_time", -1).to_list(50)
     return {"conversations": [serialize_conversation(c, uid) for c in convs]}
@@ -891,6 +1017,7 @@ async def get_messages(conv_id: str, request: Request, limit: int = 50, before: 
     user = await get_current_user(request)
     uid = str(user["_id"])
     await get_conversation_for_user(conv_id, uid)
+    await deliver_due_scheduled_messages(uid, conv_id)
     await purge_expired_messages(conv_id)
     query = {"conversation_id": conv_id}
     if before:
@@ -906,6 +1033,7 @@ async def send_message(conv_id: str, body: MessageBody, request: Request):
     user = await get_current_user(request)
     uid = str(user["_id"])
     conv = await get_conversation_for_user(conv_id, uid)
+    await deliver_due_scheduled_messages(uid, conv_id)
         
     if conv.get("is_channel") and uid not in conv.get("admins", []):
         raise HTTPException(status_code=403, detail="Only admins can post in this channel")
@@ -943,6 +1071,32 @@ async def send_message(conv_id: str, body: MessageBody, request: Request):
     for pid in conv["participant_ids"]:
         await sio.emit("new_message", {"message": serialized, "conversation_id": conv_id}, room=f"user_{pid}")
     return {"message": serialized}
+
+@fastapi_app.post("/api/conversations/{conv_id}/schedule-message")
+async def schedule_message(conv_id: str, body: ScheduleMessageBody, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    await get_conversation_for_user(conv_id, uid)
+    delay_minutes = max(1, min(body.delay_minutes, 24 * 60))
+    reply_to_content = None
+    if body.reply_to:
+        replied_msg = await db.messages.find_one({"_id": parse_object_id(body.reply_to, "reply_to"), "conversation_id": conv_id})
+        if replied_msg:
+            reply_to_content = replied_msg.get("content")
+    scheduled = {
+        "conversation_id": conv_id,
+        "sender_id": uid,
+        "content": body.content.strip(),
+        "type": body.type,
+        "reply_to": body.reply_to,
+        "reply_to_content": reply_to_content,
+        "deliver_at": datetime.now(timezone.utc) + timedelta(minutes=delay_minutes),
+        "status": "scheduled",
+        "created_at": datetime.now(timezone.utc),
+    }
+    result = await db.scheduled_messages.insert_one(scheduled)
+    scheduled["_id"] = result.inserted_id
+    return {"scheduled_message": {"id": str(result.inserted_id), "deliver_at": scheduled["deliver_at"].isoformat(), "content": scheduled["content"]}}
 
 # --- Stories Routes ---
 @fastapi_app.get("/api/stories")
@@ -1127,6 +1281,44 @@ async def pin_conversation(conv_id: str, request: Request):
     uid = str(user["_id"])
     await db.user_prefs.update_one({"user_id": uid}, {"$addToSet": {"pinned": conv_id}}, upsert=True)
     return {"pinned": True}
+
+@fastapi_app.post("/api/conversations/{conv_id}/star")
+async def star_conversation(conv_id: str, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    conv = await get_conversation_for_user(conv_id, uid)
+    starred = uid not in conv.get("starred_by", [])
+    update = {"$addToSet": {"starred_by": uid}} if starred else {"$pull": {"starred_by": uid}}
+    await db.conversations.update_one({"_id": parse_object_id(conv_id, "conversation_id")}, update)
+    return {"is_starred": starred}
+
+@fastapi_app.post("/api/messages/{msg_id}/save")
+async def save_message(msg_id: str, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    msg = await db.messages.find_one({"_id": parse_object_id(msg_id, "message_id")})
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+    await get_conversation_for_user(msg["conversation_id"], uid)
+    existing = await db.saved_messages.find_one({"user_id": uid, "message_id": msg_id})
+    if existing:
+        await db.saved_messages.delete_one({"_id": existing["_id"]})
+        return {"saved": False}
+    await db.saved_messages.insert_one({
+        "user_id": uid,
+        "message_id": msg_id,
+        "conversation_id": msg["conversation_id"],
+        "message": serialize_message(msg),
+        "saved_at": datetime.now(timezone.utc),
+    })
+    return {"saved": True}
+
+@fastapi_app.get("/api/saved-messages")
+async def get_saved_messages(request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    saved = await db.saved_messages.find({"user_id": uid}).sort("saved_at", -1).to_list(100)
+    return {"saved_messages": [{"id": str(item["_id"]), "saved_at": item["saved_at"].isoformat() if isinstance(item.get("saved_at"), datetime) else str(item.get("saved_at", "")), "message": item.get("message", {}), "conversation_id": item.get("conversation_id", "")} for item in saved]}
 
 @fastapi_app.post("/api/conversations/{conv_id}/unpin")
 async def unpin_conversation(conv_id: str, request: Request):

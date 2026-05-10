@@ -72,6 +72,7 @@ export default function LeftPanel({
   const [newChatSearch, setNewChatSearch] = useState('');
   const [showPreviewHints, setShowPreviewHints] = useState(localStorage.getItem('qc_pref_preview_hints') !== 'false');
   const [storyGroups, setStoryGroups] = useState([]);
+  const [savedMessages, setSavedMessages] = useState([]);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -122,6 +123,20 @@ export default function LeftPanel({
     };
     fetchStories();
   }, [token]);
+
+  useEffect(() => {
+    if (view !== 'saved') return;
+    const loadSavedMessages = async () => {
+      try {
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const { data } = await axios.get(`${API}/api/saved-messages`, { headers });
+        setSavedMessages(data.saved_messages || []);
+      } catch {
+        setSavedMessages([]);
+      }
+    };
+    loadSavedMessages();
+  }, [token, view]);
 
   const totalUnread = conversations.reduce((sum, conv) => sum + (conv.unread_count || 0), 0);
   const onlineDirectConversations = conversations.filter(conv => conv.type === 'direct' && onlineUsers.has(conv.other_user?.user_id)).length;
@@ -290,7 +305,7 @@ export default function LeftPanel({
 
               <button
                 data-testid="saved-space-button"
-                onClick={() => onViewChange('newChat')}
+                onClick={() => onViewChange('saved')}
                 className="w-full rounded-[24px] bg-[#1b2a38] border border-white/5 px-4 py-3 flex items-center gap-3 text-left"
               >
                 <div className="w-12 h-12 rounded-full bg-[#2ca8ff] flex items-center justify-center text-white">
@@ -643,11 +658,58 @@ export default function LeftPanel({
     </div>
   );
 
+  const renderSavedSpace = () => (
+    <div className="absolute inset-0 z-30 bg-qc-surface flex flex-col animate-slideIn">
+      <div className="px-4 py-4 border-b border-qc-border flex items-center gap-3 bg-qc-surface-hover">
+        <button data-testid="saved-space-back-button" onClick={() => onViewChange('chats')} className="w-10 h-10 rounded-2xl flex items-center justify-center hover:bg-qc-surface">
+          <ArrowLeft size={20} />
+        </button>
+        <div className="min-w-0">
+          <p className="text-[11px] uppercase tracking-[0.24em] text-qc-text-tertiary">Saved space</p>
+          <h3 className="font-heading text-xl text-qc-text-primary">Saved messages</h3>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {savedMessages.length === 0 ? (
+          <div className="rounded-[24px] border border-qc-border bg-qc-surface-hover p-4 text-sm text-qc-text-secondary">
+            Save a message from any chat menu and it will appear here.
+          </div>
+        ) : savedMessages.map((item) => {
+          const linkedConversation = conversations.find((conv) => conv.id === item.conversation_id);
+          return (
+            <button
+              key={item.id}
+              data-testid={`saved-message-${item.id}`}
+              onClick={() => {
+                if (linkedConversation) {
+                  onSelectConv(linkedConversation);
+                  onViewChange('chats');
+                }
+              }}
+              className="w-full rounded-[24px] border border-qc-border bg-qc-surface-hover p-4 text-left hover:bg-qc-accent-tertiary transition-colors"
+            >
+              <div className="text-[11px] uppercase tracking-[0.2em] text-qc-text-tertiary">{linkedConversation?.name || linkedConversation?.other_user?.name || 'Saved message'}</div>
+              <div className="mt-2 text-sm text-qc-text-primary line-clamp-3">{item.message?.content || 'Saved message'}</div>
+              <div className="mt-3 text-xs text-qc-text-secondary">Tap to jump back into the conversation</div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  if (view === 'newChat') {
+    return renderNewChat();
+  }
+
+  if (view === 'saved') {
+    return renderSavedSpace();
+  }
+
   return (
     <div className="flex flex-col h-full bg-qc-surface w-full overflow-hidden relative">
       <div className="flex-1 min-h-0">{renderChats()}</div>
-
-      {view === 'newChat' && renderNewChat()}
 
       {!hideFooterNav && <div className="grid grid-cols-5 gap-1 p-2 border-t border-qc-border bg-qc-surface backdrop-blur-xl">
         {navItems.map(item => {

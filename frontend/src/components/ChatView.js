@@ -27,6 +27,8 @@ import {
   Zap,
   ChevronDown,
   Download,
+  Clock3,
+  Star,
 } from 'lucide-react';
 import axios from 'axios';
 import { API } from '../lib/api';
@@ -103,6 +105,7 @@ function MessageBubble({
   onEditSubmit,
   onReply,
   onPin,
+  onSave,
   participants,
   repliedMsg,
   isPinned,
@@ -218,6 +221,7 @@ function MessageBubble({
             </div>
             <button onClick={() => { onReply(msg); setShowMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-qc-surface-hover">Reply</button>
             <button onClick={() => { onForward(msg.id); setShowMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-qc-surface-hover">Forward message</button>
+            <button onClick={() => { onSave(msg.id); setShowMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-qc-surface-hover">Save message</button>
             <button onClick={() => { onPin(isPinned ? null : msg.id); setShowMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-qc-surface-hover flex justify-between items-center">
               {isPinned ? 'Unpin' : 'Pin'} <Pin size={14} />
             </button>
@@ -320,6 +324,7 @@ export default function ChatArea({
   const [permissionNotice, setPermissionNotice] = useState('');
   const [pendingAttachment, setPendingAttachment] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
+  const [isScheduling, setIsScheduling] = useState(false);
   const messagesContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
   const typingTimeout = useRef(null);
@@ -442,6 +447,13 @@ export default function ChatArea({
     } catch {}
   };
 
+  const handleSaveMessage = async (msgId) => {
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.post(`${API}/api/messages/${msgId}/save`, {}, { headers });
+    } catch {}
+  };
+
   const handleForward = async (targetConvId) => {
     if (!forwardMsgId) return;
     try {
@@ -457,6 +469,28 @@ export default function ChatArea({
       await axios.post(`${API}/api/conversations/${conversation.id}/pin_message`, { message_id: msgId }, { headers });
       onReloadConversations?.();
     } catch {}
+  };
+
+  const handleToggleStar = async () => {
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const { data } = await axios.post(`${API}/api/conversations/${conversation.id}/star`, {}, { headers });
+      onConversationUpdate?.({ ...conversation, is_starred: data.is_starred });
+      onReloadConversations?.();
+    } catch {}
+  };
+
+  const handleScheduleSend = async (delayMinutes = 5) => {
+    if (!input.trim()) return;
+    setIsScheduling(true);
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.post(`${API}/api/conversations/${conversation.id}/schedule-message`, { content: input.trim(), delay_minutes: delayMinutes, type: 'text', reply_to: replyToMsg?.id }, { headers });
+      setInput('');
+      setReplyToMsg(null);
+      localStorage.removeItem(draftKey);
+    } catch {}
+    setIsScheduling(false);
   };
 
   const handleSetDisappearing = async (minutes) => {
@@ -687,6 +721,7 @@ export default function ChatArea({
         <div className="flex items-center gap-1 md:gap-2 text-qc-text-secondary relative">
           {!isMobile && <button onClick={() => setActiveCall({ type: 'video', status: 'ringing' })} className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5"><Video size={20} /></button>}
           {!isMobile && <button onClick={() => setActiveCall({ type: 'audio', status: 'ringing' })} className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5"><Phone size={18} /></button>}
+          <button data-testid="chat-star-toggle" onClick={handleToggleStar} className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center hover:bg-black/5 ${conversation.is_starred ? 'text-[#ffe56a]' : ''}`}><Star size={18} className={conversation.is_starred ? 'fill-[#ffe56a]' : ''} /></button>
           <button data-testid="chat-search-toggle" onClick={() => setShowSearch((value) => !value)} className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center hover:bg-black/5 ${showSearch ? 'text-qc-accent-primary' : ''}`}><Search size={18} /></button>
           <button data-testid="chat-menu-toggle" onClick={() => { setShowChatMenu((value) => !value); setShowDisappearingMenu(false); }} className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center hover:bg-black/5 ${showChatMenu ? 'text-qc-accent-primary' : ''}`}><MoreVertical size={18} /></button>
 
@@ -823,6 +858,7 @@ export default function ChatArea({
                 onEditSubmit={onEdit}
                 onReply={setReplyToMsg}
                 onPin={handlePin}
+                onSave={handleSaveMessage}
                 participants={conversation.participants}
                 repliedMsg={repliedMsg}
                 isPinned={conversation.pinned_message_id === message.id}
@@ -975,6 +1011,12 @@ export default function ChatArea({
             />
           )}
         </div>
+
+        {input.trim() && !pendingAttachment && (
+          <button data-testid="chat-schedule-5m-button" onClick={() => handleScheduleSend(5)} disabled={isScheduling} className="p-2.5 text-qc-text-secondary hover:text-qc-text-primary rounded-full disabled:opacity-40" title="Schedule in 5 min">
+            <Clock3 size={20} />
+          </button>
+        )}
 
         {pendingAttachment ? (
           <button data-testid="chat-send-attachment-icon-button" onClick={sendPendingAttachment} className="p-2.5 bg-qc-accent-primary text-white rounded-full hover:bg-qc-accent-secondary transition-colors"><Send size={20} className="ml-0.5" /></button>

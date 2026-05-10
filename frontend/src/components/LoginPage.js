@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
-import { AlertCircle, Eye, EyeOff, MessagesSquare, Play, Sparkles, Search, Download } from 'lucide-react';
+import axios from 'axios';
+import { AlertCircle, Eye, EyeOff, MessagesSquare, Play, Sparkles, Search, Download, Phone, X } from 'lucide-react';
+import { API } from '../lib/api';
 
 function formatError(detail) {
   if (detail == null) return 'System Error.';
@@ -35,6 +37,16 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
+  const [phoneOpen, setPhoneOpen] = useState(false);
+  const [phoneMode, setPhoneMode] = useState('login');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [phoneName, setPhoneName] = useState('');
+  const [phoneEmail, setPhoneEmail] = useState('');
+  const [phonePassword, setPhonePassword] = useState('');
+  const [otpRequested, setOtpRequested] = useState(false);
+  const [otpDebugCode, setOtpDebugCode] = useState('');
+  const [phoneLoading, setPhoneLoading] = useState(false);
 
   if (user) {
     navigate('/', { replace: true });
@@ -65,6 +77,41 @@ export default function LoginPage() {
       setError(formatError(err.response?.data?.detail) || err.message);
     } finally {
       setDemoLoading(false);
+    }
+  };
+
+  const requestPhoneOtp = async () => {
+    setError('');
+    setPhoneLoading(true);
+    try {
+      const { data } = await axios.post(`${API}/api/auth/phone/request`, { phone_number: phoneNumber, purpose: phoneMode });
+      setOtpRequested(true);
+      setOtpDebugCode(data.debug_code || '');
+    } catch (err) {
+      setError(formatError(err.response?.data?.detail) || err.message);
+    } finally {
+      setPhoneLoading(false);
+    }
+  };
+
+  const verifyPhoneOtp = async () => {
+    setError('');
+    setPhoneLoading(true);
+    try {
+      const payload = {
+        phone_number: phoneNumber,
+        code: otpCode,
+        purpose: phoneMode,
+        name: phoneName,
+        email: phoneEmail,
+        password: phonePassword,
+      };
+      await axios.post(`${API}/api/auth/phone/verify`, payload);
+      navigate('/', { replace: true });
+    } catch (err) {
+      setError(formatError(err.response?.data?.detail) || err.message);
+    } finally {
+      setPhoneLoading(false);
     }
   };
 
@@ -188,8 +235,8 @@ export default function LoginPage() {
                 <Link data-testid="login-register-link" to="/register" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-white/82 hover:bg-white/9">
                   Create account
                 </Link>
-                <button className="rounded-full border border-white/10 bg-transparent px-4 py-2 text-white/52 cursor-default">
-                  Use phone number instead
+                <button data-testid="login-phone-auth-button" type="button" onClick={() => setPhoneOpen(true)} className="rounded-full border border-white/10 bg-transparent px-4 py-2 text-white/72 hover:bg-white/5 inline-flex items-center gap-2">
+                  <Phone size={14} /> Use phone number instead
                 </button>
               </div>
 
@@ -258,6 +305,64 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      {phoneOpen && (
+        <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" onClick={() => setPhoneOpen(false)}>
+          <div data-testid="phone-auth-modal" className="w-full max-w-md rounded-[32px] border border-white/10 bg-[#0a101a] shadow-[0_24px_80px_rgba(0,0,0,0.45)] overflow-hidden" onClick={(event) => event.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-white/8 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.22em] text-white/46">Phone auth</p>
+                <h3 className="text-xl font-semibold text-white mt-1">OTP flow</h3>
+              </div>
+              <button type="button" data-testid="phone-auth-close" onClick={() => setPhoneOpen(false)} className="h-10 w-10 rounded-full border border-white/10 bg-white/5 text-white/76 flex items-center justify-center">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="flex gap-2 overflow-x-auto hide-scrollbar">
+                {['login', 'signup', 'recovery', 'link'].map((mode) => (
+                  <button key={mode} type="button" data-testid={`phone-mode-${mode}`} onClick={() => { setPhoneMode(mode); setOtpRequested(false); setOtpCode(''); }} className={`shrink-0 rounded-full px-4 py-2 text-sm border ${phoneMode === mode ? 'border-white bg-white text-black' : 'border-white/10 bg-white/5 text-white/76'}`}>
+                    {mode}
+                  </button>
+                ))}
+              </div>
+
+              <input data-testid="phone-number-input" value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} placeholder="Phone number" className="w-full rounded-[20px] border border-white/10 bg-white/6 px-4 py-3 text-sm text-white placeholder:text-white/28" />
+
+              {(phoneMode === 'signup' || phoneMode === 'link') && (
+                <div className="grid gap-3">
+                  {phoneMode === 'signup' && <input data-testid="phone-name-input" value={phoneName} onChange={(event) => setPhoneName(event.target.value)} placeholder="Full name" className="w-full rounded-[20px] border border-white/10 bg-white/6 px-4 py-3 text-sm text-white placeholder:text-white/28" />}
+                  <input data-testid="phone-email-input" value={phoneEmail} onChange={(event) => setPhoneEmail(event.target.value)} placeholder="Email" className="w-full rounded-[20px] border border-white/10 bg-white/6 px-4 py-3 text-sm text-white placeholder:text-white/28" />
+                  <input data-testid="phone-password-input" type="password" value={phonePassword} onChange={(event) => setPhonePassword(event.target.value)} placeholder="Password" className="w-full rounded-[20px] border border-white/10 bg-white/6 px-4 py-3 text-sm text-white placeholder:text-white/28" />
+                </div>
+              )}
+
+              {otpRequested && (
+                <>
+                  <input data-testid="phone-otp-input" value={otpCode} onChange={(event) => setOtpCode(event.target.value)} placeholder="Enter OTP code" className="w-full rounded-[20px] border border-white/10 bg-white/6 px-4 py-3 text-sm text-white placeholder:text-white/28" />
+                  <div data-testid="phone-debug-otp" className="rounded-[20px] border border-[#ffe56a]/18 bg-[#ffe56a]/10 px-4 py-3 text-sm text-[#ffe56a]">
+                    Demo OTP: {otpDebugCode || 'Generated after request'}
+                  </div>
+                </>
+              )}
+
+              <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/62">
+                Firebase wiring later add hogi. Abhi backend + UI OTP flow demo-ready hai taaki aap full journey dekh sako.
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button type="button" data-testid="phone-request-otp-button" onClick={requestPhoneOtp} disabled={phoneLoading || !phoneNumber} className="rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">
+                  {phoneLoading ? 'Working...' : 'Request OTP'}
+                </button>
+                <button type="button" data-testid="phone-verify-otp-button" onClick={verifyPhoneOtp} disabled={phoneLoading || !otpRequested || !otpCode} className="rounded-full bg-[#1d9bf0] px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">
+                  Verify & Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
