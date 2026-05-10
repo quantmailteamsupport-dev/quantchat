@@ -1,125 +1,146 @@
 {
-  "project_info": {
-    "name": "QuantChat",
-    "type": "hybrid_fullstack",
-    "theme": "dark",
-    "archetype": "Archetype 4 (Swiss & High-Contrast) adapted with Archetype 5 (Jewel & Luxury) influences",
-    "vibe": "Snapchat-style modern dark, premium minimal clean, stealthy, fluid"
+  "project_name": "QuantChat",
+  "theme": "dark",
+  "archetype": "Archetype 4 (Swiss & High-Contrast) infused with Archetype 5 (Jewel & Luxury)",
+  "rationale": "A 'Super App' combining social, AI, and messaging requires a premium, immersive environment. Dark mode with stark contrast reduces eye strain during heavy usage, makes media (Reels/Feed) pop, and allows the 'Futuristic 3D / AI' elements to glow naturally without looking like a tacky gaming app.",
+  "typography": {
+    "heading_font": "Outfit",
+    "body_font": "Manrope",
+    "mono_font": "JetBrains Mono",
+    "scale": {
+      "h1": "text-4xl sm:text-5xl font-black tracking-tighter",
+      "h2": "text-2xl sm:text-3xl font-bold tracking-tight",
+      "h3": "text-xl font-semibold",
+      "body": "text-base font-medium leading-relaxed",
+      "small": "text-sm text-zinc-400",
+      "overline": "text-xs font-bold uppercase tracking-[0.2em] text-zinc-500"
+    }
   },
-  "color_palette": {
+  "colors": {
     "background": {
-      "main": "#000000",
-      "surface": "#0F0F13",
-      "surface_elevated": "#1A1A24"
+      "default": "#050505",
+      "surface": "#121212",
+      "glass": "rgba(20, 20, 20, 0.6)"
     },
     "text": {
       "primary": "#FFFFFF",
       "secondary": "#A1A1AA",
       "muted": "#52525B"
     },
-    "accents": {
-      "primary": "#E2E8F0",
-      "brand": "#00E5FF",
-      "ai_glow": "#9D4CDD",
-      "warning": "#FF3B30",
+    "brand": {
+      "primary": "#00E5FF",
+      "primary_hover": "#00B8CC",
+      "accent": "#8B5CF6",
+      "gradient": "bg-gradient-to-tr from-[#00E5FF] to-[#8B5CF6]",
+      "story_ring_unread": "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600",
+      "story_ring_read": "bg-zinc-800"
+    },
+    "utility": {
+      "border": "rgba(255, 255, 255, 0.08)",
+      "border_focus": "rgba(0, 229, 255, 0.5)",
+      "error": "#FF3B30",
       "success": "#34C759"
-    },
-    "rules": [
-      "No generic full-screen gradients. Rely on matte black backgrounds.",
-      "Use 1px borders with very low opacity (e.g., border-white/10) to define sections instead of heavy cards.",
-      "The AI accent (purple/neon) must only be used as a glow, drop-shadow, or gradient-text, never as a flat block background."
-    ]
-  },
-  "typography": {
-    "headings": {
-      "family": "Outfit, system-ui, sans-serif",
-      "weights": ["500", "700"],
-      "usage": "H1/H2 for primary screen titles (Chats, Spotlight, AI Assistant)."
-    },
-    "body": {
-      "family": "Manrope, system-ui, sans-serif",
-      "weights": ["400", "500", "600"],
-      "usage": "Chat bubbles, names, timestamps, settings labels."
-    },
-    "sizing": {
-      "h1": "text-4xl tracking-tight",
-      "h2": "text-2xl tracking-tight",
-      "h3": "text-xl font-medium",
-      "body": "text-base",
-      "small": "text-sm text-secondary",
-      "tiny": "text-xs tracking-[0.05em] uppercase text-muted"
     }
   },
   "layout_and_spacing": {
-    "general": "Mobile-first approach. For desktop viewports, wrap the main app container in `max-w-md mx-auto h-screen relative overflow-hidden bg-black shadow-2xl md:border md:border-white/10` to simulate a phone screen.",
-    "containers": "Generous padding inside settings/modals (p-6). Chat/Feed lists use tighter vertical spacing (py-3) but retain side padding (px-4).",
-    "surfaces": [
-      {
-        "type": "Glass Bottom Nav",
-        "classes": "fixed bottom-0 w-full max-w-md bg-black/70 backdrop-blur-2xl border-t border-white/10 pb-safe pt-3 px-6 flex justify-between items-center z-50"
-      },
-      {
-        "type": "Chat Bubble (Sent)",
-        "classes": "bg-white text-black rounded-2xl rounded-br-sm px-4 py-2.5 max-w-[80%] shadow-sm"
-      },
-      {
-        "type": "Chat Bubble (Received)",
-        "classes": "bg-[#1A1A24] text-white rounded-2xl rounded-bl-sm px-4 py-2.5 max-w-[80%] border border-white/5 shadow-sm"
-      },
-      {
-        "type": "AI Assistant Modal/Panel",
-        "classes": "bg-[#0A0A0F]/90 backdrop-blur-3xl border border-white/10 rounded-t-3xl shadow-[0_-8px_32px_rgba(157,76,221,0.15)] p-6"
-      }
-    ]
+    "grid_system": "Mobile-first standard, max-w-md mx-auto for primary viewports, scaling to a side-by-side bento layout on desktop if applicable.",
+    "spacing_scale": "Use generous padding for touch targets: p-4 for list items, p-6 for cards. gap-4 for standard lists.",
+    "border_radius": {
+      "small": "rounded-md",
+      "default": "rounded-xl",
+      "large": "rounded-2xl",
+      "full": "rounded-full"
+    }
   },
-  "interactions_and_motion": {
-    "buttons": "Use Framer Motion `whileTap={{ scale: 0.97 }}` for tactile response.",
-    "page_transitions": "Slide up for modals/stories (`y: '100%' -> y: 0`), cross-fade for bottom tab switches.",
-    "list_items": "Staggered fade-in/slide-up for chat lists.",
-    "ai_orb": "Continuous slow pulse using Framer Motion (`scale: [1, 1.05, 1], boxShadow: '0px 0px 20px rgba(157,76,221,0.5)'`)."
+  "component_guidelines": {
+    "bottom_navigation": {
+      "style": "Glassmorphic floating bar at the bottom of the screen. backdrop-blur-xl bg-black/60 border-t border-white/10.",
+      "items": ["Chats", "Feed", "Reels", "AI", "Profile"],
+      "active_state": "Text and icon highlighted in brand.primary, slight scale-up animation."
+    },
+    "chats_super_tab": {
+      "layout": "Vertical stack. Top sticky header -> Story Circles (horizontal scroll) -> Chat List (vertical scroll).",
+      "stories": "Compact. h-16 w-16 or h-14 w-14 circles, 2px padding inside the gradient ring to background. Avoid massive logos.",
+      "chat_list": "Merge 1-on-1 chats and groups. Groups should show stacked/overlapping avatars.",
+      "floating_actions": "Include a subtle camera icon (Snapchat lens entry) and Map icon top right or as a floating action button."
+    },
+    "feed_tab": {
+      "style": "Clean scrolling feed. Edge-to-edge images/media, sleek interaction buttons (heart, comment, share) underneath, minimalist captions."
+    },
+    "reels_tab": {
+      "style": "Immersive, full-screen vertical swipe. Minimal UI overlay to let the video shine. Side-aligned action buttons."
+    },
+    "ai_tab": {
+      "style": "Multi-bot workspace. Top horizontal selector for active bot (Emergent, GPT, Claude). Full height chat interface. Use subtle background mesh gradients for the AI personality.",
+      "input_bar": "Sleek, rounded-full or rounded-2xl glass input field with integrated attachment icon."
+    },
+    "profile_tab": {
+      "layout": "Header with avatar/stats -> Tab list (Posts, API Keys, Settings).",
+      "api_manager": "List of LLM providers. Include input fields for API keys (OpenAI, Gemini, Claude, Ollama, DeepSeek). Blurred/hidden state for keys by default."
+    },
+    "buttons": {
+      "primary": "bg-[#00E5FF] text-black font-semibold rounded-xl px-6 py-3 hover:bg-[#00B8CC] transition-colors",
+      "secondary": "bg-white/10 text-white rounded-xl px-6 py-3 hover:bg-white/20 transition-colors",
+      "ghost": "hover:bg-white/5 text-zinc-400 hover:text-white transition-colors"
+    },
+    "cards": {
+      "default": "bg-[#121212] border border-white/5 rounded-2xl p-6 shadow-xl"
+    }
   },
-  "components": {
-    "auth": "One-click 'Login as Demo User' primary button. Minimalist, centered logo. High-contrast white button on black background, full width rounded-full.",
-    "inbox_list": "Left: 48px circular Avatar. Center: Name (`font-medium`) + Message Preview (`text-secondary truncate`). Right: Time (`text-xs text-muted`) + Unread Dot (`w-2 h-2 rounded-full bg-brand`).",
-    "stories_feed": "Horizontal scroll (`overflow-x-auto snap-x hide-scrollbar`). 72px circular avatars with 2px gradient borders (brand to transparent) for unread stories. Inner border to separate image from gradient.",
-    "reels_spotlight": "Full height (`h-[100dvh]`). `snap-y snap-mandatory`. Absolute positioned text overlays on video/image with `drop-shadow-md` for text legibility. Action buttons stacked vertically on the right.",
-    "settings_profile": "Sectioned lists with `border-b border-white/5` between items. Use `lucide-react` icons on the left, `chevron-right` on the right. High contrast toggle switches.",
-    "ai_assistant": "Floating Action Button (FAB) or dedicated center nav tab. Opens a conversational sheet. AI text should appear with a slight typewriter reveal effect."
-  },
-  "icons": {
-    "library": "lucide-react",
-    "style": "Use `strokeWidth={1.5}` for a sharper, premium look. Default to size 24."
+  "motion_and_interactions": {
+    "hover": "Subtle brightness increase and -translate-y-[1px] for cards.",
+    "active": "Scale down slightly (scale-95) for button presses.",
+    "page_transition": "Fade in and slight slide up (10px) on route change.",
+    "story_open": "Scale up from the circle origin."
   },
   "media": {
-    "rules": "Never use placeholder URLs (like via.placeholder.com). Use the provided Unsplash image URLs below.",
-    "assets": [
-      {
-        "category": "avatars",
-        "description": "User profile pictures for chat lists and story rings",
-        "urls": [
-          "https://images.unsplash.com/photo-1579825318929-7ad3cb82613c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTJ8MHwxfHNlYXJjaHwyfHxwcm9maWxlJTIwcG9ydHJhaXQlMjBsaWdodGluZ3xlbnwwfHx8YmxhY2t8MTc3ODQyNTEyMnww&ixlib=rb-4.1.0&q=85",
-          "https://images.unsplash.com/photo-1718606446645-d7169dd0789e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTJ8MHwxfHNlYXJjaHwzfHxwcm9maWxlJTIwcG9ydHJhaXQlMjBsaWdodGluZ3xlbnwwfHx8YmxhY2t8MTc3ODQyNTEyMnww&ixlib=rb-4.1.0&q=85"
-        ]
+    "image_urls": {
+      "logo_3d_futuristic": {
+        "url": "https://images.unsplash.com/photo-1770031079085-0ac797e07fe5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwyfHxmdXR1cmlzdGljJTIwM2QlMjBuZW9uJTIwbG9nbyUyMHNoYXBlfGVufDB8fHx8MTc3ODQyNjk0Mnww&ixlib=rb-4.1.0&q=85",
+        "category": "Brand",
+        "description": "3D metallic neon shape representing the QuantChat futuristic logo"
       },
-      {
-        "category": "backgrounds",
-        "description": "Dark textures for AI backgrounds, Spotlight/Reel placeholders, or login screen",
-        "urls": [
-          "https://images.unsplash.com/photo-1653104877761-181b3977808e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzV8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGRhcmslMjB0ZXh0dXJlJTIwYmFja2dyb3VuZHxlbnwwfHx8YmxhY2t8MTc3ODQyNTEyMnww&ixlib=rb-4.1.0&q=85",
-          "https://images.unsplash.com/photo-1581084349663-7ab88c58d362?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzV8MHwxfHNlYXJjaHwzfHxhYnN0cmFjdCUyMGRhcmslMjB0ZXh0dXJlJTIwYmFja2dyb3VuZHxlbnwwfHx8YmxhY2t8MTc3ODQyNTEyMnww&ixlib=rb-4.1.0&q=85"
-        ]
+      "avatar_ai_bot": {
+        "url": "https://images.unsplash.com/photo-1677212004257-103cfa6b59d0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTJ8MHwxfHNlYXJjaHwyfHxhaSUyMGFydGlmaWNpYWwlMjBpbnRlbGxpZ2VuY2UlMjByb2JvdCUyMG5lb24lMjBhdmF0YXJ8ZW58MHx8fHwxNzc4NDI2OTQyfDA&ixlib=rb-4.1.0&q=85",
+        "category": "AI Characters",
+        "description": "Glowing head representing the Emergent AI Bot avatar"
+      },
+      "avatar_user_1": {
+        "url": "https://images.unsplash.com/photo-1770657749245-490c4cb233e5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTF8MHwxfHNlYXJjaHwxfHxjaW5lbWF0aWMlMjBwb3J0cmFpdCUyMHBlcnNvbiUyMG5lb24lMjBsaWdodGluZ3xlbnwwfHx8fDE3Nzg0MjY5MzZ8MA&ixlib=rb-4.1.0&q=85",
+        "category": "Users",
+        "description": "Cinematic neon portrait for user avatar or story ring"
+      },
+      "avatar_user_2": {
+        "url": "https://images.unsplash.com/photo-1760805594914-3e4ebd3fe429?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTF8MHwxfHNlYXJjaHw0fHxjaW5lbWF0aWMlMjBwb3J0cmFpdCUyMHBlcnNvbiUyMG5lb24lMjBsaWdodGluZ3xlbnwwfHx8fDE3Nzg0MjY5MzZ8MA&ixlib=rb-4.1.0&q=85",
+        "category": "Users",
+        "description": "Cinematic neon portrait for user avatar or story ring"
+      },
+      "reels_cover_1": {
+        "url": "https://images.unsplash.com/photo-1506318039632-e5626c0c1394?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAxODF8MHwxfHNlYXJjaHwzfHxzdHVubmluZyUyMHZlcnRpY2FsJTIwbGFuZHNjYXBlJTIwdmlkZW8lMjBjb3ZlcnxlbnwwfHx8fDE3Nzg0MjY5MzZ8MA&ixlib=rb-4.1.0&q=85",
+        "category": "Reels",
+        "description": "Stunning vertical landscape video cover for Reels tab"
+      },
+      "reels_cover_2": {
+        "url": "https://images.unsplash.com/photo-1646404464819-523c6fef3707?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAxODF8MHwxfHNlYXJjaHw0fHxzdHVubmluZyUyMHZlcnRpY2FsJTIwbGFuZHNjYXBlJTIwdmlkZW8lMjBjb3ZlcnxlbnwwfHx8fDE3Nzg0MjY5MzZ8MA&ixlib=rb-4.1.0&q=85",
+        "category": "Reels",
+        "description": "Lush green valley vertical cover for Reels tab"
       }
-    ]
+    }
   },
   "testing": {
-    "attributes": "All interactive elements MUST have `data-testid`. Examples: `data-testid='login-demo-btn'`, `data-testid='nav-chat'`, `data-testid='chat-item-0'`, `data-testid='ai-fab-btn'`."
+    "attributes": "ALL interactive elements MUST include `data-testid` attribute (e.g., data-testid='chat-tab-button', data-testid='story-circle-item')."
   },
   "instructions_to_main_agent": [
-    "Read this file fully. Use .js/.jsx syntax only (NO TypeScript).",
-    "Build a mobile-first app structure. Use `max-w-md mx-auto relative h-[100dvh] bg-black overflow-hidden` for the root app container to ensure it looks like a phone on desktop monitors.",
-    "Implement Shadcn UI components but heavily customize the classes to match the 'surfaces' configuration. Strip away default white borders and light mode backgrounds.",
-    "Ensure bottom tab navigation has a glassmorphic effect (`backdrop-blur-2xl bg-black/70`).",
-    "Integrate the AI agent workflow (mocked if no backend) utilizing the 'ai_assistant' layout guidelines.",
-    "For AWS EC2 deployment guidance, write a markdown file `deployment-guide.md` with instructions on hosting a mobile web app via Nginx/Node."
+    "Install and use 'lucide-react' for all icons.",
+    "Implement Shadcn UI for dropdowns, tabs, and modals where required.",
+    "Use Framer Motion for smooth tab transitions and the bottom nav active state.",
+    "DO NOT use a fully transparent header over content; use a glassmorphism blur backdrop-blur-xl bg-[#050505]/80.",
+    "Build the application strictly matching the 'dark' theme setup. Set the Tailwind body background to #050505.",
+    "Combine the group and individual chat lists in the 'Chats' view, but keep 'Stories' horizontally scrolling at the top.",
+    "The API Key Manager in the Profile tab should have secure hidden inputs for each supported AI provider.",
+    "Structure the tabs carefully: 1) Chats, 2) Feed, 3) Reels, 4) AI, 5) Profile.",
+    "Add 'data-testid' to all buttons, links, and form elements.",
+    "Use '.js' files, not '.tsx' for the React components.",
+    "Place the 3D logo generated in the media section prominently but elegantly within the UI (e.g., top header of the chats tab or splash screen)."
   ]
 }
