@@ -22,8 +22,18 @@ MONGO_URL = os.environ.get("MONGO_URL")
 DB_NAME = os.environ.get("DB_NAME")
 JWT_SECRET = os.environ.get("JWT_SECRET")
 JWT_ALGORITHM = "HS256"
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+FRONTEND_URL = os.environ.get("FRONTEND_URL")
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY")
+
+REQUIRED_ENV = {
+    "MONGO_URL": MONGO_URL,
+    "DB_NAME": DB_NAME,
+    "JWT_SECRET": JWT_SECRET,
+    "FRONTEND_URL": FRONTEND_URL,
+}
+missing_env = [key for key, value in REQUIRED_ENV.items() if not value]
+if missing_env:
+    raise RuntimeError(f"Missing required environment variables: {', '.join(missing_env)}")
 
 # --- App ---
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")

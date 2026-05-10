@@ -154,7 +154,7 @@ export default function LeftPanel({
         {isMobile ? (
           <>
             <div className="flex items-center justify-between gap-3">
-              <button onClick={() => onViewChange('settings')} className="flex items-center gap-3 min-w-0 text-left">
+              <button data-testid="leftpanel-mobile-profile-button" onClick={() => onViewChange('settings')} className="flex items-center gap-3 min-w-0 text-left">
                 <div className="w-11 h-11 rounded-full overflow-hidden ring-2 ring-[#31d17c] ring-offset-2 ring-offset-[#162331] bg-qc-accent-tertiary flex items-center justify-center">
                   {user?.avatar ? <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" /> : <User size={18} className="text-qc-text-secondary" />}
                 </div>
@@ -166,6 +166,7 @@ export default function LeftPanel({
 
               <div className="flex items-center gap-2">
                 <button
+                  data-testid="leftpanel-mobile-search-toggle"
                   onClick={() => setChatFilter('all')}
                   className="w-10 h-10 rounded-full bg-[#223041] text-qc-text-primary flex items-center justify-center"
                   title="Search"
@@ -173,6 +174,7 @@ export default function LeftPanel({
                   <Search size={19} />
                 </button>
                 <button
+                  data-testid="leftpanel-mobile-menu-toggle"
                   onClick={() => setShowMenu((value) => !value)}
                   className="w-10 h-10 rounded-full text-qc-text-primary hover:bg-white/5 flex items-center justify-center"
                   title="Menu"
@@ -203,6 +205,7 @@ export default function LeftPanel({
             <div className="mt-4 relative flex items-center rounded-full bg-[#213042] border border-white/5 px-3 py-3">
               <Search size={17} className="text-qc-text-secondary" />
               <input
+                data-testid="leftpanel-mobile-search-input"
                 type="text"
                 placeholder="Search"
                 value={searchQuery}
@@ -214,6 +217,7 @@ export default function LeftPanel({
             <div className="mt-4 flex gap-2 overflow-x-auto hide-scrollbar">
               {mobileCategoryPills.map((filter) => (
                 <button
+                  data-testid={`leftpanel-mobile-filter-${filter.id}`}
                   key={filter.id}
                   onClick={() => setChatFilter(filter.id)}
                   className={`shrink-0 inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm transition-all ${
@@ -232,6 +236,7 @@ export default function LeftPanel({
 
             <div className="mt-4 space-y-2">
               <button
+                data-testid="archived-chats-button"
                 onClick={() => setChatFilter('unread')}
                 className="w-full rounded-[24px] bg-[#1b2a38] border border-white/5 px-4 py-3 flex items-center gap-3 text-left"
               >
@@ -250,6 +255,7 @@ export default function LeftPanel({
               </button>
 
               <button
+                data-testid="saved-space-button"
                 onClick={() => onViewChange('newChat')}
                 className="w-full rounded-[24px] bg-[#1b2a38] border border-white/5 px-4 py-3 flex items-center gap-3 text-left"
               >
@@ -266,7 +272,7 @@ export default function LeftPanel({
         ) : (
           <>
         <div className="flex items-start justify-between gap-3">
-          <button onClick={() => onViewChange('settings')} className="flex items-center gap-3 text-left">
+          <button data-testid="leftpanel-desktop-profile-button" onClick={() => onViewChange('settings')} className="flex items-center gap-3 text-left">
             <div className="w-12 h-12 rounded-2xl overflow-hidden bg-qc-accent-tertiary flex items-center justify-center shadow-glow">
               {user?.avatar ? <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" /> : <User size={20} className="text-qc-text-secondary" />}
             </div>
@@ -277,13 +283,13 @@ export default function LeftPanel({
           </button>
 
           <div className="flex items-center gap-2 relative">
-            <button onClick={() => onViewChange('stories')} className="w-10 h-10 rounded-2xl flex items-center justify-center text-qc-text-secondary hover:bg-qc-accent-tertiary transition-colors" title="Open stories">
+            <button data-testid="leftpanel-desktop-stories-button" onClick={() => onViewChange('stories')} className="w-10 h-10 rounded-2xl flex items-center justify-center text-qc-text-secondary hover:bg-qc-accent-tertiary transition-colors" title="Open stories">
               <CircleDashed size={18} />
             </button>
-            <button onClick={() => onViewChange('newChat')} className="w-10 h-10 rounded-2xl flex items-center justify-center text-white bg-qc-accent-primary hover:bg-qc-accent-secondary transition-colors shadow-glow" title="Start a chat">
+            <button data-testid="leftpanel-desktop-newchat-button" onClick={() => onViewChange('newChat')} className="w-10 h-10 rounded-2xl flex items-center justify-center text-white bg-qc-accent-primary hover:bg-qc-accent-secondary transition-colors shadow-glow" title="Start a chat">
               <MessageSquare size={18} />
             </button>
-            <button onClick={() => setShowMenu(value => !value)} className="w-10 h-10 rounded-2xl flex items-center justify-center text-qc-text-secondary hover:bg-qc-accent-tertiary transition-colors" title="Open menu">
+            <button data-testid="leftpanel-desktop-menu-toggle" onClick={() => setShowMenu(value => !value)} className="w-10 h-10 rounded-2xl flex items-center justify-center text-qc-text-secondary hover:bg-qc-accent-tertiary transition-colors" title="Open menu">
               <MoreVertical size={18} />
             </button>
 
@@ -336,15 +342,15 @@ export default function LeftPanel({
           </div>
 
           <div className="mt-3 flex gap-2 overflow-x-auto hide-scrollbar">
-            <button onClick={() => onViewChange('stories')} className="shrink-0 inline-flex items-center gap-2 rounded-full border border-[#ffe56a]/25 bg-[#ffe56a]/12 px-3 py-2 text-[12px] font-medium text-[#ffe56a]">
+            <button data-testid="leftpanel-story-orbit-button" onClick={() => onViewChange('stories')} className="shrink-0 inline-flex items-center gap-2 rounded-full border border-[#ffe56a]/25 bg-[#ffe56a]/12 px-3 py-2 text-[12px] font-medium text-[#ffe56a]">
               <Camera size={14} />
               Story orbit
             </button>
-            <button onClick={() => onViewChange('reels')} className="shrink-0 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-3 py-2 text-[12px] font-medium text-white/84">
+            <button data-testid="leftpanel-spotlight-button" onClick={() => onViewChange('reels')} className="shrink-0 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-3 py-2 text-[12px] font-medium text-white/84">
               <Clapperboard size={14} />
               Spotlight
             </button>
-            <button onClick={() => onViewChange('settings')} className="shrink-0 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-3 py-2 text-[12px] font-medium text-white/84">
+            <button data-testid="leftpanel-memories-button" onClick={() => onViewChange('settings')} className="shrink-0 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-3 py-2 text-[12px] font-medium text-white/84">
               <Bookmark size={14} />
               Memories
             </button>
@@ -359,6 +365,7 @@ export default function LeftPanel({
           <div className="mb-3 flex gap-3 overflow-x-auto hide-scrollbar">
             {orbitPeople.map((person) => (
               <button
+                data-testid={`orbit-person-${person.id}`}
                 key={person.id}
                 onClick={() => {
                   const conv = conversations.find((item) => item.id === person.id);
@@ -383,6 +390,7 @@ export default function LeftPanel({
             <Search size={16} className="text-qc-text-secondary" />
           </div>
           <input
+            data-testid="leftpanel-desktop-search-input"
             type="text"
             placeholder="Search chats, names, snippets..."
             value={searchQuery}
@@ -390,6 +398,7 @@ export default function LeftPanel({
             className="w-full bg-qc-surface-hover text-qc-text-primary text-sm rounded-2xl pl-10 pr-4 py-2.5 border border-transparent focus:border-qc-border focus:bg-qc-surface focus:outline-none transition-all"
           />
           <button
+            data-testid="leftpanel-unread-filter-toggle"
             onClick={() => setChatFilter(current => current === 'unread' ? 'all' : 'unread')}
             className={`ml-2 p-2 rounded-2xl transition-colors ${chatFilter === 'unread' ? 'bg-qc-accent-tertiary text-qc-accent-primary' : 'text-qc-text-secondary hover:bg-qc-accent-tertiary'}`}
             title="Toggle unread filter"
@@ -406,6 +415,7 @@ export default function LeftPanel({
             { id: 'groups', label: 'Groups' },
           ].map(filter => (
             <button
+              data-testid={`leftpanel-filter-${filter.id}`}
               key={filter.id}
               onClick={() => setChatFilter(filter.id)}
               className={`px-3 py-1.5 rounded-full text-xs whitespace-nowrap border transition-all ${
@@ -469,8 +479,9 @@ export default function LeftPanel({
 
             return (
               <button
+                data-testid={`chat-item-${conv.id}`}
                 key={conv.id}
-              onClick={() => onSelectConv(conv)}
+                onClick={() => onSelectConv(conv)}
                 className={`w-full flex items-center gap-3 ${isMobile ? 'px-4 py-3' : 'px-4 py-3.5'} hover:bg-qc-surface-hover transition-colors text-left border-b border-qc-border/80 ${
                   activeConv?.id === conv.id ? (isMobile ? 'bg-[#21374c]' : 'bg-qc-accent-tertiary') : ''
                 }`}
@@ -535,7 +546,7 @@ export default function LeftPanel({
   const renderNewChat = () => (
     <div className="absolute inset-0 z-30 bg-qc-surface flex flex-col animate-slideIn">
       <div className="px-4 py-4 border-b border-qc-border flex items-center gap-3 bg-qc-surface-hover">
-        <button onClick={() => onViewChange('chats')} className="w-10 h-10 rounded-2xl flex items-center justify-center hover:bg-qc-surface">
+        <button data-testid="new-chat-back-button" onClick={() => onViewChange('chats')} className="w-10 h-10 rounded-2xl flex items-center justify-center hover:bg-qc-surface">
           <ArrowLeft size={20} />
         </button>
         <div className="min-w-0">
@@ -548,6 +559,7 @@ export default function LeftPanel({
         <div className="relative">
           <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-qc-text-secondary" />
           <input
+            data-testid="new-chat-search-input"
             type="text"
             placeholder="Search by name or email"
             value={newChatSearch}
@@ -557,11 +569,11 @@ export default function LeftPanel({
         </div>
 
         <div className="grid grid-cols-2 gap-3 mt-3">
-          <button onClick={() => onViewChange('groups')} className="rounded-2xl border border-qc-border bg-qc-surface-hover p-3 text-left hover:bg-qc-accent-tertiary transition-colors">
+          <button data-testid="new-chat-create-group-button" onClick={() => onViewChange('groups')} className="rounded-2xl border border-qc-border bg-qc-surface-hover p-3 text-left hover:bg-qc-accent-tertiary transition-colors">
             <p className="text-[11px] uppercase tracking-[0.2em] text-qc-text-tertiary">Quick action</p>
             <p className="font-medium text-qc-text-primary mt-1">Create group</p>
           </button>
-          <button onClick={() => onViewChange('stories')} className="rounded-2xl border border-qc-border bg-qc-surface-hover p-3 text-left hover:bg-qc-accent-tertiary transition-colors">
+          <button data-testid="new-chat-post-story-button" onClick={() => onViewChange('stories')} className="rounded-2xl border border-qc-border bg-qc-surface-hover p-3 text-left hover:bg-qc-accent-tertiary transition-colors">
             <p className="text-[11px] uppercase tracking-[0.2em] text-qc-text-tertiary">Quick action</p>
             <p className="font-medium text-qc-text-primary mt-1">Post story</p>
           </button>
@@ -576,6 +588,7 @@ export default function LeftPanel({
         ) : (
           users.map(person => (
             <button
+              data-testid={`new-chat-person-${person.id}`}
               key={person.id}
               onClick={() => { onStartChat(person.id); onViewChange('chats'); }}
               className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-qc-surface-hover transition-colors text-left border-b border-qc-border"

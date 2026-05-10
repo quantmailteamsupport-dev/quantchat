@@ -202,6 +202,21 @@ export default function ChatApp() {
     }
   }, [activeConv, loadMessages]);
 
+  useEffect(() => {
+    if (!token) return;
+
+    const headers = { Authorization: `Bearer ${token}` };
+    const warmFeed = async (endpoint, key) => {
+      try {
+        const { data } = await axios.get(`${API}${endpoint}`, { headers });
+        sessionStorage.setItem(key, JSON.stringify(data));
+      } catch {}
+    };
+
+    warmFeed('/api/stories', 'qc_cache_stories');
+    warmFeed('/api/reels', 'qc_cache_reels');
+  }, [token]);
+
   const sendMessage = async (content, type = 'text', replyTo = null) => {
     if (!activeConv || (!content.trim() && type === 'text')) return;
 

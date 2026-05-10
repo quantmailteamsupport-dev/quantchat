@@ -670,7 +670,7 @@ export default function ChatArea({
 
       <div className={`px-3 md:px-4 bg-qc-surface-hover flex items-center gap-3 flex-shrink-0 shadow-sm relative z-20 border-b border-qc-border ${isMobile ? 'h-14' : 'h-16'}`}>
         {isMobile && (
-          <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 text-qc-text-secondary -ml-1">
+          <button data-testid="chat-back-button" onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 text-qc-text-secondary -ml-1">
             <ArrowLeft size={22} />
           </button>
         )}
@@ -687,8 +687,8 @@ export default function ChatArea({
         <div className="flex items-center gap-1 md:gap-2 text-qc-text-secondary relative">
           {!isMobile && <button onClick={() => setActiveCall({ type: 'video', status: 'ringing' })} className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5"><Video size={20} /></button>}
           {!isMobile && <button onClick={() => setActiveCall({ type: 'audio', status: 'ringing' })} className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5"><Phone size={18} /></button>}
-          <button onClick={() => setShowSearch((value) => !value)} className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center hover:bg-black/5 ${showSearch ? 'text-qc-accent-primary' : ''}`}><Search size={18} /></button>
-          <button onClick={() => { setShowChatMenu((value) => !value); setShowDisappearingMenu(false); }} className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center hover:bg-black/5 ${showChatMenu ? 'text-qc-accent-primary' : ''}`}><MoreVertical size={18} /></button>
+          <button data-testid="chat-search-toggle" onClick={() => setShowSearch((value) => !value)} className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center hover:bg-black/5 ${showSearch ? 'text-qc-accent-primary' : ''}`}><Search size={18} /></button>
+          <button data-testid="chat-menu-toggle" onClick={() => { setShowChatMenu((value) => !value); setShowDisappearingMenu(false); }} className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center hover:bg-black/5 ${showChatMenu ? 'text-qc-accent-primary' : ''}`}><MoreVertical size={18} /></button>
 
           {showChatMenu && (
             <div className={`absolute top-12 right-0 rounded-2xl border border-qc-border bg-qc-surface shadow-xl overflow-hidden z-30 animate-fadeIn ${isMobile ? 'w-48' : 'w-56'}`}>
@@ -726,16 +726,16 @@ export default function ChatArea({
 
       {isMobile && (
         <div className="px-3 py-2 border-b border-qc-border bg-qc-surface/92 backdrop-blur-md flex gap-2 overflow-x-auto hide-scrollbar relative z-20">
-          <button onClick={() => setShowSearch((value) => !value)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs border ${showSearch ? 'bg-qc-accent-tertiary text-qc-accent-primary border-qc-border' : 'bg-qc-surface-hover text-qc-text-secondary border-qc-border'}`}>
+          <button data-testid="chat-mobile-search-toggle" onClick={() => setShowSearch((value) => !value)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs border ${showSearch ? 'bg-qc-accent-tertiary text-qc-accent-primary border-qc-border' : 'bg-qc-surface-hover text-qc-text-secondary border-qc-border'}`}>
             Search
           </button>
-          <button onClick={() => { setShowAttachMenu((value) => !value); setShowEmojiPicker(false); }} className={`shrink-0 rounded-full px-3 py-1.5 text-xs border ${showAttachMenu ? 'bg-qc-accent-tertiary text-qc-accent-primary border-qc-border' : 'bg-qc-surface-hover text-qc-text-secondary border-qc-border'}`}>
+          <button data-testid="chat-mobile-media-toggle" onClick={() => { setShowAttachMenu((value) => !value); setShowEmojiPicker(false); }} className={`shrink-0 rounded-full px-3 py-1.5 text-xs border ${showAttachMenu ? 'bg-qc-accent-tertiary text-qc-accent-primary border-qc-border' : 'bg-qc-surface-hover text-qc-text-secondary border-qc-border'}`}>
             Media
           </button>
-          <button onClick={() => { setShowDisappearingMenu((value) => !value); setShowChatMenu(false); }} className={`shrink-0 rounded-full px-3 py-1.5 text-xs border ${showDisappearingMenu ? 'bg-qc-accent-tertiary text-qc-accent-primary border-qc-border' : 'bg-qc-surface-hover text-qc-text-secondary border-qc-border'}`}>
+          <button data-testid="chat-mobile-vanish-toggle" onClick={() => { setShowDisappearingMenu((value) => !value); setShowChatMenu(false); }} className={`shrink-0 rounded-full px-3 py-1.5 text-xs border ${showDisappearingMenu ? 'bg-qc-accent-tertiary text-qc-accent-primary border-qc-border' : 'bg-qc-surface-hover text-qc-text-secondary border-qc-border'}`}>
             Vanish {formatDisappearingLabel(conversation.disappearing_minutes)}
           </button>
-          <button onClick={() => setActiveCall({ type: 'audio', status: 'ringing' })} className="shrink-0 rounded-full px-3 py-1.5 text-xs border border-qc-border bg-qc-surface-hover text-qc-text-secondary">
+          <button data-testid="chat-mobile-call-button" onClick={() => setActiveCall({ type: 'audio', status: 'ringing' })} className="shrink-0 rounded-full px-3 py-1.5 text-xs border border-qc-border bg-qc-surface-hover text-qc-text-secondary">
             Call
           </button>
         </div>
@@ -746,6 +746,7 @@ export default function ChatArea({
           <div className="flex-1 rounded-2xl bg-qc-surface-hover border border-qc-border px-3 py-2 flex items-center gap-2 min-w-0">
             <Search size={16} className="text-qc-text-secondary" />
             <input
+              data-testid="chat-search-input"
               value={searchTerm}
               onChange={(event) => {
                 setSearchTerm(event.target.value);
@@ -836,6 +837,7 @@ export default function ChatArea({
 
       {showJumpToBottom && (
         <button
+          data-testid="chat-jump-latest-button"
           onClick={jumpToLatest}
           className="absolute right-4 bottom-24 z-30 h-10 w-10 rounded-full border border-qc-border bg-qc-surface text-qc-text-primary shadow-xl flex items-center justify-center hover:bg-qc-surface-hover"
           title="Jump to latest"
@@ -850,7 +852,7 @@ export default function ChatArea({
             <p className="text-[13px] font-medium text-qc-accent-secondary">{replyToMsg.sender_id === userId ? 'You' : (conversation.participants?.find((participant) => participant.user_id === replyToMsg.sender_id)?.name || 'Unknown')}</p>
             <p className="text-[13px] text-qc-text-secondary truncate">{replyToMsg.type === 'text' ? replyToMsg.content : (replyToMsg.type === 'image' ? 'Photo' : 'Audio')}</p>
           </div>
-          <button onClick={() => setReplyToMsg(null)} className="text-qc-text-secondary hover:text-qc-text-primary p-2"><X size={20} /></button>
+          <button data-testid="chat-cancel-reply-button" onClick={() => setReplyToMsg(null)} className="text-qc-text-secondary hover:text-qc-text-primary p-2"><X size={20} /></button>
         </div>
       )}
 
@@ -868,10 +870,10 @@ export default function ChatArea({
               <p className="text-sm font-medium text-qc-text-primary truncate">{pendingAttachment.fileName}</p>
               <p className="text-xs text-qc-text-secondary mt-1">{pendingAttachment.mime || 'Attachment ready'}</p>
             </div>
-            <button onClick={() => setPendingAttachment(null)} className="w-9 h-9 rounded-full border border-qc-border text-qc-text-secondary hover:text-qc-text-primary">
+            <button data-testid="chat-cancel-attachment-button" onClick={() => setPendingAttachment(null)} className="w-9 h-9 rounded-full border border-qc-border text-qc-text-secondary hover:text-qc-text-primary">
               <X size={16} className="mx-auto" />
             </button>
-            <button onClick={sendPendingAttachment} className="h-10 px-4 rounded-full bg-qc-accent-primary text-white text-sm font-medium hover:bg-qc-accent-secondary">
+            <button data-testid="chat-send-attachment-button" onClick={sendPendingAttachment} className="h-10 px-4 rounded-full bg-qc-accent-primary text-white text-sm font-medium hover:bg-qc-accent-secondary">
               Send
             </button>
           </div>
@@ -947,11 +949,11 @@ export default function ChatArea({
         )}
 
         <div className="relative">
-          <button onClick={() => { setShowEmojiPicker((value) => !value); setShowAttachMenu(false); }} className={`p-2 rounded-full ${showEmojiPicker ? 'text-qc-accent-primary' : 'text-qc-text-secondary hover:text-qc-text-primary'}`}><Smile size={24} /></button>
+          <button data-testid="chat-emoji-toggle" onClick={() => { setShowEmojiPicker((value) => !value); setShowAttachMenu(false); }} className={`p-2 rounded-full ${showEmojiPicker ? 'text-qc-accent-primary' : 'text-qc-text-secondary hover:text-qc-text-primary'}`}><Smile size={24} /></button>
         </div>
 
         <div className="relative">
-          <button onClick={() => { setShowAttachMenu((value) => !value); setShowEmojiPicker(false); }} className={`p-2 rounded-full ${showAttachMenu ? 'text-qc-accent-primary' : 'text-qc-text-secondary hover:text-qc-text-primary'}`}><Paperclip size={24} /></button>
+          <button data-testid="chat-attach-toggle" onClick={() => { setShowAttachMenu((value) => !value); setShowEmojiPicker(false); }} className={`p-2 rounded-full ${showAttachMenu ? 'text-qc-accent-primary' : 'text-qc-text-secondary hover:text-qc-text-primary'}`}><Paperclip size={24} /></button>
         </div>
 
         <div className={`flex-1 bg-qc-surface rounded-2xl flex items-center px-2 shadow-sm border border-qc-border ${isMobile ? 'min-h-[46px]' : 'min-h-[40px]'}`}>
@@ -961,6 +963,7 @@ export default function ChatArea({
             </div>
           ) : (
             <textarea
+              data-testid="chat-message-input"
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
@@ -974,13 +977,13 @@ export default function ChatArea({
         </div>
 
         {pendingAttachment ? (
-          <button onClick={sendPendingAttachment} className="p-2.5 bg-qc-accent-primary text-white rounded-full hover:bg-qc-accent-secondary transition-colors"><Send size={20} className="ml-0.5" /></button>
+          <button data-testid="chat-send-attachment-icon-button" onClick={sendPendingAttachment} className="p-2.5 bg-qc-accent-primary text-white rounded-full hover:bg-qc-accent-secondary transition-colors"><Send size={20} className="ml-0.5" /></button>
         ) : input.trim() ? (
-          <button onClick={handleSend} className="p-2.5 bg-qc-accent-primary text-white rounded-full hover:bg-qc-accent-secondary transition-colors"><Send size={20} className="ml-0.5" /></button>
+          <button data-testid="chat-send-button" onClick={handleSend} className="p-2.5 bg-qc-accent-primary text-white rounded-full hover:bg-qc-accent-secondary transition-colors"><Send size={20} className="ml-0.5" /></button>
         ) : isRecording ? (
-          <button onClick={stopRecording} className="p-2.5 bg-[#FF3333] text-white rounded-full hover:bg-red-600 transition-colors"><Square size={20} className="fill-current" /></button>
+          <button data-testid="chat-stop-recording-button" onClick={stopRecording} className="p-2.5 bg-[#FF3333] text-white rounded-full hover:bg-red-600 transition-colors"><Square size={20} className="fill-current" /></button>
         ) : (
-          <button onClick={startRecording} className="p-2.5 text-qc-text-secondary hover:text-qc-text-primary rounded-full"><Mic size={24} /></button>
+          <button data-testid="chat-record-button" onClick={startRecording} className="p-2.5 text-qc-text-secondary hover:text-qc-text-primary rounded-full"><Mic size={24} /></button>
         )}
 
         {showEmojiPicker && (

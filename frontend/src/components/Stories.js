@@ -131,8 +131,20 @@ function StoryViewer({ stories, activeIndex, onClose, autoAdvance, currentUserId
 }
 
 export default function Stories({ userId, onStartConversation }) {
-  const [storyGroups, setStoryGroups] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [storyGroups, setStoryGroups] = useState(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('qc_cache_stories') || '{}').stories || [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !(JSON.parse(sessionStorage.getItem('qc_cache_stories') || '{}').stories || []).length;
+    } catch {
+      return true;
+    }
+  });
   const [showComposer, setShowComposer] = useState(false);
   const [content, setContent] = useState('');
   const [bgColor, setBgColor] = useState(COLORS[0]);
@@ -149,6 +161,7 @@ export default function Stories({ userId, onStartConversation }) {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const { data } = await axios.get(`${API}/api/stories`, { headers });
       setStoryGroups(data.stories || []);
+      sessionStorage.setItem('qc_cache_stories', JSON.stringify(data));
     } catch {
       setStoryGroups([]);
     }
@@ -253,6 +266,7 @@ export default function Stories({ userId, onStartConversation }) {
           {lanePills.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
+              data-testid={`stories-lane-${id}`}
               onClick={() => setStoryLane(id)}
               className={`shrink-0 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition-colors ${
                 storyLane === id
@@ -271,6 +285,7 @@ export default function Stories({ userId, onStartConversation }) {
             {filteredStoryGroups.slice(0, 10).map((group) => (
               <button
                 key={group.user_id}
+                data-testid={`story-ring-${group.user_id}`}
                 onClick={() => {
                   const firstStory = timelineStories.find((story) => story.user_id === group.user_id);
                   const index = timelineStories.findIndex((story) => story.id === firstStory?.id);
@@ -403,6 +418,7 @@ export default function Stories({ userId, onStartConversation }) {
           </div>
 
           <button
+            data-testid="story-add-card-button"
             className="w-full flex items-center gap-4 text-left bg-qc-surface-hover border border-qc-border rounded-[24px] p-4 hover:bg-qc-accent-tertiary transition-colors"
             onClick={() => setShowComposer(true)}
           >
@@ -442,6 +458,7 @@ export default function Stories({ userId, onStartConversation }) {
                 return (
                   <button
                     key={group.user_id}
+                    data-testid={`story-card-${group.user_id}`}
                     onClick={() => {
                       const index = timelineStories.findIndex((story) => story.id === firstStory?.id);
                       if (index >= 0) setViewerIndex(index);

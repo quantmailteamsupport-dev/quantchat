@@ -7,8 +7,20 @@ import { API } from '../lib/api';
 const PREF_EVENT = 'qc-preferences-changed';
 
 export default function Reels({ userId, onStartConversation }) {
-  const [reels, setReels] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [reels, setReels] = useState(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('qc_cache_reels') || '{}').reels || [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !(JSON.parse(sessionStorage.getItem('qc_cache_reels') || '{}').reels || []).length;
+    } catch {
+      return true;
+    }
+  });
   const [showCreate, setShowCreate] = useState(false);
   const [newReelUrl, setNewReelUrl] = useState('');
   const [newReelCaption, setNewReelCaption] = useState('');
@@ -41,6 +53,7 @@ export default function Reels({ userId, onStartConversation }) {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const { data } = await axios.get(`${API}/api/reels`, { headers });
       setReels(data.reels || []);
+      sessionStorage.setItem('qc_cache_reels', JSON.stringify(data));
     } catch {
       setReels([]);
     }
@@ -203,6 +216,7 @@ export default function Reels({ userId, onStartConversation }) {
           {spotlightCategories.map((category) => (
             <button
               key={category.id}
+              data-testid={`reels-mode-${category.id}`}
               onClick={() => setFeedMode(category.id)}
               className={`shrink-0 rounded-full border px-4 py-2 text-sm transition-colors ${
                 feedMode === category.id
@@ -399,33 +413,33 @@ export default function Reels({ userId, onStartConversation }) {
                         </div>
 
                         <div className="flex flex-col items-center gap-4 pb-4 w-12 flex-shrink-0">
-                          <button onClick={() => setIsMuted((current) => !current)} className="flex flex-col items-center gap-1 group relative z-10">
+                          <button data-testid={`reel-audio-${reel.id}`} onClick={() => setIsMuted((current) => !current)} className="flex flex-col items-center gap-1 group relative z-10">
                             <div className="w-11 h-11 rounded-full bg-black/22 backdrop-blur-sm flex items-center justify-center group-hover:bg-black/40 transition">
                               {isMuted ? <VolumeX size={20} className="text-white" /> : <Volume2 size={20} className="text-white" />}
                             </div>
                             <span className="text-white text-[11px] drop-shadow font-mono">{isMuted ? 'Muted' : 'Sound'}</span>
                           </button>
                           {reel.user_id !== userId && (
-                            <button onClick={() => handleMessageCreator(reel)} className="flex flex-col items-center gap-1 group relative z-10">
+                            <button data-testid={`reel-chat-${reel.id}`} onClick={() => handleMessageCreator(reel)} className="flex flex-col items-center gap-1 group relative z-10">
                               <div className="w-11 h-11 rounded-full bg-black/22 backdrop-blur-sm flex items-center justify-center group-hover:bg-black/40 transition">
                                 <Send size={20} className="text-white" />
                               </div>
                               <span className="text-white text-[11px] drop-shadow font-mono">Chat</span>
                             </button>
                           )}
-                          <button onClick={() => handleShare(reel)} className="flex flex-col items-center gap-1 group relative z-10">
+                          <button data-testid={`reel-share-${reel.id}`} onClick={() => handleShare(reel)} className="flex flex-col items-center gap-1 group relative z-10">
                             <div className="w-11 h-11 rounded-full bg-black/22 backdrop-blur-sm flex items-center justify-center group-hover:bg-black/40 transition">
                               <Link2 size={20} className="text-white" />
                             </div>
                             <span className="text-white text-[11px] drop-shadow font-mono">Share</span>
                           </button>
-                          <button onClick={() => handleLike(reel.id)} className="flex flex-col items-center gap-1 group relative z-10">
+                          <button data-testid={`reel-like-${reel.id}`} onClick={() => handleLike(reel.id)} className="flex flex-col items-center gap-1 group relative z-10">
                             <div className="w-11 h-11 rounded-full bg-black/22 backdrop-blur-sm flex items-center justify-center group-hover:bg-black/40 transition">
                               <Heart size={22} className={reel.is_liked ? 'text-red-500 fill-red-500' : 'text-white'} />
                             </div>
                             <span className="text-white text-xs drop-shadow font-mono">{reel.likes_count}</span>
                           </button>
-                          <button onClick={() => setShowComments(reel.id)} className="flex flex-col items-center gap-1 group relative z-10">
+                          <button data-testid={`reel-comments-${reel.id}`} onClick={() => setShowComments(reel.id)} className="flex flex-col items-center gap-1 group relative z-10">
                             <div className="w-11 h-11 rounded-full bg-black/22 backdrop-blur-sm flex items-center justify-center group-hover:bg-black/40 transition">
                               <MessageCircle size={22} className="text-white" />
                             </div>
@@ -459,6 +473,7 @@ export default function Reels({ userId, onStartConversation }) {
               ].map((tab) => (
                 <button
                   key={tab.id}
+                  data-testid={`spotlight-detail-tab-${tab.id}`}
                   onClick={() => setDetailTab(tab.id)}
                   className={`rounded-full px-3 py-1.5 text-sm ${
                     detailTab === tab.id
