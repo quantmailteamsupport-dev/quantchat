@@ -7,7 +7,7 @@ import { API } from '../lib/api';
 const COLORS = ['#0066FF', '#FF3333', '#00FF66', '#FF6600', '#9933FF', '#FF0099', '#00CCFF'];
 
 export default function Stories({ userId }) {
-  const [stories, setStories] = useState([]);
+  const [storyGroups, setStoryGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showComposer, setShowComposer] = useState(false);
   const [content, setContent] = useState('');
@@ -20,7 +20,7 @@ export default function Stories({ userId }) {
       const token = localStorage.getItem('qc_token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const { data } = await axios.get(`${API}/api/stories`, { headers });
-      setStories(data.stories || []);
+      setStoryGroups(data.stories || []);
     } catch {}
     setLoading(false);
   };
@@ -42,8 +42,17 @@ export default function Stories({ userId }) {
     setSubmitting(false);
   };
 
-  const myStories = stories.filter(s => s.user_id === userId);
-  const otherStories = stories.filter(s => s.user_id !== userId);
+  const myStoryGroup = storyGroups.find(s => s.user_id === userId);
+  const otherStoryGroups = storyGroups.filter(s => s.user_id !== userId);
+  const timelineStories = [
+    ...(myStoryGroup ? myStoryGroup.stories.map(story => ({ ...story, user_id: myStoryGroup.user_id, user_name: myStoryGroup.user_name, user_avatar: myStoryGroup.user_avatar })) : []),
+    ...otherStoryGroups.flatMap(group => (group.stories || []).map(story => ({
+      ...story,
+      user_id: group.user_id,
+      user_name: group.user_name,
+      user_avatar: group.user_avatar,
+    }))),
+  ];
 
   return (
     <div data-testid="stories-view" className="flex flex-col h-full bg-qc-bg">
@@ -110,21 +119,56 @@ export default function Stories({ userId }) {
             <div className="min-w-0">
               <p className="text-white text-sm font-medium">Add to your story</p>
               <p className="text-qc-text-tertiary text-xs font-mono">
-                {myStories.length > 0 ? `${myStories.length} active update${myStories.length > 1 ? 's' : ''}` : 'Share a text update'}
+                {myStoryGroup?.stories?.length > 0 ? `${myStoryGroup.stories.length} active update${myStoryGroup.stories.length > 1 ? 's' : ''}` : 'Share a text update'}
               </p>
             </div>
           </button>
         </section>
 
+        {otherStoryGroups.length > 0 && (
+          <section className="px-4 pb-2">
+            <h3 className="text-[11px] uppercase tracking-wider text-qc-text-tertiary mb-3 font-mono">Story Rings</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {otherStoryGroups.map(group => (
+                <div key={group.user_id} className="rounded-md border border-qc-border bg-qc-surface p-3">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-11 h-11 rounded-full p-[2px] bg-gradient-to-br from-qc-accent to-qc-highlight">
+                      <div className="w-full h-full rounded-full bg-qc-surface overflow-hidden flex items-center justify-center">
+                        {group.user_avatar ? <img src={group.user_avatar} alt="" className="w-full h-full object-cover" /> : <User size={16} className="text-qc-text-secondary" />}
+                      </div>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-white text-sm truncate">{group.user_name || 'Unknown'}</p>
+                      <p className="text-qc-text-tertiary text-[10px] font-mono">{group.stories?.length || 0} snap{(group.stories?.length || 0) === 1 ? '' : 's'}</p>
+                    </div>
+                  </div>
+                  <p className="text-qc-text-secondary text-xs line-clamp-2">
+                    {(() => {
+                      const latestStory = group.stories?.[0];
+                      if (!latestStory) return 'No recent update';
+                      try {
+                        const payload = JSON.parse(latestStory.content);
+                        return payload.text;
+                      } catch {
+                        return latestStory.content;
+                      }
+                    })()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         <section className="px-4 pb-4">
           <h3 className="text-[11px] uppercase tracking-wider text-qc-text-tertiary mb-3 font-mono">Recent Updates</h3>
           {loading ? (
             <div className="flex items-center justify-center py-10 text-qc-text-secondary"><Loader className="animate-spin" size={18} /></div>
-          ) : otherStories.length === 0 && myStories.length === 0 ? (
+          ) : timelineStories.length === 0 ? (
             <div className="text-center py-12 text-qc-text-secondary text-sm">No stories yet</div>
           ) : (
             <div className="space-y-3">
-              {[...myStories, ...otherStories].map(story => {
+              {timelineStories.map(story => {
                 let payload = { text: story.content, bg: COLORS[0] };
                 try {
                   payload = JSON.parse(story.content);

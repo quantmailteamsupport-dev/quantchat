@@ -22,6 +22,10 @@ export default function ChatApp() {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const { data } = await axios.get(`${API}/api/conversations`, { headers });
       setConversations(data.conversations);
+      setActiveConv(currentActive => {
+        if (!currentActive) return currentActive;
+        return data.conversations.find(conv => conv.id === currentActive.id) || currentActive;
+      });
     } catch {}
   }, [token]);
 
@@ -56,7 +60,11 @@ export default function ChatApp() {
 
     socketRef.current = socket;
     socket.on('connect', () => socket.emit('authenticate', { token }));
-    socket.on('authenticated', () => {});
+    socket.on('authenticated', (data) => {
+      if (Array.isArray(data?.online_users)) {
+        setOnlineUsers(new Set(data.online_users));
+      }
+    });
     socket.on('new_message', (data) => {
       const msg = data.message;
       const convId = data.conversation_id;
@@ -94,6 +102,12 @@ export default function ChatApp() {
     });
     socket.on('message_reaction', (data) => {
       setMessages(prev => prev.map(m => m.id === data.message_id ? { ...m, reactions: data.reactions } : m));
+    });
+    socket.on('message_pinned', () => {
+      loadConversations();
+    });
+    socket.on('message_unpinned', () => {
+      loadConversations();
     });
     socket.on('user_online', (data) => setOnlineUsers(prev => new Set([...prev, data.user_id])));
     socket.on('user_offline', (data) => setOnlineUsers(prev => {

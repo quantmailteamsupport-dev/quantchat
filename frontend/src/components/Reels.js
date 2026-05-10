@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Video, Heart, MessageCircle, X, Plus, Play, Pause } from 'lucide-react';
+import { Video, Heart, MessageCircle, X, Plus } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-
-const API = process.env.REACT_APP_BACKEND_URL;
+import { API } from '../lib/api';
 
 export default function Reels({ userId }) {
   const [reels, setReels] = useState([]);
@@ -84,7 +83,10 @@ export default function Reels({ userId }) {
   return (
     <div data-testid="reels-panel" className="flex flex-col h-full bg-black relative">
       <div className="absolute top-0 left-0 right-0 z-10 p-4 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent">
-        <h2 className="font-heading font-bold text-lg text-white drop-shadow-md">Reels</h2>
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.24em] text-white/60">Spotlight</p>
+          <h2 className="font-heading font-bold text-lg text-white drop-shadow-md">Reels</h2>
+        </div>
         <button data-testid="create-reel-btn" onClick={() => setShowCreate(!showCreate)} className="w-8 h-8 flex items-center justify-center bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full text-white transition-colors">
           <Plus size={16}/>
         </button>
@@ -93,7 +95,7 @@ export default function Reels({ userId }) {
       {showCreate && (
         <div className="absolute top-16 left-4 right-4 z-20 p-4 rounded-lg bg-qc-elevated border border-qc-border shadow-2xl space-y-3">
           <div className="flex justify-between items-center mb-2">
-            <span className="font-mono text-[10px] text-qc-accent uppercase">Create Reel</span>
+            <span className="font-mono text-[10px] text-qc-accent uppercase tracking-[0.24em]">Create Reel</span>
             <button onClick={() => setShowCreate(false)} className="text-white"><X size={14}/></button>
           </div>
           <input type="text" value={newReelUrl} onChange={e => setNewReelUrl(e.target.value)} placeholder="Video or Image URL" className="w-full bg-qc-surface border border-qc-border text-white text-sm px-3 py-2" />
@@ -107,6 +109,7 @@ export default function Reels({ userId }) {
           <div className="h-full flex flex-col items-center justify-center text-center px-6">
             <Video size={32} className="text-white/40 mb-3" />
             <p className="text-white text-sm">No reels yet</p>
+            <p className="text-white/60 text-xs mt-2">Post a quick image or video URL to start your Spotlight feed.</p>
           </div>
         ) : (
           reels.map((reel, idx) => (

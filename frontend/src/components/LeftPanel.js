@@ -1,8 +1,27 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Search, User, MessageSquare, MoreVertical, Filter, ArrowLeft, Plus, Users, Settings, LogOut, Moon, Sun, CircleDashed } from 'lucide-react';
-import { formatDistanceToNow, isToday, isYesterday, format } from 'date-fns';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Search,
+  User,
+  MessageSquare,
+  MoreVertical,
+  Filter,
+  ArrowLeft,
+  Users,
+  Settings as SettingsIcon,
+  LogOut,
+  Moon,
+  Sun,
+  CircleDashed,
+  Clapperboard,
+  Sparkles,
+} from 'lucide-react';
+import { format, isToday, isYesterday } from 'date-fns';
 import axios from 'axios';
 import { API } from '../lib/api';
+import StoriesPanel from './Stories';
+import ReelsPanel from './Reels';
+import GroupsPanel from './Groups';
+import SettingsPanel from './Settings';
 
 function formatMsgTimeShort(time) {
   if (!time || time === 'None' || time === '') return '';
@@ -11,106 +30,221 @@ function formatMsgTimeShort(time) {
     if (isToday(d)) return format(d, 'HH:mm');
     if (isYesterday(d)) return 'Yesterday';
     return format(d, 'dd/MM/yyyy');
-  } catch { return ''; }
+  } catch {
+    return '';
+  }
 }
 
-export default function LeftPanel({ user, logout, darkMode, toggleTheme, conversations, activeConv, onSelectConv, onStartChat, onlineUsers, typingUsers, onReloadConversations, token }) {
-  const [view, setView] = useState('chats'); // chats, newChat, settings, stories
+export default function LeftPanel({
+  user,
+  logout,
+  darkMode,
+  toggleTheme,
+  conversations,
+  activeConv,
+  onSelectConv,
+  onStartChat,
+  onlineUsers,
+  typingUsers,
+  onReloadConversations,
+  token,
+}) {
+  const [view, setView] = useState('chats');
   const [searchQuery, setSearchQuery] = useState('');
   const [showMenu, setShowMenu] = useState(false);
-  const menuRef = useRef(null);
-
-  // For New Chat view
+  const [chatFilter, setChatFilter] = useState('all');
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [newChatSearch, setNewChatSearch] = useState('');
+  const menuRef = useRef(null);
 
-  // Close menu on click outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setShowMenu(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSearchUsers = async (q) => {
-    setLoadingUsers(true);
-    try {
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const { data } = await axios.get(`${API}/api/users/search?q=${encodeURIComponent(q)}`, { headers });
-      setUsers(data.users);
-    } catch {}
-    setLoadingUsers(false);
-  };
-
   useEffect(() => {
-    if (view === 'newChat') {
-      const debounce = setTimeout(() => handleSearchUsers(newChatSearch), 300);
-      return () => clearTimeout(debounce);
-    }
-  }, [newChatSearch, view]);
+    if (view !== 'newChat') return undefined;
 
-  const filteredConversations = conversations.filter(c => {
+    const fetchUsers = async () => {
+      setLoadingUsers(true);
+      try {
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const { data } = await axios.get(`${API}/api/users/search?q=${encodeURIComponent(newChatSearch)}`, { headers });
+        setUsers(data.users || []);
+      } catch {
+        setUsers([]);
+      }
+      setLoadingUsers(false);
+    };
+
+    const debounce = setTimeout(fetchUsers, 250);
+    return () => clearTimeout(debounce);
+  }, [newChatSearch, token, view]);
+
+  const totalUnread = conversations.reduce((sum, conv) => sum + (conv.unread_count || 0), 0);
+  const onlineDirectConversations = conversations.filter(conv => conv.type === 'direct' && onlineUsers.has(conv.other_user?.user_id)).length;
+  const groupCount = conversations.filter(conv => conv.type === 'group').length;
+
+  const filteredConversations = conversations.filter(conv => {
+    if (chatFilter === 'unread' && !conv.unread_count) return false;
+    if (chatFilter === 'groups' && conv.type !== 'group') return false;
+    if (chatFilter === 'direct' && conv.type !== 'direct') return false;
+
     if (!searchQuery) return true;
-    const name = c.type === 'group' ? c.name : (c.other_user?.name || c.participants?.find(p => p.user_id !== user?.id)?.name || '');
-    return name.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const name = conv.type === 'group'
+      ? conv.name
+      : (conv.other_user?.name || conv.participants?.find(p => p.user_id !== user?.id)?.name || '');
+
+    return name.toLowerCase().includes(searchQuery.toLowerCase()) || (conv.last_message || '').toLowerCase().includes(searchQuery.toLowerCase());
   });
 
-  const TopHeader = () => (
-    <div className="h-16 bg-qc-surface-hover flex items-center justify-between px-4 border-b border-qc-border flex-shrink-0 relative z-10">
-      <button onClick={() => setView('settings')} className="w-10 h-10 rounded-full overflow-hidden bg-qc-bg flex items-center justify-center cursor-pointer">
-        {user?.avatar ? <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" /> : <User size={20} className="text-qc-text-secondary" />}
-      </button>
-      <div className="flex items-center gap-2 relative">
-        <button onClick={() => setView('stories')} className="w-10 h-10 rounded-full flex items-center justify-center text-qc-text-secondary hover:bg-qc-border transition-colors" title="Status/Stories">
-          <CircleDashed size={20} />
-        </button>
-        <button onClick={() => setView('newChat')} className="w-10 h-10 rounded-full flex items-center justify-center text-qc-text-secondary hover:bg-qc-border transition-colors" title="New Chat">
-          <MessageSquare size={20} />
-        </button>
-        <button onClick={() => setShowMenu(!showMenu)} className="w-10 h-10 rounded-full flex items-center justify-center text-qc-text-secondary hover:bg-qc-border transition-colors" title="Menu">
-          <MoreVertical size={20} />
-        </button>
-        {showMenu && (
-          <div ref={menuRef} className="absolute top-12 right-0 w-48 bg-qc-surface border border-qc-border rounded-lg shadow-lg py-2 z-50">
-            <button onClick={() => { setView('settings'); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-qc-text-primary hover:bg-qc-surface-hover">Settings</button>
-            <button onClick={() => { toggleTheme(); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-qc-text-primary hover:bg-qc-surface-hover flex justify-between items-center">
-              Toggle Theme {darkMode ? <Sun size={14} /> : <Moon size={14} />}
-            </button>
-            <button onClick={() => { logout(); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-qc-surface-hover">Log out</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  const navItems = [
+    { id: 'chats', label: 'Chats', icon: MessageSquare },
+    { id: 'stories', label: 'Stories', icon: CircleDashed },
+    { id: 'reels', label: 'Spotlight', icon: Clapperboard },
+    { id: 'groups', label: 'Groups', icon: Users },
+    { id: 'settings', label: 'You', icon: SettingsIcon },
+  ];
 
-  const renderChats = () => (
+  const renderTopShell = () => (
     <>
-      <TopHeader />
-      <div className="p-2 border-b border-qc-border flex-shrink-0">
+      <div className="px-4 pt-4 pb-3 border-b border-qc-border bg-qc-surface backdrop-blur-xl relative">
+        <div className="flex items-start justify-between gap-3">
+          <button onClick={() => setView('settings')} className="flex items-center gap-3 text-left">
+            <div className="w-12 h-12 rounded-2xl overflow-hidden bg-qc-accent-tertiary flex items-center justify-center shadow-glow">
+              {user?.avatar ? <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" /> : <User size={20} className="text-qc-text-secondary" />}
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] uppercase tracking-[0.24em] text-qc-text-tertiary">QuantChat Hub</p>
+              <h2 className="font-heading text-xl text-qc-text-primary truncate">{user?.name || 'Operator'}</h2>
+            </div>
+          </button>
+
+          <div className="flex items-center gap-2 relative" ref={menuRef}>
+            <button onClick={() => setView('stories')} className="w-10 h-10 rounded-2xl flex items-center justify-center text-qc-text-secondary hover:bg-qc-accent-tertiary transition-colors" title="Open stories">
+              <CircleDashed size={18} />
+            </button>
+            <button onClick={() => setView('newChat')} className="w-10 h-10 rounded-2xl flex items-center justify-center text-white bg-qc-accent-primary hover:bg-qc-accent-secondary transition-colors shadow-glow" title="Start a chat">
+              <MessageSquare size={18} />
+            </button>
+            <button onClick={() => setShowMenu(value => !value)} className="w-10 h-10 rounded-2xl flex items-center justify-center text-qc-text-secondary hover:bg-qc-accent-tertiary transition-colors" title="Open menu">
+              <MoreVertical size={18} />
+            </button>
+
+            {showMenu && (
+              <div className="absolute top-12 right-0 w-56 bg-qc-surface border border-qc-border rounded-2xl shadow-xl py-2 z-50 animate-fadeIn">
+                <button onClick={() => { setView('groups'); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-qc-text-primary hover:bg-qc-surface-hover flex items-center gap-2">
+                  <Users size={15} /> Manage groups
+                </button>
+                <button onClick={() => { onReloadConversations?.(); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-qc-text-primary hover:bg-qc-surface-hover flex items-center gap-2">
+                  <Sparkles size={15} /> Refresh feed
+                </button>
+                <button onClick={() => { toggleTheme(); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-qc-text-primary hover:bg-qc-surface-hover flex items-center justify-between">
+                  <span className="flex items-center gap-2">{darkMode ? <Sun size={15} /> : <Moon size={15} />} Toggle theme</span>
+                  <span className="text-qc-text-tertiary text-xs">{darkMode ? 'Light' : 'Dark'}</span>
+                </button>
+                <button onClick={() => { logout(); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-qc-surface-hover flex items-center gap-2">
+                  <LogOut size={15} /> Log out
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-[24px] border border-qc-border bg-[linear-gradient(135deg,rgba(255,107,61,0.95),rgba(79,124,255,0.92))] text-white p-4 shadow-glow">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-white/70">Daily streak</p>
+              <h3 className="font-heading text-2xl leading-none mt-1">Social cockpit</h3>
+              <p className="text-sm text-white/80 mt-2 max-w-[18rem]">Chats, stories, spotlight and squads - sab ek hi shell mein fast access ke saath.</p>
+            </div>
+            <div className="rounded-2xl bg-white/15 px-3 py-2 text-right">
+              <p className="text-[11px] uppercase tracking-[0.24em] text-white/70">Unread</p>
+              <p className="text-2xl font-semibold">{totalUnread}</p>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <div className="rounded-2xl bg-white/12 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-white/65">Online</p>
+              <p className="text-lg font-semibold">{onlineDirectConversations}</p>
+            </div>
+            <div className="rounded-2xl bg-white/12 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-white/65">Squads</p>
+              <p className="text-lg font-semibold">{groupCount}</p>
+            </div>
+            <div className="rounded-2xl bg-white/12 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-white/65">Profile</p>
+              <p className="text-lg font-semibold truncate">{user?.role || 'user'}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-4 py-3 border-b border-qc-border bg-qc-surface backdrop-blur-md">
         <div className="relative flex items-center">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search size={16} className="text-qc-text-secondary" />
           </div>
           <input
             type="text"
-            placeholder="Search or start new chat"
+            placeholder="Search chats, names, snippets..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-qc-surface-hover text-qc-text-primary text-sm rounded-lg pl-10 pr-4 py-1.5 focus:bg-qc-surface focus:outline-none focus:ring-1 focus:ring-qc-accent-primary transition-all"
+            onChange={(event) => setSearchQuery(event.target.value)}
+            className="w-full bg-qc-surface-hover text-qc-text-primary text-sm rounded-2xl pl-10 pr-4 py-2.5 border border-transparent focus:border-qc-border focus:bg-qc-surface focus:outline-none transition-all"
           />
-          <button className="ml-2 text-qc-text-secondary hover:text-qc-text-primary p-1">
+          <button
+            onClick={() => setChatFilter(current => current === 'unread' ? 'all' : 'unread')}
+            className={`ml-2 p-2 rounded-2xl transition-colors ${chatFilter === 'unread' ? 'bg-qc-accent-tertiary text-qc-accent-primary' : 'text-qc-text-secondary hover:bg-qc-accent-tertiary'}`}
+            title="Toggle unread filter"
+          >
             <Filter size={18} />
           </button>
         </div>
+
+        <div className="flex gap-2 mt-3 overflow-x-auto hide-scrollbar">
+          {[
+            { id: 'all', label: 'All chats' },
+            { id: 'unread', label: 'Unread' },
+            { id: 'direct', label: 'Direct' },
+            { id: 'groups', label: 'Groups' },
+          ].map(filter => (
+            <button
+              key={filter.id}
+              onClick={() => setChatFilter(filter.id)}
+              className={`px-3 py-1.5 rounded-full text-xs whitespace-nowrap border transition-all ${
+                chatFilter === filter.id
+                  ? 'bg-qc-text-primary text-white border-qc-text-primary'
+                  : 'bg-qc-surface text-qc-text-secondary border-qc-border hover:bg-qc-surface-hover'
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
       </div>
+    </>
+  );
+
+  const renderChats = () => (
+    <div className="flex flex-col h-full">
+      {renderTopShell()}
       <div className="flex-1 overflow-y-auto bg-qc-surface">
         {filteredConversations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-qc-text-secondary text-sm p-4 text-center">
-            {searchQuery ? "No chats found matching your search." : "No conversations yet. Click the message icon to start a new chat."}
+          <div className="flex flex-col items-center justify-center h-full text-qc-text-secondary text-sm p-6 text-center">
+            <div className="w-16 h-16 rounded-3xl bg-qc-accent-tertiary text-qc-accent-primary flex items-center justify-center mb-4">
+              <MessageSquare size={28} />
+            </div>
+            <p className="font-medium text-qc-text-primary mb-1">No chats match this view yet</p>
+            <p>{searchQuery ? 'Try another search or switch the filter chips.' : 'Start a fresh conversation or jump into Stories and Spotlight.'}</p>
           </div>
         ) : (
           filteredConversations.map(conv => {
@@ -125,30 +259,45 @@ export default function LeftPanel({ user, logout, darkMode, toggleTheme, convers
               <button
                 key={conv.id}
                 onClick={() => onSelectConv(conv)}
-                className={`w-full flex items-center gap-3 px-3 py-3 hover:bg-qc-surface-hover transition-colors text-left ${activeConv?.id === conv.id ? 'bg-qc-surface-hover' : ''}`}
+                className={`w-full flex items-center gap-3 px-4 py-3.5 hover:bg-qc-surface-hover transition-colors text-left border-b border-qc-border/80 ${
+                  activeConv?.id === conv.id ? 'bg-qc-accent-tertiary' : ''
+                }`}
               >
                 <div className="relative flex-shrink-0">
-                  <div className="w-12 h-12 rounded-full overflow-hidden bg-qc-surface-hover flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-2xl overflow-hidden bg-qc-accent-tertiary flex items-center justify-center">
                     {avatar ? <img src={avatar} alt="" className="w-full h-full object-cover" /> : (isGroup ? <Users size={20} className="text-qc-text-secondary" /> : <User size={20} className="text-qc-text-secondary" />)}
                   </div>
-                  {isOnline && <div className="absolute bottom-0 right-0 w-3 h-3 bg-qc-accent-primary border-2 border-qc-surface rounded-full" />}
+                  {isOnline && <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-qc-accent-primary border-2 border-qc-surface rounded-full" />}
                 </div>
-                <div className="flex-1 min-w-0 border-b border-qc-border pb-3 pt-1">
-                  <div className="flex justify-between items-center mb-1">
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center gap-3 mb-1">
                     <span className="font-medium text-qc-text-primary text-[15px] truncate">{name}</span>
-                    <span className={`text-xs ${conv.unread_count > 0 ? 'text-qc-accent-primary font-medium' : 'text-qc-text-secondary'}`}>
+                    <span className={`text-xs whitespace-nowrap ${conv.unread_count > 0 ? 'text-qc-accent-primary font-medium' : 'text-qc-text-secondary'}`}>
                       {formatMsgTimeShort(conv.last_message_time)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[13px] text-qc-text-secondary truncate pr-2">
-                      {isTyping ? <span className="text-qc-accent-primary font-medium italic">typing...</span> : (conv.last_message || 'No messages yet')}
-                    </span>
-                    {conv.unread_count > 0 && (
-                      <span className="bg-qc-accent-primary text-white text-[10px] font-bold min-w-[20px] h-[20px] rounded-full flex items-center justify-center px-1">
+
+                  <div className="flex justify-between items-center gap-3">
+                    <div className="min-w-0">
+                      {isTyping ? (
+                        <span className="text-qc-accent-primary font-medium italic text-[13px]">typing...</span>
+                      ) : (
+                        <span className="text-[13px] text-qc-text-secondary truncate block">
+                          {conv.last_message || (isGroup ? 'Group ready for activity' : 'Say hi to kick things off')}
+                        </span>
+                      )}
+                    </div>
+
+                    {conv.unread_count > 0 ? (
+                      <span className="bg-qc-accent-primary text-white text-[10px] font-bold min-w-[22px] h-[22px] rounded-full flex items-center justify-center px-1.5">
                         {conv.unread_count}
                       </span>
-                    )}
+                    ) : isGroup ? (
+                      <span className="text-[10px] uppercase tracking-[0.2em] text-qc-text-tertiary border border-qc-border rounded-full px-2 py-1">
+                        Squad
+                      </span>
+                    ) : null}
                   </div>
                 </div>
               </button>
@@ -156,53 +305,67 @@ export default function LeftPanel({ user, logout, darkMode, toggleTheme, convers
           })
         )}
       </div>
-    </>
+    </div>
   );
 
   const renderNewChat = () => (
-    <div className="flex flex-col h-full bg-qc-surface animate-slideIn">
-      <div className="h-24 bg-qc-accent-secondary flex items-end px-4 pb-4 flex-shrink-0">
-        <div className="flex items-center gap-6 text-white w-full">
-          <button onClick={() => setView('chats')}><ArrowLeft size={24} /></button>
-          <span className="font-medium text-lg">New chat</span>
+    <div className="absolute inset-0 z-30 bg-qc-surface flex flex-col animate-slideIn">
+      <div className="px-4 py-4 border-b border-qc-border flex items-center gap-3 bg-qc-surface-hover">
+        <button onClick={() => setView('chats')} className="w-10 h-10 rounded-2xl flex items-center justify-center hover:bg-qc-surface">
+          <ArrowLeft size={20} />
+        </button>
+        <div className="min-w-0">
+          <p className="text-[11px] uppercase tracking-[0.24em] text-qc-text-tertiary">Discover people</p>
+          <h3 className="font-heading text-xl text-qc-text-primary">Start something new</h3>
         </div>
       </div>
-      <div className="p-2 border-b border-qc-border flex-shrink-0">
-        <div className="relative flex items-center">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search size={16} className="text-qc-text-secondary" />
-          </div>
+
+      <div className="p-4 border-b border-qc-border bg-qc-surface">
+        <div className="relative">
+          <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-qc-text-secondary" />
           <input
             type="text"
-            placeholder="Search name or number"
+            placeholder="Search by name or email"
             value={newChatSearch}
-            onChange={(e) => setNewChatSearch(e.target.value)}
-            className="w-full bg-qc-surface-hover text-qc-text-primary text-sm rounded-lg pl-10 pr-4 py-1.5 focus:bg-qc-surface focus:outline-none focus:ring-1 focus:ring-qc-accent-primary transition-all"
+            onChange={(event) => setNewChatSearch(event.target.value)}
+            className="w-full bg-qc-surface-hover rounded-2xl border border-qc-border px-10 py-3 text-sm"
           />
         </div>
+
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          <button onClick={() => setView('groups')} className="rounded-2xl border border-qc-border bg-qc-surface-hover p-3 text-left hover:bg-qc-accent-tertiary transition-colors">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-qc-text-tertiary">Quick action</p>
+            <p className="font-medium text-qc-text-primary mt-1">Create group</p>
+          </button>
+          <button onClick={() => setView('stories')} className="rounded-2xl border border-qc-border bg-qc-surface-hover p-3 text-left hover:bg-qc-accent-tertiary transition-colors">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-qc-text-tertiary">Quick action</p>
+            <p className="font-medium text-qc-text-primary mt-1">Post story</p>
+          </button>
+        </div>
       </div>
+
       <div className="flex-1 overflow-y-auto">
-        <button className="w-full flex items-center gap-4 px-4 py-3 hover:bg-qc-surface-hover transition-colors text-left border-b border-qc-border">
-          <div className="w-12 h-12 rounded-full bg-qc-accent-primary flex items-center justify-center text-white flex-shrink-0">
-            <Users size={20} />
-          </div>
-          <span className="font-medium text-qc-text-primary text-base">New group</span>
-        </button>
-        <div className="py-4 px-4 text-qc-text-secondary text-sm font-medium uppercase tracking-wider bg-qc-bg">Contacts on QuantChat</div>
         {loadingUsers ? (
-          <div className="p-4 text-center text-qc-text-secondary text-sm">Loading...</div>
+          <div className="p-6 text-center text-qc-text-secondary text-sm">Finding people...</div>
         ) : users.length === 0 ? (
-          <div className="p-4 text-center text-qc-text-secondary text-sm">No contacts found</div>
+          <div className="p-6 text-center text-qc-text-secondary text-sm">No people found. Try another search term.</div>
         ) : (
-          users.map(u => (
-            <button key={u.id} onClick={() => { onStartChat(u.id); setView('chats'); }} className="w-full flex items-center gap-4 px-4 py-3 hover:bg-qc-surface-hover transition-colors text-left">
-              <div className="w-12 h-12 rounded-full overflow-hidden bg-qc-surface-hover flex items-center justify-center flex-shrink-0">
-                {u.avatar ? <img src={u.avatar} alt="" className="w-full h-full object-cover" /> : <User size={20} className="text-qc-text-secondary" />}
+          users.map(person => (
+            <button
+              key={person.id}
+              onClick={() => { onStartChat(person.id); setView('chats'); }}
+              className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-qc-surface-hover transition-colors text-left border-b border-qc-border"
+            >
+              <div className="w-12 h-12 rounded-2xl overflow-hidden bg-qc-accent-tertiary flex items-center justify-center flex-shrink-0">
+                {person.avatar ? <img src={person.avatar} alt="" className="w-full h-full object-cover" /> : <User size={20} className="text-qc-text-secondary" />}
               </div>
-              <div className="flex-1 min-w-0 border-b border-qc-border pb-3 pt-1">
-                <p className="font-medium text-qc-text-primary text-[15px] truncate">{u.name}</p>
-                <p className="text-[13px] text-qc-text-secondary truncate">{u.bio || u.email}</p>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-qc-text-primary text-[15px] truncate">{person.name}</p>
+                <p className="text-[13px] text-qc-text-secondary truncate">{person.bio || person.email}</p>
               </div>
+              <span className="text-[11px] uppercase tracking-[0.2em] text-qc-text-tertiary">
+                {person.online ? 'Live' : 'Reach out'}
+              </span>
             </button>
           ))
         )}
@@ -210,75 +373,40 @@ export default function LeftPanel({ user, logout, darkMode, toggleTheme, convers
     </div>
   );
 
-  const renderSettings = () => (
-    <div className="flex flex-col h-full bg-qc-surface animate-slideIn">
-      <div className="h-24 bg-qc-accent-secondary flex items-end px-4 pb-4 flex-shrink-0">
-        <div className="flex items-center gap-6 text-white w-full">
-          <button onClick={() => setView('chats')}><ArrowLeft size={24} /></button>
-          <span className="font-medium text-lg">Profile</span>
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto bg-qc-bg">
-        <div className="bg-qc-surface py-8 flex justify-center mb-2 shadow-sm">
-          <div className="relative">
-            <div className="w-48 h-48 rounded-full overflow-hidden bg-qc-surface-hover flex items-center justify-center">
-              {user?.avatar ? <img src={user.avatar} alt="" className="w-full h-full object-cover" /> : <User size={64} className="text-qc-text-secondary" />}
-            </div>
-          </div>
-        </div>
-        <div className="bg-qc-surface px-6 py-4 mb-2 shadow-sm">
-          <p className="text-sm text-qc-accent-primary mb-1">Your name</p>
-          <div className="flex justify-between items-center">
-            <p className="text-qc-text-primary text-[17px]">{user?.name}</p>
-          </div>
-        </div>
-        <div className="bg-qc-surface px-6 py-4 mb-2 shadow-sm">
-          <p className="text-sm text-qc-accent-primary mb-1">About</p>
-          <p className="text-qc-text-primary text-[15px]">{user?.bio || 'Hey there! I am using QuantChat.'}</p>
-        </div>
-        <div className="bg-qc-surface px-6 py-4 mb-2 shadow-sm">
-          <p className="text-sm text-qc-accent-primary mb-1">Email</p>
-          <p className="text-qc-text-primary text-[15px]">{user?.email}</p>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderStories = () => (
-    <div className="flex flex-col h-full bg-qc-surface animate-slideIn">
-      <div className="h-24 bg-qc-accent-secondary flex items-end px-4 pb-4 flex-shrink-0">
-        <div className="flex items-center gap-6 text-white w-full">
-          <button onClick={() => setView('chats')}><ArrowLeft size={24} /></button>
-          <span className="font-medium text-lg">Status</span>
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto bg-qc-bg">
-        <button className="w-full flex items-center gap-4 px-4 py-3 bg-qc-surface hover:bg-qc-surface-hover transition-colors text-left mb-2 shadow-sm">
-          <div className="relative flex-shrink-0">
-             <div className="w-12 h-12 rounded-full overflow-hidden bg-qc-surface-hover flex items-center justify-center">
-              {user?.avatar ? <img src={user.avatar} alt="" className="w-full h-full object-cover" /> : <User size={20} className="text-qc-text-secondary" />}
-             </div>
-             <div className="absolute bottom-0 right-0 w-4 h-4 bg-qc-accent-primary rounded-full flex items-center justify-center border-2 border-qc-surface text-white">
-                <Plus size={10} strokeWidth={4} />
-             </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-qc-text-primary text-[15px] truncate">My status</p>
-            <p className="text-[13px] text-qc-text-secondary truncate">Click to add status update</p>
-          </div>
-        </button>
-        <div className="py-2 px-4 text-qc-text-secondary text-sm font-medium uppercase tracking-wider">Recent updates</div>
-        <div className="p-4 text-center text-qc-text-secondary text-sm">No recent updates</div>
-      </div>
-    </div>
-  );
+  const renderCurrentView = () => {
+    if (view === 'stories') return <StoriesPanel userId={user?.id} />;
+    if (view === 'reels') return <ReelsPanel userId={user?.id} />;
+    if (view === 'groups') return <GroupsPanel userId={user?.id} onSelectConv={(conv) => { onReloadConversations?.(); onSelectConv(conv); setView('chats'); }} />;
+    if (view === 'settings') return <SettingsPanel user={user} />;
+    return renderChats();
+  };
 
   return (
     <div className="flex flex-col h-full bg-qc-surface w-full overflow-hidden relative">
-      {view === 'chats' && renderChats()}
+      <div className="flex-1 min-h-0">{renderCurrentView()}</div>
+
       {view === 'newChat' && renderNewChat()}
-      {view === 'settings' && renderSettings()}
-      {view === 'stories' && renderStories()}
+
+      <div className="grid grid-cols-5 gap-1 p-2 border-t border-qc-border bg-qc-surface backdrop-blur-xl">
+        {navItems.map(item => {
+          const Icon = item.icon;
+          const isActive = view === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setView(item.id)}
+              className={`rounded-2xl px-2 py-2.5 flex flex-col items-center justify-center gap-1 transition-all ${
+                isActive
+                  ? 'bg-qc-text-primary text-white'
+                  : 'text-qc-text-secondary hover:bg-qc-surface-hover'
+              }`}
+            >
+              <Icon size={18} />
+              <span className="text-[11px]">{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
