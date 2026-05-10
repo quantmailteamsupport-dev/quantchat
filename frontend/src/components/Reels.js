@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
-import { Video, Heart, MessageCircle, X, Plus, Sparkles, Play, Pause, Volume2, VolumeX, User, UploadCloud, Send } from 'lucide-react';
+import { Video, Heart, MessageCircle, X, Plus, Sparkles, Play, Pause, Volume2, VolumeX, User, UploadCloud, Send, Link2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { API } from '../lib/api';
 
@@ -18,6 +18,9 @@ export default function Reels({ userId, onStartConversation }) {
   const [autoplay, setAutoplay] = useState(localStorage.getItem('qc_pref_autoplay_reels') !== 'false');
   const [isMuted, setIsMuted] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
+  const [feedMode, setFeedMode] = useState('for_you');
+  const [detailTab, setDetailTab] = useState('comments');
+  const [shareStatus, setShareStatus] = useState('');
   const token = localStorage.getItem('qc_token');
   const containerRef = useRef(null);
   const uploadInputRef = useRef(null);
@@ -128,8 +131,45 @@ export default function Reels({ userId, onStartConversation }) {
     await onStartConversation(reel.user_id, `About your reel: ${reel.caption || 'Loved this drop'}`);
   };
 
-  const currentReel = reels[currentIdx];
+  const visibleReels = useMemo(() => {
+    if (feedMode === 'posted') {
+      return reels.filter((reel) => reel.user_id === userId);
+    }
+    if (feedMode === 'trending') {
+      return [...reels].sort((a, b) => (b.likes_count + b.comments.length) - (a.likes_count + a.comments.length));
+    }
+    return reels;
+  }, [feedMode, reels, userId]);
+
+  useEffect(() => {
+    setCurrentIdx(0);
+    if (containerRef.current) {
+      containerRef.current.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [feedMode]);
+
+  const currentReel = visibleReels[currentIdx];
   const yourReelsCount = useMemo(() => reels.filter((reel) => reel.user_id === userId).length, [reels, userId]);
+  const spotlightCategories = [
+    { id: 'for_you', label: 'For You' },
+    { id: 'trending', label: 'Trending' },
+    { id: 'posted', label: 'Posted' },
+  ];
+
+  const handleShare = async (reel) => {
+    const shareUrl = `${window.location.origin}/?spotlight=${reel.id}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: reel.caption || 'QuantChat Spotlight', text: reel.caption || 'Check this drop', url: shareUrl });
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      }
+      setShareStatus('Link copied');
+    } catch {
+      setShareStatus('Share cancelled');
+    }
+    window.setTimeout(() => setShareStatus(''), 1800);
+  };
 
   if (loading) {
     return <div className="h-full flex items-center justify-center text-qc-text-secondary">Loading...</div>;
@@ -159,10 +199,26 @@ export default function Reels({ userId, onStartConversation }) {
           </button>
         </div>
 
+        <div className="flex gap-2 overflow-x-auto hide-scrollbar mt-4">
+          {spotlightCategories.map((category) => (
+            <button
+              key={category.id}
+              onClick={() => setFeedMode(category.id)}
+              className={`shrink-0 rounded-full border px-4 py-2 text-sm transition-colors ${
+                feedMode === category.id
+                  ? 'border-white bg-white text-[#05070c]'
+                  : 'border-white/14 bg-transparent text-white/85 hover:bg-white/8'
+              }`}
+            >
+              {category.label}
+            </button>
+          ))}
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
             <p className="text-[10px] uppercase tracking-[0.22em] text-white/50">Feed size</p>
-            <p className="text-xl font-semibold text-white mt-1">{reels.length}</p>
+            <p className="text-xl font-semibold text-white mt-1">{visibleReels.length}</p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
             <p className="text-[10px] uppercase tracking-[0.22em] text-white/50">Your posts</p>
@@ -232,7 +288,7 @@ export default function Reels({ userId, onStartConversation }) {
       )}
 
       <div className="relative z-10 flex-1 overflow-hidden px-4 py-5 sm:px-5 pb-[calc(env(safe-area-inset-bottom)+6.5rem)] md:pb-6">
-        {reels.length === 0 ? (
+        {visibleReels.length === 0 ? (
           <div className="h-full rounded-[32px] border border-white/10 bg-white/5 flex flex-col items-center justify-center text-center px-6">
             <Video size={34} className="text-white/40 mb-3" />
             <p className="text-white text-base font-medium">No reels yet</p>
@@ -245,6 +301,10 @@ export default function Reels({ userId, onStartConversation }) {
                 <p className="text-[10px] uppercase tracking-[0.22em] text-white/50">Now playing</p>
                 <p className="text-white text-lg font-semibold mt-2 line-clamp-2">{currentReel?.caption || 'Untitled reel'}</p>
                 <p className="text-white/60 text-sm mt-2">{currentReel?.user_name || 'Unknown creator'}</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1 text-[11px] text-white/74">Comments {currentReel?.comments?.length || 0}</span>
+                  <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1 text-[11px] text-white/74">Likes {currentReel?.likes_count || 0}</span>
+                </div>
                 {currentReel?.user_id !== userId && (
                   <button
                     onClick={() => handleMessageCreator(currentReel)}
@@ -259,7 +319,7 @@ export default function Reels({ userId, onStartConversation }) {
               <div className="rounded-[28px] border border-white/10 bg-white/5 p-4">
                 <p className="text-[10px] uppercase tracking-[0.22em] text-white/50 mb-3">Queue</p>
                 <div className="space-y-2">
-                  {reels.slice(0, 5).map((reel, index) => (
+                  {visibleReels.slice(0, 5).map((reel, index) => (
                     <button
                       key={reel.id}
                       onClick={() => {
@@ -281,7 +341,7 @@ export default function Reels({ userId, onStartConversation }) {
             </div>
 
             <div ref={containerRef} onScroll={handleScroll} className="h-full overflow-y-auto snap-y snap-mandatory hide-scrollbar">
-              {reels.map((reel, index) => {
+              {visibleReels.map((reel, index) => {
                 const isVideo = /\.(mp4|webm|ogg)$/i.test(reel.media_url) || reel.media_url.startsWith('data:video');
                 return (
                   <div key={reel.id} className="h-full snap-start flex items-center justify-center pb-4">
@@ -308,7 +368,7 @@ export default function Reels({ userId, onStartConversation }) {
 
                       <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
                         <div className="rounded-full border border-white/10 bg-black/25 backdrop-blur-md px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-white/75">
-                          {index + 1} / {reels.length}
+                          {index + 1} / {visibleReels.length}
                         </div>
                         <div className="rounded-full border border-white/10 bg-black/25 backdrop-blur-md px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-white/75 flex items-center gap-2">
                           {isPaused ? <Pause size={12} /> : <Play size={12} />}
@@ -353,6 +413,12 @@ export default function Reels({ userId, onStartConversation }) {
                               <span className="text-white text-[11px] drop-shadow font-mono">Chat</span>
                             </button>
                           )}
+                          <button onClick={() => handleShare(reel)} className="flex flex-col items-center gap-1 group relative z-10">
+                            <div className="w-11 h-11 rounded-full bg-black/22 backdrop-blur-sm flex items-center justify-center group-hover:bg-black/40 transition">
+                              <Link2 size={20} className="text-white" />
+                            </div>
+                            <span className="text-white text-[11px] drop-shadow font-mono">Share</span>
+                          </button>
                           <button onClick={() => handleLike(reel.id)} className="flex flex-col items-center gap-1 group relative z-10">
                             <div className="w-11 h-11 rounded-full bg-black/22 backdrop-blur-sm flex items-center justify-center group-hover:bg-black/40 transition">
                               <Heart size={22} className={reel.is_liked ? 'text-red-500 fill-red-500' : 'text-white'} />
@@ -378,40 +444,107 @@ export default function Reels({ userId, onStartConversation }) {
 
       {showComments && (
         <div className="absolute inset-x-0 bottom-0 top-1/3 bg-[#0f1a31] rounded-t-[32px] z-30 flex flex-col shadow-[0_-20px_70px_rgba(0,0,0,0.35)] border-t border-white/10 animate-slideUp">
-          <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/5 rounded-t-[32px]">
-            <span className="text-white text-sm font-medium">Comments</span>
-            <button onClick={() => setShowComments(null)} className="text-white/75">
-              <X size={18} />
-            </button>
+          <div className="p-4 border-b border-white/10 bg-white/5 rounded-t-[32px]">
+            <div className="flex items-center justify-between">
+              <span className="text-white text-sm font-medium">Spotlight panel</span>
+              <button onClick={() => setShowComments(null)} className="text-white/75">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="mt-4 flex gap-2">
+              {[
+                { id: 'comments', label: 'Comments' },
+                { id: 'up_next', label: 'Up Next' },
+                { id: 'details', label: 'Details' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setDetailTab(tab.id)}
+                  className={`rounded-full px-3 py-1.5 text-sm ${
+                    detailTab === tab.id
+                      ? 'bg-white text-[#05070c]'
+                      : 'bg-white/6 text-white/75'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {(reels.find((reel) => reel.id === showComments)?.comments || []).map((comment) => (
-              <div key={comment.id} className="flex gap-3">
-                <div className="w-8 h-8 rounded-2xl bg-qc-highlight flex-shrink-0 flex items-center justify-center text-xs text-white uppercase">
-                  {comment.user_name?.[0] || '?'}
-                </div>
-                <div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-white text-xs font-medium">{comment.user_name}</span>
-                    <span className="text-white/45 text-[10px] font-mono">{formatDistanceToNow(new Date(comment.created_at))} ago</span>
+          {detailTab === 'comments' && (
+            <>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {(visibleReels.find((reel) => reel.id === showComments)?.comments || []).map((comment) => (
+                  <div key={comment.id} className="flex gap-3">
+                    <div className="w-8 h-8 rounded-2xl bg-qc-highlight flex-shrink-0 flex items-center justify-center text-xs text-white uppercase">
+                      {comment.user_name?.[0] || '?'}
+                    </div>
+                    <div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-white text-xs font-medium">{comment.user_name}</span>
+                        <span className="text-white/45 text-[10px] font-mono">{formatDistanceToNow(new Date(comment.created_at))} ago</span>
+                      </div>
+                      <p className="text-white/72 text-sm">{comment.text}</p>
+                    </div>
                   </div>
-                  <p className="text-white/72 text-sm">{comment.text}</p>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <form onSubmit={handleComment} className="p-4 border-t border-white/10 flex gap-2">
-            <input
-              type="text"
-              value={commentText}
-              onChange={(event) => setCommentText(event.target.value)}
-              placeholder="Add a comment..."
-              className="flex-1 bg-white/8 border border-white/10 rounded-full px-4 py-2 text-sm text-white"
-            />
-            <button type="submit" disabled={!commentText.trim()} className="text-qc-accent-primary text-sm font-medium px-2 disabled:opacity-50">
-              Post
-            </button>
-          </form>
+              <form onSubmit={handleComment} className="p-4 border-t border-white/10 flex gap-2">
+                <input
+                  type="text"
+                  value={commentText}
+                  onChange={(event) => setCommentText(event.target.value)}
+                  placeholder="Add a comment..."
+                  className="flex-1 bg-white/8 border border-white/10 rounded-full px-4 py-2 text-sm text-white"
+                />
+                <button type="submit" disabled={!commentText.trim()} className="text-qc-accent-primary text-sm font-medium px-2 disabled:opacity-50">
+                  Post
+                </button>
+              </form>
+            </>
+          )}
+          {detailTab === 'up_next' && (
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="grid grid-cols-2 gap-3">
+                {visibleReels.filter((reel) => reel.id !== showComments).slice(0, 6).map((reel) => (
+                  <button
+                    key={reel.id}
+                    onClick={() => {
+                      const nextIndex = visibleReels.findIndex((item) => item.id === reel.id);
+                      setCurrentIdx(nextIndex);
+                      setShowComments(null);
+                      containerRef.current?.scrollTo({ top: containerRef.current.clientHeight * nextIndex, behavior: 'smooth' });
+                    }}
+                    className="rounded-[22px] overflow-hidden border border-white/10 bg-white/6 text-left"
+                  >
+                    <div className="aspect-[3/4] bg-black/25">
+                      <img src={reel.media_url} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="p-3">
+                      <p className="text-sm text-white line-clamp-2">{reel.caption || 'Untitled reel'}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {detailTab === 'details' && (
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 text-sm">
+              <div className="rounded-[24px] border border-white/10 bg-white/5 p-4">
+                <p className="text-white/50 uppercase tracking-[0.22em] text-[10px]">Creator</p>
+                <p className="mt-2 text-white font-medium">{visibleReels.find((reel) => reel.id === showComments)?.user_name || 'Unknown creator'}</p>
+              </div>
+              <div className="rounded-[24px] border border-white/10 bg-white/5 p-4">
+                <p className="text-white/50 uppercase tracking-[0.22em] text-[10px]">Caption</p>
+                <p className="mt-2 text-white/80">{visibleReels.find((reel) => reel.id === showComments)?.caption || 'No caption added yet.'}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {shareStatus && (
+        <div className="absolute top-4 right-4 z-40 rounded-full border border-white/10 bg-black/55 px-4 py-2 text-sm text-white shadow-xl">
+          {shareStatus}
         </div>
       )}
     </div>

@@ -13,6 +13,8 @@ import {
   CircleDashed,
   Clapperboard,
   Sparkles,
+  Camera,
+  Bookmark,
 } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import axios from 'axios';
@@ -106,6 +108,15 @@ export default function LeftPanel({
   const totalUnread = conversations.reduce((sum, conv) => sum + (conv.unread_count || 0), 0);
   const onlineDirectConversations = conversations.filter(conv => conv.type === 'direct' && onlineUsers.has(conv.other_user?.user_id)).length;
   const groupCount = conversations.filter(conv => conv.type === 'group').length;
+  const orbitPeople = conversations
+    .filter((conv) => conv.type === 'direct')
+    .slice(0, 8)
+    .map((conv) => ({
+      id: conv.id,
+      name: conv.other_user?.name || conv.participants?.find(p => p.user_id !== user?.id)?.name || 'Unknown',
+      avatar: conv.other_user?.avatar || conv.participants?.find(p => p.user_id !== user?.id)?.avatar || '',
+      online: onlineUsers.has(conv.other_user?.user_id || conv.participants?.find(p => p.user_id !== user?.id)?.user_id),
+    }));
 
   const filteredConversations = conversations.filter(conv => {
     if (chatFilter === 'unread' && !conv.unread_count) return false;
@@ -174,37 +185,75 @@ export default function LeftPanel({
           </div>
         </div>
 
-        <div className={`mt-3 rounded-[24px] border border-qc-border bg-[linear-gradient(135deg,rgba(255,107,61,0.95),rgba(79,124,255,0.92))] text-white shadow-glow ${isMobile ? 'p-3' : 'p-4'}`}>
+        <div className={`mt-3 rounded-[28px] border border-white/10 bg-[linear-gradient(145deg,rgba(14,18,29,0.98),rgba(18,25,41,0.96))] text-white shadow-[0_20px_50px_rgba(0,0,0,0.28)] ${isMobile ? 'p-3.5' : 'p-4.5'}`}>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.24em] text-white/70">Daily streak</p>
+              <p className="text-[11px] uppercase tracking-[0.26em] text-[#ffe56a]/78">Snap lane</p>
               <h3 className={`font-heading leading-none mt-1 ${isMobile ? 'text-lg' : 'text-xl'}`}>Social cockpit</h3>
-              <p className="text-xs text-white/80 mt-2 max-w-[18rem]">{isMobile ? 'Fast switch between chats, stories aur spotlight.' : 'Chats pinned rakho, baaki stories aur spotlight ab main stage par open hote hain.'}</p>
+              <p className="text-xs text-white/70 mt-2 max-w-[18rem]">{isMobile ? 'Fast switch between chats, stories aur spotlight.' : 'Chats pinned rakho, baaki stories aur spotlight ab main stage par open hote hain.'}</p>
             </div>
-            <div className={`rounded-2xl bg-white/15 text-right min-w-[78px] ${isMobile ? 'px-3 py-1.5' : 'px-3 py-2'}`}>
-              <p className="text-[11px] uppercase tracking-[0.24em] text-white/70">Unread</p>
+            <div className={`rounded-3xl border border-white/10 bg-white/6 text-right min-w-[78px] ${isMobile ? 'px-3 py-1.5' : 'px-3 py-2'}`}>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-white/58">Unread</p>
               <p className="text-xl font-semibold">{totalUnread}</p>
             </div>
           </div>
 
           <div className="mt-3 grid gap-2 grid-cols-3">
-            <div className={`rounded-2xl bg-white/12 ${isMobile ? 'px-2.5 py-2' : 'px-3 py-2'}`}>
-              <p className="text-[10px] uppercase tracking-[0.22em] text-white/65">Online</p>
+            <div className={`rounded-2xl border border-white/8 bg-white/6 ${isMobile ? 'px-2.5 py-2' : 'px-3 py-2'}`}>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-white/48">Online</p>
               <p className="text-base font-semibold">{onlineDirectConversations}</p>
             </div>
-            <div className={`rounded-2xl bg-white/12 ${isMobile ? 'px-2.5 py-2' : 'px-3 py-2'}`}>
-              <p className="text-[10px] uppercase tracking-[0.22em] text-white/65">Squads</p>
+            <div className={`rounded-2xl border border-white/8 bg-white/6 ${isMobile ? 'px-2.5 py-2' : 'px-3 py-2'}`}>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-white/48">Squads</p>
               <p className="text-base font-semibold">{groupCount}</p>
             </div>
-            <div className={`rounded-2xl bg-white/12 ${isMobile ? 'px-2.5 py-2' : 'px-3 py-2'}`}>
-              <p className="text-[10px] uppercase tracking-[0.22em] text-white/65">Profile</p>
+            <div className={`rounded-2xl border border-white/8 bg-white/6 ${isMobile ? 'px-2.5 py-2' : 'px-3 py-2'}`}>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-white/48">Profile</p>
               <p className="text-base font-semibold truncate">{user?.role || 'user'}</p>
             </div>
+          </div>
+
+          <div className="mt-3 flex gap-2 overflow-x-auto hide-scrollbar">
+            <button onClick={() => onViewChange('stories')} className="shrink-0 inline-flex items-center gap-2 rounded-full border border-[#ffe56a]/25 bg-[#ffe56a]/12 px-3 py-2 text-[12px] font-medium text-[#ffe56a]">
+              <Camera size={14} />
+              Story orbit
+            </button>
+            <button onClick={() => onViewChange('reels')} className="shrink-0 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-3 py-2 text-[12px] font-medium text-white/84">
+              <Clapperboard size={14} />
+              Spotlight
+            </button>
+            <button onClick={() => onViewChange('settings')} className="shrink-0 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-3 py-2 text-[12px] font-medium text-white/84">
+              <Bookmark size={14} />
+              Memories
+            </button>
           </div>
         </div>
       </div>
 
       <div className="px-4 py-3 border-b border-qc-border bg-qc-surface backdrop-blur-md">
+        {orbitPeople.length > 0 && (
+          <div className="mb-3 flex gap-3 overflow-x-auto hide-scrollbar">
+            {orbitPeople.map((person) => (
+              <button
+                key={person.id}
+                onClick={() => {
+                  const conv = conversations.find((item) => item.id === person.id);
+                  if (conv) onSelectConv(conv);
+                }}
+                className="shrink-0 flex flex-col items-center gap-1.5 text-center"
+              >
+                <div className="relative rounded-full p-[2px] bg-[linear-gradient(135deg,#ffe56a,#ff914d,#9f7aea)]">
+                  <div className="w-14 h-14 rounded-full bg-qc-surface overflow-hidden flex items-center justify-center">
+                    {person.avatar ? <img src={person.avatar} alt="" className="w-full h-full object-cover" /> : <User size={18} className="text-qc-text-secondary" />}
+                  </div>
+                  {person.online && <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-qc-surface bg-[#31d17c]" />}
+                </div>
+                <span className="text-[11px] text-qc-text-secondary max-w-[58px] truncate">{person.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="relative flex items-center">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search size={16} className="text-qc-text-secondary" />

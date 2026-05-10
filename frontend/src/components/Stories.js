@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { Radio, Plus, User, X, Send, Loader, ChevronLeft, ChevronRight, Clock3, MessageSquare, Wand2 } from 'lucide-react';
+import { Radio, Plus, User, X, Send, Loader, ChevronLeft, ChevronRight, Clock3, MessageSquare, Wand2, Sparkles, Flame, Users } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { API } from '../lib/api';
 
@@ -139,6 +139,7 @@ export default function Stories({ userId, onStartConversation }) {
   const [submitting, setSubmitting] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(null);
   const [autoAdvance, setAutoAdvance] = useState(localStorage.getItem('qc_pref_story_autoadvance') !== 'false');
+  const [storyLane, setStoryLane] = useState('for_you');
   const remainingChars = 180 - content.length;
 
   const loadStories = async () => {
@@ -209,13 +210,29 @@ export default function Stories({ userId, onStartConversation }) {
       }))
     ),
   ], [myStoryGroup, otherStoryGroups]);
+  const lanePills = [
+    { id: 'for_you', label: 'For You', icon: Sparkles },
+    { id: 'friends', label: 'Friends', icon: Users },
+    { id: 'recent', label: 'Recent', icon: Flame },
+  ];
+  const filteredStoryGroups = useMemo(() => {
+    if (storyLane === 'friends') return otherStoryGroups.slice(0, 6);
+    if (storyLane === 'recent') {
+      return [...otherStoryGroups].sort((a, b) => {
+        const aDate = new Date(a.stories?.[0]?.created_at || 0).getTime();
+        const bDate = new Date(b.stories?.[0]?.created_at || 0).getTime();
+        return bDate - aDate;
+      });
+    }
+    return otherStoryGroups;
+  }, [otherStoryGroups, storyLane]);
 
   return (
     <div data-testid="stories-view" className="flex flex-col h-full bg-qc-bg relative overflow-hidden">
-      <div className="px-4 py-4 sm:px-5 border-b border-qc-border bg-qc-surface">
+      <div className="px-4 py-4 sm:px-5 border-b border-qc-border bg-[linear-gradient(180deg,rgba(10,14,24,0.98),rgba(9,14,23,0.94))]">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.28em] text-qc-text-tertiary">Story deck</p>
+            <p className="text-[10px] uppercase tracking-[0.28em] text-[#ffe56a]/70">Story deck</p>
             <div className="flex items-center gap-2 mt-1">
               <Radio size={18} className="text-qc-accent-primary" />
               <h2 className="font-heading text-2xl text-qc-text-primary">Stories</h2>
@@ -232,16 +249,60 @@ export default function Stories({ userId, onStartConversation }) {
           </button>
         </div>
 
+        <div className="mt-4 flex gap-2 overflow-x-auto hide-scrollbar">
+          {lanePills.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setStoryLane(id)}
+              className={`shrink-0 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition-colors ${
+                storyLane === id
+                  ? 'border-white bg-white text-[#05070c]'
+                  : 'border-white/12 bg-white/6 text-white/82 hover:bg-white/10'
+              }`}
+            >
+              <Icon size={14} />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {filteredStoryGroups.length > 0 && (
+          <div className="mt-4 flex gap-3 overflow-x-auto hide-scrollbar">
+            {filteredStoryGroups.slice(0, 10).map((group) => (
+              <button
+                key={group.user_id}
+                onClick={() => {
+                  const firstStory = timelineStories.find((story) => story.user_id === group.user_id);
+                  const index = timelineStories.findIndex((story) => story.id === firstStory?.id);
+                  if (index >= 0) setViewerIndex(index);
+                }}
+                className="shrink-0 flex flex-col items-center gap-1.5 text-center"
+              >
+                <div className="rounded-full p-[2px] bg-[linear-gradient(135deg,#ffe56a,#ff914d,#9f7aea)]">
+                  <div className="w-16 h-16 rounded-full bg-[#09111d] overflow-hidden flex items-center justify-center">
+                    {group.user_avatar ? (
+                      <img src={group.user_avatar} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <User size={18} className="text-qc-text-secondary" />
+                    )}
+                  </div>
+                </div>
+                <span className="max-w-[64px] truncate text-[11px] text-qc-text-secondary">{group.user_name || 'Unknown'}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
-          <div className="rounded-2xl border border-qc-border bg-qc-surface-hover px-4 py-3">
+          <div className="rounded-2xl border border-white/10 bg-white/6 px-4 py-3">
             <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Live updates</p>
             <p className="text-xl font-semibold text-qc-text-primary mt-1">{timelineStories.length}</p>
           </div>
-          <div className="rounded-2xl border border-qc-border bg-qc-surface-hover px-4 py-3">
+          <div className="rounded-2xl border border-white/10 bg-white/6 px-4 py-3">
             <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Creators</p>
             <p className="text-xl font-semibold text-qc-text-primary mt-1">{storyGroups.length}</p>
           </div>
-          <div className="rounded-2xl border border-qc-border bg-qc-surface-hover px-4 py-3">
+          <div className="rounded-2xl border border-white/10 bg-white/6 px-4 py-3">
             <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Viewer mode</p>
             <p className="text-sm font-semibold text-qc-text-primary mt-2">{autoAdvance ? 'Auto advance on' : 'Manual advance'}</p>
           </div>
@@ -362,7 +423,7 @@ export default function Stories({ userId, onStartConversation }) {
           </button>
         </section>
 
-        {otherStoryGroups.length > 0 && (
+        {filteredStoryGroups.length > 0 && (
           <section>
             <div className="flex items-center justify-between gap-4 mb-4">
               <div>
@@ -375,8 +436,9 @@ export default function Stories({ userId, onStartConversation }) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {otherStoryGroups.map((group) => {
+              {filteredStoryGroups.map((group) => {
                 const firstStory = timelineStories.find((story) => story.user_id === group.user_id);
+                const payload = parseStoryPayload(firstStory || { content: '', bg: COLORS[0] });
                 return (
                   <button
                     key={group.user_id}
@@ -384,7 +446,7 @@ export default function Stories({ userId, onStartConversation }) {
                       const index = timelineStories.findIndex((story) => story.id === firstStory?.id);
                       if (index >= 0) setViewerIndex(index);
                     }}
-                    className="rounded-[24px] border border-qc-border bg-qc-surface p-4 text-left hover:-translate-y-0.5 hover:shadow-glow transition-all"
+                    className="rounded-[28px] border border-white/10 bg-[linear-gradient(145deg,rgba(14,18,29,0.98),rgba(18,25,41,0.96))] p-4 text-left hover:-translate-y-0.5 hover:shadow-[0_24px_60px_rgba(0,0,0,0.28)] transition-all"
                   >
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-12 h-12 rounded-full p-[2px] bg-gradient-to-br from-qc-accent-primary via-qc-highlight to-[#8b5cf6]">
@@ -404,9 +466,13 @@ export default function Stories({ userId, onStartConversation }) {
                       </div>
                     </div>
 
-                    <div className="rounded-[20px] p-4 min-h-[112px]" style={{ background: `linear-gradient(135deg, ${parseStoryPayload(firstStory || { content: '', bg: COLORS[0] }).bg}, rgba(17,24,39,0.35))` }}>
-                      <p className="text-white text-sm line-clamp-4">
-                        {firstStory ? parseStoryPayload(firstStory).text : 'No recent update'}
+                    <div className="rounded-[24px] p-4 min-h-[144px] flex flex-col justify-between" style={{ background: `linear-gradient(135deg, ${payload.bg}, rgba(17,24,39,0.32))` }}>
+                      <div className="inline-flex items-center gap-2 rounded-full bg-black/18 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-white/75 w-fit">
+                        <Sparkles size={12} />
+                        Live
+                      </div>
+                      <p className="text-white text-base font-medium line-clamp-4 mt-4">
+                        {firstStory ? payload.text : 'No recent update'}
                       </p>
                     </div>
                   </button>
@@ -446,9 +512,9 @@ export default function Stories({ userId, onStartConversation }) {
                     key={story.id}
                     data-testid={`story-${story.id}`}
                     onClick={() => setViewerIndex(storyIndex)}
-                    className="w-full rounded-[28px] overflow-hidden border border-qc-border bg-qc-surface text-left shadow-sm hover:-translate-y-0.5 hover:shadow-glow transition-all"
+                    className="w-full rounded-[30px] overflow-hidden border border-white/10 bg-[linear-gradient(145deg,rgba(14,18,29,0.98),rgba(18,25,41,0.96))] text-left shadow-sm hover:-translate-y-0.5 hover:shadow-[0_24px_60px_rgba(0,0,0,0.28)] transition-all"
                   >
-                    <div className="px-4 py-3 bg-qc-surface border-b border-qc-border flex items-center justify-between gap-3">
+                    <div className="px-4 py-3 bg-black/12 border-b border-white/10 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-10 h-10 rounded-2xl bg-qc-highlight/15 flex items-center justify-center flex-shrink-0 overflow-hidden">
                           {story.user_avatar ? (
@@ -468,8 +534,12 @@ export default function Stories({ userId, onStartConversation }) {
                       <div className="text-[11px] uppercase tracking-[0.22em] text-qc-text-tertiary">View</div>
                     </div>
 
-                    <div className="min-h-[180px] p-6 flex items-center justify-center text-center text-white text-xl font-semibold" style={{ backgroundColor: payload.bg || COLORS[0] }}>
-                      <span className="whitespace-pre-wrap break-words">{payload.text}</span>
+                    <div className="min-h-[220px] p-6 flex flex-col items-start justify-between text-left text-white" style={{ background: `linear-gradient(165deg, ${payload.bg || COLORS[0]}, rgba(3,7,18,0.22))` }}>
+                      <div className="inline-flex items-center gap-2 rounded-full bg-black/18 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-white/74">
+                        <Clock3 size={12} />
+                        24h story
+                      </div>
+                      <span className="whitespace-pre-wrap break-words text-2xl font-semibold leading-tight max-w-2xl">{payload.text}</span>
                     </div>
                   </button>
                 );
