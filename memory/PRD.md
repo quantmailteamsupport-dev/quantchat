@@ -37,6 +37,7 @@ User wants to continue the existing QuantChat app, finish the final polish and b
 - **Working Live App**: https://get-painting-consumers-completing.trycloudflare.com
 - **Current Preview**: https://web-chat-gateway.preview.emergentagent.com
 - **Previous Preview**: https://interface-upgrade-37.preview.emergentagent.com
+- **Feature Preview**: https://messaging-plus-6.preview.emergentagent.com
 - **Azure VM**: 20.249.208.224
 - **Deploy Archive**: /app/quantchat-deploy.tar.gz
 - **Custom Domain**: https://quantchat.online (currently parked at Hostinger)

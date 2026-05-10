@@ -13,6 +13,7 @@
 - **Working Live App**: https://get-painting-consumers-completing.trycloudflare.com
 - **Current Preview**: https://web-chat-gateway.preview.emergentagent.com
 - **Previous Preview**: https://interface-upgrade-37.preview.emergentagent.com
+- **Feature Preview**: https://messaging-plus-6.preview.emergentagent.com
 - **Azure Target**: http://20.249.208.224
 - **Custom Domain (current state)**: https://quantchat.online (Hostinger parking)
 
