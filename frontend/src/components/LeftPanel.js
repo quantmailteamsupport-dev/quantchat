@@ -20,6 +20,7 @@ import {
 import { format, isToday, isYesterday } from 'date-fns';
 import axios from 'axios';
 import { API } from '../lib/api';
+import QuantLogo from './QuantLogo';
 
 function formatMsgTimeShort(time) {
   if (!time || time === 'None' || time === '') return '';
@@ -52,12 +53,14 @@ export default function LeftPanel({
   conversations,
   activeConv,
   onSelectConv,
+  onStartChat,
   onlineUsers,
   typingUsers,
   onReloadConversations,
   token,
   view,
   onViewChange,
+  onOpenCamera,
   isMobile,
   hideFooterNav,
 }) {
@@ -68,6 +71,7 @@ export default function LeftPanel({
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [newChatSearch, setNewChatSearch] = useState('');
   const [showPreviewHints, setShowPreviewHints] = useState(localStorage.getItem('qc_pref_preview_hints') !== 'false');
+  const [storyGroups, setStoryGroups] = useState([]);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -106,6 +110,19 @@ export default function LeftPanel({
     return () => clearTimeout(debounce);
   }, [newChatSearch, token, view]);
 
+  useEffect(() => {
+    const fetchStories = async () => {
+      try {
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const { data } = await axios.get(`${API}/api/stories`, { headers });
+        setStoryGroups(data.stories || []);
+      } catch {
+        setStoryGroups([]);
+      }
+    };
+    fetchStories();
+  }, [token]);
+
   const totalUnread = conversations.reduce((sum, conv) => sum + (conv.unread_count || 0), 0);
   const onlineDirectConversations = conversations.filter(conv => conv.type === 'direct' && onlineUsers.has(conv.other_user?.user_id)).length;
   const groupCount = conversations.filter(conv => conv.type === 'group').length;
@@ -119,6 +136,7 @@ export default function LeftPanel({
       avatar: conv.other_user?.avatar || conv.participants?.find(p => p.user_id !== user?.id)?.avatar || '',
       online: onlineUsers.has(conv.other_user?.user_id || conv.participants?.find(p => p.user_id !== user?.id)?.user_id),
     }));
+  const compactStories = storyGroups.filter((group) => group.user_id !== user?.id).slice(0, 8);
   const mobileCategoryPills = [
     { id: 'all', label: 'All', count: conversations.length },
     { id: 'direct', label: 'DMs', count: directCount },
@@ -142,10 +160,10 @@ export default function LeftPanel({
 
   const navItems = [
     { id: 'chats', label: 'Chats', icon: MessageSquare },
-    { id: 'stories', label: 'Stories', icon: CircleDashed },
+    { id: 'feed', label: 'Feed', icon: CircleDashed },
     { id: 'reels', label: 'Spotlight', icon: Clapperboard },
-    { id: 'groups', label: 'Groups', icon: Users },
-    { id: 'settings', label: 'You', icon: SettingsIcon },
+    { id: 'ai', label: 'AI', icon: Sparkles },
+    { id: 'profile', label: 'Profile', icon: SettingsIcon },
   ];
 
   const renderTopShell = () => (
@@ -154,17 +172,18 @@ export default function LeftPanel({
         {isMobile ? (
           <>
             <div className="flex items-center justify-between gap-3">
-              <button data-testid="leftpanel-mobile-profile-button" onClick={() => onViewChange('settings')} className="flex items-center gap-3 min-w-0 text-left">
-                <div className="w-11 h-11 rounded-full overflow-hidden ring-2 ring-[#31d17c] ring-offset-2 ring-offset-[#162331] bg-qc-accent-tertiary flex items-center justify-center">
-                  {user?.avatar ? <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" /> : <User size={18} className="text-qc-text-secondary" />}
-                </div>
+              <button data-testid="leftpanel-mobile-brand-button" onClick={() => onViewChange('chats')} className="flex items-center gap-3 min-w-0 text-left">
+                <QuantLogo compact />
                 <div className="min-w-0">
-                  <h2 className="text-[2rem] leading-none font-semibold text-qc-text-primary">QuantChat</h2>
-                  <p className="text-xs text-qc-text-secondary mt-1">1 active device</p>
+                  <h2 className="text-[1.6rem] leading-none font-semibold text-qc-text-primary">QuantChat</h2>
+                  <p className="text-xs text-qc-text-secondary mt-1">Super social shell</p>
                 </div>
               </button>
 
               <div className="flex items-center gap-2">
+                <button data-testid="leftpanel-mobile-camera-button" onClick={onOpenCamera} className="w-10 h-10 rounded-full bg-[#223041] text-qc-text-primary flex items-center justify-center" title="Camera">
+                  <Camera size={18} />
+                </button>
                 <button
                   data-testid="leftpanel-mobile-search-toggle"
                   onClick={() => setChatFilter('all')}
@@ -184,7 +203,7 @@ export default function LeftPanel({
 
                 {showMenu && (
                   <div className="absolute top-14 right-4 w-56 bg-qc-surface border border-qc-border rounded-2xl shadow-xl py-2 z-50 animate-fadeIn">
-                    <button onClick={() => { onViewChange('groups'); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-qc-text-primary hover:bg-qc-surface-hover flex items-center gap-2">
+                    <button onClick={() => { setChatFilter('groups'); onViewChange('chats'); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-qc-text-primary hover:bg-qc-surface-hover flex items-center gap-2">
                       <Users size={15} /> Manage groups
                     </button>
                     <button onClick={() => { onReloadConversations?.(); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-qc-text-primary hover:bg-qc-surface-hover flex items-center gap-2">
@@ -213,6 +232,21 @@ export default function LeftPanel({
                 className="ml-3 flex-1 bg-transparent text-qc-text-primary text-sm placeholder:text-qc-text-secondary focus:outline-none"
               />
             </div>
+
+            {compactStories.length > 0 && (
+              <div className="mt-4 flex gap-3 overflow-x-auto hide-scrollbar">
+                {compactStories.map((group) => (
+                  <button key={group.user_id} data-testid={`chat-story-circle-${group.user_id}`} onClick={() => onStartChat?.(group.user_id, `Saw your story`) } className="shrink-0 flex flex-col items-center gap-1.5 text-center">
+                    <div className="rounded-full p-[2px] bg-[linear-gradient(135deg,#ffe56a,#ff914d,#9f7aea)]">
+                      <div className="w-14 h-14 rounded-full bg-[#09111d] overflow-hidden flex items-center justify-center">
+                        {group.user_avatar ? <img src={group.user_avatar} alt="" className="w-full h-full object-cover" /> : <User size={16} className="text-qc-text-secondary" />}
+                      </div>
+                    </div>
+                    <span className="max-w-[58px] truncate text-[11px] text-qc-text-secondary">{group.user_name || 'Story'}</span>
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div className="mt-4 flex gap-2 overflow-x-auto hide-scrollbar">
               {mobileCategoryPills.map((filter) => (
@@ -272,19 +306,17 @@ export default function LeftPanel({
         ) : (
           <>
         <div className="flex items-start justify-between gap-3">
-          <button data-testid="leftpanel-desktop-profile-button" onClick={() => onViewChange('settings')} className="flex items-center gap-3 text-left">
-            <div className="w-12 h-12 rounded-2xl overflow-hidden bg-qc-accent-tertiary flex items-center justify-center shadow-glow">
-              {user?.avatar ? <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" /> : <User size={20} className="text-qc-text-secondary" />}
-            </div>
+          <button data-testid="leftpanel-desktop-brand-button" onClick={() => onViewChange('chats')} className="flex items-center gap-3 text-left">
+            <QuantLogo />
             <div className="min-w-0">
               <p className="text-[11px] uppercase tracking-[0.24em] text-qc-text-tertiary">QuantChat Hub</p>
-              <h2 className="font-heading text-xl text-qc-text-primary truncate">{user?.name || 'Operator'}</h2>
+              <h2 className="font-heading text-xl text-qc-text-primary truncate">Future social stack</h2>
             </div>
           </button>
 
           <div className="flex items-center gap-2 relative">
-            <button data-testid="leftpanel-desktop-stories-button" onClick={() => onViewChange('stories')} className="w-10 h-10 rounded-2xl flex items-center justify-center text-qc-text-secondary hover:bg-qc-accent-tertiary transition-colors" title="Open stories">
-              <CircleDashed size={18} />
+            <button data-testid="leftpanel-desktop-camera-button" onClick={onOpenCamera} className="w-10 h-10 rounded-2xl flex items-center justify-center text-qc-text-secondary hover:bg-qc-accent-tertiary transition-colors" title="Open camera">
+              <Camera size={18} />
             </button>
             <button data-testid="leftpanel-desktop-newchat-button" onClick={() => onViewChange('newChat')} className="w-10 h-10 rounded-2xl flex items-center justify-center text-white bg-qc-accent-primary hover:bg-qc-accent-secondary transition-colors shadow-glow" title="Start a chat">
               <MessageSquare size={18} />
@@ -295,7 +327,7 @@ export default function LeftPanel({
 
             {showMenu && (
               <div className="absolute top-12 right-0 w-56 bg-qc-surface border border-qc-border rounded-2xl shadow-xl py-2 z-50 animate-fadeIn">
-                <button onClick={() => { onViewChange('groups'); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-qc-text-primary hover:bg-qc-surface-hover flex items-center gap-2">
+                <button onClick={() => { setChatFilter('groups'); onViewChange('chats'); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-qc-text-primary hover:bg-qc-surface-hover flex items-center gap-2">
                   <Users size={15} /> Manage groups
                 </button>
                 <button onClick={() => { onReloadConversations?.(); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-qc-text-primary hover:bg-qc-surface-hover flex items-center gap-2">
@@ -342,17 +374,17 @@ export default function LeftPanel({
           </div>
 
           <div className="mt-3 flex gap-2 overflow-x-auto hide-scrollbar">
-            <button data-testid="leftpanel-story-orbit-button" onClick={() => onViewChange('stories')} className="shrink-0 inline-flex items-center gap-2 rounded-full border border-[#ffe56a]/25 bg-[#ffe56a]/12 px-3 py-2 text-[12px] font-medium text-[#ffe56a]">
-              <Camera size={14} />
-              Story orbit
+            <button data-testid="leftpanel-story-orbit-button" onClick={() => onViewChange('feed')} className="shrink-0 inline-flex items-center gap-2 rounded-full border border-[#ffe56a]/25 bg-[#ffe56a]/12 px-3 py-2 text-[12px] font-medium text-[#ffe56a]">
+              <CircleDashed size={14} />
+              Feed lane
             </button>
             <button data-testid="leftpanel-spotlight-button" onClick={() => onViewChange('reels')} className="shrink-0 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-3 py-2 text-[12px] font-medium text-white/84">
               <Clapperboard size={14} />
               Spotlight
             </button>
-            <button data-testid="leftpanel-memories-button" onClick={() => onViewChange('settings')} className="shrink-0 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-3 py-2 text-[12px] font-medium text-white/84">
-              <Bookmark size={14} />
-              Memories
+            <button data-testid="leftpanel-ai-chip-button" onClick={() => onViewChange('ai')} className="shrink-0 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-3 py-2 text-[12px] font-medium text-white/84">
+              <Sparkles size={14} />
+              AI bots
             </button>
           </div>
           </div>
@@ -361,15 +393,16 @@ export default function LeftPanel({
       </div>
 
       <div className="px-4 py-3 border-b border-qc-border bg-qc-surface backdrop-blur-md">
-        {!isMobile && orbitPeople.length > 0 && (
+        {!isMobile && (compactStories.length > 0 || orbitPeople.length > 0) && (
           <div className="mb-3 flex gap-3 overflow-x-auto hide-scrollbar">
-            {orbitPeople.map((person) => (
+            {(compactStories.length > 0 ? compactStories.map((group) => ({ id: group.user_id, name: group.user_name, avatar: group.user_avatar, online: true })) : orbitPeople).map((person) => (
               <button
                 data-testid={`orbit-person-${person.id}`}
                 key={person.id}
                 onClick={() => {
                   const conv = conversations.find((item) => item.id === person.id);
                   if (conv) onSelectConv(conv);
+                  else onStartChat?.(person.id, 'Saw your story');
                 }}
                 className="shrink-0 flex flex-col items-center gap-1.5 text-center"
               >
@@ -441,10 +474,10 @@ export default function LeftPanel({
             <div>
               <p className="text-[10px] uppercase tracking-[0.24em] text-qc-text-tertiary">Active space</p>
               <p className="text-sm font-medium text-qc-text-primary">
-                {view === 'stories' && 'Stories are open in the main panel'}
+                {view === 'feed' && 'Public feed is open in the main panel'}
                 {view === 'reels' && 'Spotlight is open in the main panel'}
-                {view === 'groups' && 'Groups are open in the main panel'}
-                {view === 'settings' && 'Profile settings are open in the main panel'}
+                {view === 'ai' && 'AI workspace is open in the main panel'}
+                {view === 'profile' && 'Profile hub is open in the main panel'}
                 {view === 'newChat' && 'Start a chat from the overlay'}
               </p>
             </div>
@@ -569,11 +602,11 @@ export default function LeftPanel({
         </div>
 
         <div className="grid grid-cols-2 gap-3 mt-3">
-          <button data-testid="new-chat-create-group-button" onClick={() => onViewChange('groups')} className="rounded-2xl border border-qc-border bg-qc-surface-hover p-3 text-left hover:bg-qc-accent-tertiary transition-colors">
+          <button data-testid="new-chat-create-group-button" onClick={() => { setChatFilter('groups'); onViewChange('chats'); }} className="rounded-2xl border border-qc-border bg-qc-surface-hover p-3 text-left hover:bg-qc-accent-tertiary transition-colors">
             <p className="text-[11px] uppercase tracking-[0.2em] text-qc-text-tertiary">Quick action</p>
             <p className="font-medium text-qc-text-primary mt-1">Create group</p>
           </button>
-          <button data-testid="new-chat-post-story-button" onClick={() => onViewChange('stories')} className="rounded-2xl border border-qc-border bg-qc-surface-hover p-3 text-left hover:bg-qc-accent-tertiary transition-colors">
+          <button data-testid="new-chat-post-story-button" onClick={() => onViewChange('feed')} className="rounded-2xl border border-qc-border bg-qc-surface-hover p-3 text-left hover:bg-qc-accent-tertiary transition-colors">
             <p className="text-[11px] uppercase tracking-[0.2em] text-qc-text-tertiary">Quick action</p>
             <p className="font-medium text-qc-text-primary mt-1">Post story</p>
           </button>

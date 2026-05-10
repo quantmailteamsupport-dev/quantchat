@@ -4,20 +4,21 @@ import axios from 'axios';
 import { io } from 'socket.io-client';
 import LeftPanel from './LeftPanel';
 import ChatArea from './ChatView';
-import StoriesPanel from './Stories';
 import ReelsPanel from './Reels';
-import GroupsPanel from './Groups';
-import SettingsPanel from './Settings';
+import FeedPanel from './FeedPanel';
+import AIHub from './AIHub';
+import ProfilePanel from './ProfilePanel';
 import AIAssistant from './AIAssistant';
-import { MessageSquare, CircleDashed, Clapperboard, Users, Settings as SettingsIcon } from 'lucide-react';
+import CameraLensSheet from './CameraLensSheet';
+import { MessageSquare, Compass, Clapperboard, Bot, UserRound } from 'lucide-react';
 import { API } from '../lib/api';
 
 const MOBILE_NAV_ITEMS = [
   { id: 'chats', label: 'Chats', icon: MessageSquare },
-  { id: 'stories', label: 'Stories', icon: CircleDashed },
+  { id: 'feed', label: 'Feed', icon: Compass },
   { id: 'reels', label: 'Spotlight', icon: Clapperboard },
-  { id: 'groups', label: 'Groups', icon: Users },
-  { id: 'settings', label: 'You', icon: SettingsIcon },
+  { id: 'ai', label: 'AI', icon: Bot },
+  { id: 'profile', label: 'Profile', icon: UserRound },
 ];
 
 export default function ChatApp() {
@@ -32,6 +33,7 @@ export default function ChatApp() {
   const [appHeight, setAppHeight] = useState('100dvh');
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
   const socketRef = useRef(null);
   const baseViewportHeightRef = useRef(0);
   const totalUnread = conversations.reduce((sum, conversation) => sum + (conversation.unread_count || 0), 0);
@@ -278,30 +280,20 @@ export default function ChatApp() {
   };
 
   const renderMainContent = () => {
-    if (activeSection === 'stories') {
-      return <StoriesPanel userId={user?.id} onStartConversation={startConversation} />;
+    if (activeSection === 'feed') {
+      return <FeedPanel token={token} onOpenCamera={() => setShowCamera(true)} />;
     }
 
     if (activeSection === 'reels') {
       return <ReelsPanel userId={user?.id} onStartConversation={startConversation} />;
     }
 
-    if (activeSection === 'groups') {
-      return (
-        <GroupsPanel
-          userId={user?.id}
-          onSelectConv={(conv) => {
-            setActiveConv(conv);
-            setActiveSection('chats');
-            setShowChat(true);
-            loadConversations();
-          }}
-        />
-      );
+    if (activeSection === 'ai') {
+      return <AIHub token={token} />;
     }
 
-    if (activeSection === 'settings') {
-      return <SettingsPanel user={user} />;
+    if (activeSection === 'profile') {
+      return <ProfilePanel token={token} />;
     }
 
     if (activeConv) {
@@ -370,6 +362,7 @@ export default function ChatApp() {
             token={token}
             view={activeSection}
             onViewChange={selectSection}
+            onOpenCamera={() => setShowCamera(true)}
             isMobile={isMobileView}
             hideFooterNav={isMobileView}
           />
@@ -419,6 +412,8 @@ export default function ChatApp() {
             {totalUnread} unread
           </div>
         )}
+
+        <CameraLensSheet open={showCamera} onClose={() => setShowCamera(false)} />
       </div>
     </div>
   );

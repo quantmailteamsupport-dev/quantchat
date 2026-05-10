@@ -110,6 +110,47 @@ def serialize_assistant_message(item: dict) -> dict:
         "created_at": item.get("created_at", "").isoformat() if isinstance(item.get("created_at"), datetime) else str(item.get("created_at", "")),
     }
 
+def mask_secret(value: Optional[str]) -> str:
+    if not value:
+        return ""
+    trimmed = value.strip()
+    if len(trimmed) <= 8:
+        return "•" * len(trimmed)
+    return f"{trimmed[:4]}{'•' * (len(trimmed) - 8)}{trimmed[-4:]}"
+
+def serialize_ai_config(config: Optional[dict]) -> dict:
+    config = config or {}
+    custom_keys = config.get("custom_keys", {})
+    return {
+        "active_provider": config.get("active_provider", "openai"),
+        "active_model": config.get("active_model", "gpt-5.2"),
+        "openai_api_key": mask_secret(custom_keys.get("openai")),
+        "gemini_api_key": mask_secret(custom_keys.get("gemini")),
+        "claude_api_key": mask_secret(custom_keys.get("anthropic") or custom_keys.get("claude")),
+        "deepseek_api_key": mask_secret(custom_keys.get("deepseek")),
+        "ollama_base_url": config.get("ollama_base_url", ""),
+        "ollama_model": config.get("ollama_model", ""),
+        "mcp_servers": config.get("mcp_servers", []),
+        "supported_live_providers": ["openai", "gemini", "claude"],
+    }
+
+def serialize_post(post: dict) -> dict:
+    return {
+        "id": str(post["_id"]),
+        "user_id": post.get("user_id", ""),
+        "user_name": post.get("user_name", "Unknown"),
+        "user_avatar": post.get("user_avatar", ""),
+        "content": post.get("content", ""),
+        "media_url": post.get("media_url", ""),
+        "visibility": post.get("visibility", "public"),
+        "location_label": post.get("location_label", ""),
+        "lat": post.get("lat"),
+        "lng": post.get("lng"),
+        "likes_count": len(post.get("likes", [])),
+        "comments_count": len(post.get("comments", [])),
+        "created_at": post.get("created_at", "").isoformat() if isinstance(post.get("created_at"), datetime) else str(post.get("created_at", "")),
+    }
+
 def serialize_conversation(conv: dict, current_user_id: str = None) -> dict:
     participants = conv.get("participants", [])
     other = None
@@ -252,8 +293,22 @@ def build_assistant_suggestions(mode: str, conversation_id: Optional[str]) -> Li
         "Suggest micro-improvements for my chat flow.",
     ]
 
-async def run_assistant_response(user: dict, session_id: str, prompt: str, context: str) -> str:
-    if not EMERGENT_LLM_KEY:
+def resolve_runtime_provider(config: Optional[dict]) -> tuple[str, str, str]:
+    config = config or {}
+    active_provider = (config.get("active_provider") or "openai").lower()
+    active_model = config.get("active_model")
+    custom_keys = config.get("custom_keys", {})
+
+    provider_map = {
+        "openai": ("openai", active_model or "gpt-5.2", custom_keys.get("openai") or EMERGENT_LLM_KEY),
+        "gemini": ("gemini", active_model or "gemini-3-flash-preview", custom_keys.get("gemini") or EMERGENT_LLM_KEY),
+        "claude": ("anthropic", active_model or "claude-sonnet-4-5-20250929", custom_keys.get("anthropic") or custom_keys.get("claude") or EMERGENT_LLM_KEY),
+    }
+    return provider_map.get(active_provider, provider_map["openai"])
+
+async def run_assistant_response(user: dict, session_id: str, prompt: str, context: str, ai_config: Optional[dict] = None) -> str:
+    provider, model, runtime_key = resolve_runtime_provider(ai_config)
+    if not runtime_key:
         raise HTTPException(status_code=503, detail="AI assistant key missing")
 
     system_message = (
@@ -263,10 +318,10 @@ async def run_assistant_response(user: dict, session_id: str, prompt: str, conte
         "Use simple English with a slight Hinglish touch only when natural."
     )
     chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
+        api_key=runtime_key,
         session_id=session_id,
         system_message=system_message,
-    ).with_model("openai", "gpt-5.2")
+    ).with_model(provider, model)
     return await chat.send_message(UserMessage(text=f"Context:\n{context}\n\nUser request:\n{prompt}"))
 
 async def purge_expired_messages(conv_id: Optional[str] = None) -> None:
@@ -387,6 +442,30 @@ class AssistantBody(BaseModel):
     mode: str = "general"
     conversation_id: Optional[str] = None
 
+class MCPServerItem(BaseModel):
+    name: str
+    url: str
+    enabled: bool = True
+
+class AIConfigBody(BaseModel):
+    active_provider: str = "openai"
+    active_model: str = "gpt-5.2"
+    openai_api_key: Optional[str] = None
+    gemini_api_key: Optional[str] = None
+    claude_api_key: Optional[str] = None
+    deepseek_api_key: Optional[str] = None
+    ollama_base_url: Optional[str] = None
+    ollama_model: Optional[str] = None
+    mcp_servers: List[MCPServerItem] = []
+
+class FeedPostBody(BaseModel):
+    content: str
+    media_url: Optional[str] = None
+    visibility: str = "public"
+    location_label: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+
 # --- Startup ---
 @fastapi_app.on_event("startup")
 async def startup():
@@ -398,9 +477,12 @@ async def startup():
     await db.stories.create_index("created_at", expireAfterSeconds=86400)
     await db.reels.create_index("created_at")
     await db.assistant_messages.create_index([("user_id", 1), ("session_id", 1), ("created_at", -1)])
+    await db.ai_configs.create_index("user_id", unique=True)
+    await db.posts.create_index([("visibility", 1), ("created_at", -1)])
     await seed_admin()
     await seed_demo_users()
     await seed_demo_content()
+    await seed_public_posts()
 
 async def seed_admin():
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@quantchat.com")
@@ -540,6 +622,66 @@ async def seed_demo_content():
             {"user_id": str(priya["_id"]), "user_name": priya.get("name", ""), "user_avatar": priya.get("avatar", ""), "media_url": "https://images.unsplash.com/photo-1653104877761-181b3977808e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzV8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGRhcmslMjB0ZXh0dXJlJTIwYmFja2dyb3VuZHxlbnwwfHx8YmxhY2t8MTc3ODQyNTEyMnww&ixlib=rb-4.1.0&q=85", "caption": "Late-night product textures for the refreshed shell.", "likes": [str(arjun["_id"]), str(neha["_id"])], "comments": [], "created_at": now - timedelta(hours=5)},
             {"user_id": str(rahul["_id"]), "user_name": rahul.get("name", ""), "user_avatar": rahul.get("avatar", ""), "media_url": "https://images.unsplash.com/photo-1581084349663-7ab88c58d362?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzV8MHwxfHNlYXJjaHwzfHxhYnN0cmFjdCUyMGRhcmslMjB0ZXh0dXJlJTIwYmFja2dyb3VuZHxlbnwwfHx8YmxhY2t8MTc3ODQyNTEyMnww&ixlib=rb-4.1.0&q=85", "caption": "Infra check complete. Server lane is feeling much cleaner.", "likes": [str(priya["_id"])], "comments": [], "created_at": now - timedelta(hours=7)},
         ])
+
+
+async def seed_public_posts():
+    if await db.posts.count_documents({}) > 0:
+        return
+
+    seeded_users = await db.users.find({"email": {"$in": ["arjun@quantchat.com", "priya@quantchat.com", "neha@quantchat.com"]}}).to_list(10)
+    user_map = {user["email"]: user for user in seeded_users}
+    if not {"arjun@quantchat.com", "priya@quantchat.com", "neha@quantchat.com"}.issubset(set(user_map.keys())):
+        return
+
+    now = datetime.now(timezone.utc)
+    arjun = user_map["arjun@quantchat.com"]
+    priya = user_map["priya@quantchat.com"]
+    neha = user_map["neha@quantchat.com"]
+
+    await db.posts.insert_many([
+        {
+            "user_id": str(priya["_id"]),
+            "user_name": priya.get("name", ""),
+            "user_avatar": priya.get("avatar", ""),
+            "content": "Dropped a compact story rail and futuristic shell. Feed finally feels like a real super app lane.",
+            "media_url": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzV8MHwxfHNlYXJjaHwyfHxuZW9uJTIwbW9iaWxlJTIwYXBwfGVufDB8fHxibGFja3wxNzc4NDI2NDU0fDA&ixlib=rb-4.1.0&q=85",
+            "visibility": "public",
+            "location_label": "Bengaluru Studio",
+            "lat": 12.9716,
+            "lng": 77.5946,
+            "likes": [str(arjun["_id"]), str(neha["_id"])],
+            "comments": [],
+            "created_at": now - timedelta(minutes=42),
+        },
+        {
+            "user_id": str(arjun["_id"]),
+            "user_name": arjun.get("name", ""),
+            "user_avatar": arjun.get("avatar", ""),
+            "content": "QuantChat Copilot can now summarize inbox, draft replies, and sit inside the main social shell.",
+            "media_url": "",
+            "visibility": "public",
+            "location_label": "Mumbai Build Lane",
+            "lat": 19.076,
+            "lng": 72.8777,
+            "likes": [str(priya["_id"])],
+            "comments": [],
+            "created_at": now - timedelta(minutes=19),
+        },
+        {
+            "user_id": str(neha["_id"]),
+            "user_name": neha.get("name", ""),
+            "user_avatar": neha.get("avatar", ""),
+            "content": "Snap map style check-in: team is live across launch locations today.",
+            "media_url": "https://images.unsplash.com/photo-1558655146-d09347e92766?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzV8MHwxfHNlYXJjaHwxfHxmZXR1cmlzdGljJTIwbmVvbiUyMGNpdHl8ZW58MHx8fGJsYWNrfDE3Nzg0MjY0Nzh8MA&ixlib=rb-4.1.0&q=85",
+            "visibility": "public",
+            "location_label": "Delhi Launch Pod",
+            "lat": 28.6139,
+            "lng": 77.209,
+            "likes": [str(arjun["_id"]), str(priya["_id"])],
+            "comments": [],
+            "created_at": now - timedelta(minutes=7),
+        },
+    ])
 
 # --- Auth Routes ---
 @fastapi_app.post("/api/auth/register")
@@ -1261,7 +1403,8 @@ async def assistant_respond(body: AssistantBody, request: Request):
 
     session_id = build_assistant_session_id(str(user["_id"]), body.conversation_id)
     context = await build_assistant_context(user, body.conversation_id, body.mode)
-    response_text = await run_assistant_response(user, session_id, prompt, context)
+    ai_config = await db.ai_configs.find_one({"user_id": str(user["_id"])})
+    response_text = await run_assistant_response(user, session_id, prompt, context, ai_config)
     now = datetime.now(timezone.utc)
     user_message = {
         "user_id": str(user["_id"]),
@@ -1294,6 +1437,103 @@ async def assistant_respond(body: AssistantBody, request: Request):
         "message": serialize_assistant_message(assistant_message),
         "messages": [serialize_assistant_message(item) for item in history],
         "suggestions": build_assistant_suggestions(body.mode, body.conversation_id),
+    }
+
+@fastapi_app.get("/api/ai-config")
+async def get_ai_config(request: Request):
+    user = await get_current_user(request)
+    config = await db.ai_configs.find_one({"user_id": str(user["_id"])})
+    if not config:
+        config = {
+            "user_id": str(user["_id"]),
+            "active_provider": "openai",
+            "active_model": "gpt-5.2",
+            "custom_keys": {},
+            "ollama_base_url": "",
+            "ollama_model": "",
+            "mcp_servers": [],
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+        }
+        await db.ai_configs.insert_one(config)
+    return {"config": serialize_ai_config(config)}
+
+@fastapi_app.put("/api/ai-config")
+async def update_ai_config(body: AIConfigBody, request: Request):
+    user = await get_current_user(request)
+    existing = await db.ai_configs.find_one({"user_id": str(user["_id"])}) or {"custom_keys": {}}
+    custom_keys = existing.get("custom_keys", {}).copy()
+
+    def maybe_update_secret(field_value: Optional[str], key_name: str):
+        if field_value is None:
+            return
+        trimmed = field_value.strip()
+        if not trimmed or set(trimmed) == {"•"}:
+            return
+        custom_keys[key_name] = trimmed
+
+    maybe_update_secret(body.openai_api_key, "openai")
+    maybe_update_secret(body.gemini_api_key, "gemini")
+    maybe_update_secret(body.claude_api_key, "anthropic")
+    maybe_update_secret(body.deepseek_api_key, "deepseek")
+
+    update_doc = {
+        "user_id": str(user["_id"]),
+        "active_provider": body.active_provider,
+        "active_model": body.active_model,
+        "custom_keys": custom_keys,
+        "ollama_base_url": (body.ollama_base_url or "").strip(),
+        "ollama_model": (body.ollama_model or "").strip(),
+        "mcp_servers": [server.model_dump() for server in body.mcp_servers],
+        "updated_at": datetime.now(timezone.utc),
+    }
+    await db.ai_configs.update_one(
+        {"user_id": str(user["_id"])},
+        {"$set": update_doc, "$setOnInsert": {"created_at": datetime.now(timezone.utc)}},
+        upsert=True,
+    )
+    saved = await db.ai_configs.find_one({"user_id": str(user["_id"])})
+    return {"config": serialize_ai_config(saved)}
+
+@fastapi_app.get("/api/posts")
+async def get_posts(request: Request):
+    await get_current_user(request)
+    posts = await db.posts.find({"visibility": "public"}).sort("created_at", -1).to_list(50)
+    return {"posts": [serialize_post(post) for post in posts]}
+
+@fastapi_app.post("/api/posts")
+async def create_post(body: FeedPostBody, request: Request):
+    user = await get_current_user(request)
+    content = body.content.strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Post content is required")
+    post = {
+        "user_id": str(user["_id"]),
+        "user_name": user.get("name", "Unknown"),
+        "user_avatar": user.get("avatar", ""),
+        "content": content,
+        "media_url": (body.media_url or "").strip(),
+        "visibility": body.visibility,
+        "location_label": (body.location_label or "").strip(),
+        "lat": body.lat,
+        "lng": body.lng,
+        "likes": [],
+        "comments": [],
+        "created_at": datetime.now(timezone.utc),
+    }
+    result = await db.posts.insert_one(post)
+    post["_id"] = result.inserted_id
+    return {"post": serialize_post(post)}
+
+@fastapi_app.get("/api/profile")
+async def get_profile(request: Request):
+    user = await get_current_user(request)
+    posts = await db.posts.find({"user_id": str(user["_id"])}).sort("created_at", -1).to_list(20)
+    config = await db.ai_configs.find_one({"user_id": str(user["_id"])})
+    return {
+        "user": serialize_user(user),
+        "posts": [serialize_post(post) for post in posts],
+        "ai_config": serialize_ai_config(config),
     }
 
 

@@ -1,52 +1,54 @@
-# PRD — QuantChat Upgrade
+# PRD — QuantChat Super App Upgrade
 
 ## Original Problem Statement
 Deeply check karo kaisa bana hai app apk build kar ke do server pe check karo aur upgrade karo ui and micro features add karo aur best banao aur agents deploy karo
 
-## User Choices / Priorities
-- End-to-end improvements
-- Focus: mobile UI polish, login/auth flow, main chat/product improvements, performance + micro interactions
-- Style: Snapchat-style modern dark + premium minimal clean
-- Add in-app AI assistant/chat assistant
-- Add background automation-style workflows
-- Create demo/test account
-- Need AWS EC2 guidance as well
+## Latest User Expansion
+- Chat tab ko super app banana: chats + stories circles + groups merged + AI bot
+- Instagram-style reels/feed section
+- Telegram/WhatsApp-style messaging feel
+- Snapchat-style camera + lenses shell
+- Bottom nav: Chats, Feed, Reels, AI, Profile
+- Snap-style map add karna
+- Profile/settings me AI API keys add/change karna
+- MCP server / agent tool settings ka base add karna
+- Phone auth future phase me Firebase se
 
 ## Architecture Decisions
-- Existing stack preserved: React frontend + FastAPI backend + MongoDB
-- Repaired missing runtime env with explicit `.env` files
-- Added AI assistant backend route using Emergent universal key with OpenAI GPT-5.2 via `emergentintegrations`
-- Kept same-origin friendly API strategy and improved local loopback detection in frontend API resolver
-- Added sessionStorage feed prefetch/cache to reduce mobile Spotlight/Stories latency
-- Kept Capacitor Android project synced instead of rewriting mobile shell
+- Existing React + FastAPI + Mongo stack preserved
+- Chat inbox kept as primary shell; groups remain merged in conversation list with filters
+- Added public feed + map data via new `posts` collection
+- Added `ai_configs` collection for per-user provider/model/key settings and MCP server configs
+- Assistant runtime now resolves provider/model from saved config with universal-key fallback
+- Camera/lenses built as browser-native overlay using `getUserMedia` + filter presets
 
 ## Implemented
-- Fixed backend startup and auth usability by restoring required env config
-- Added demo login flow and seeded demo users, conversations, messages, stories, and reels
-- Upgraded login/register polish for mobile-first dark premium presentation
-- Added QuantChat Copilot floating assistant with digest/reply/story modes and real AI responses
-- Improved mobile shell styling, FAB interactions, unread indicators, and assistant bottom sheet
-- Warm-prefetched Stories/Reels and added many missing `data-testid` attributes across core interactive surfaces
-- Built production frontend successfully and synced Capacitor Android project
-- Added `/app/deployment-guide.md` with EC2 + Nginx + Android build steps
+- Reworked mobile navigation to: Chats, Feed, Spotlight, AI, Profile
+- Chat tab upgraded with futuristic 3D-style logo, compact story circles, merged groups, and cleaner super-app shell
+- Added Feed tab with public posts composer and Snap-style live map view
+- Added dedicated AI Hub tab with multi-bot style workspace and live assistant prompting
+- Added Profile tab with public posts, AI key manager, MCP server settings, and phone-auth roadmap card
+- Added camera/lens overlay for Snap-style capture flow
+- Added backend APIs for feed posts, profile data, and AI/provider settings
+- Seeded public feed/map data for demo usability
 
 ## Backlog
 ### P0
-- Build actual Android APK on a machine/container with Java + Android SDK available
-- Add remaining `data-testid` coverage to every minor interactive control inside message bubble menus/modals
-- Split backend `server.py` into modular routers/services
+- Build actual Firebase phone OTP auth
+- Connect custom OpenAI/Gemini/Claude keys fully as selectable runtime providers across all AI flows
+- Add real MCP server execution layer instead of just config management
 
 ### P1
-- Improve reels rendering performance further with virtualization/lazy media loading
-- Add richer assistant memory, prompt presets, and contextual actions per chat/group/story
-- Add optimistic UI for comments/likes and stronger error toasts
+- Add richer Telegram/WhatsApp features: message reactions polish, channels, broadcast tools, better media sharing
+- Add real Snapchat-style lenses/effects pipeline and capture publishing into stories/feed
+- Improve profile/media grids and reel/feed social actions
 
 ### P2
-- Add push notifications / native device polish
-- Add analytics for engagement across stories, spotlight, and assistant usage
-- Add media compression pipeline for uploads
+- Add native map/geolocation sharing and friend presence
+- Add push notifications and number-first onboarding polish
+- Split backend/server.py into smaller modules
 
 ## Next Tasks
-1. Produce debug/release APK once Java + Android SDK are available
-2. Modularize backend into auth, chats, feeds, assistant, and realtime files
-3. Expand AI assistant workflows into proactive automation cards and scheduled summaries
+1. Firebase phone OTP + number-first auth
+2. Real custom provider switching (OpenAI/Gemini/Claude/Ollama/DeepSeek where supported)
+3. Publish captured camera output directly into stories/feed/reels
