@@ -16,6 +16,7 @@ from bson.errors import InvalidId
 from motor.motor_asyncio import AsyncIOMotorClient
 import json
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+from firebase_service import initialize_firebase_admin, firebase_is_ready, verify_firebase_id_token
 
 # --- Config ---
 MONGO_URL = os.environ.get("MONGO_URL")
@@ -24,6 +25,8 @@ JWT_SECRET = os.environ.get("JWT_SECRET")
 JWT_ALGORITHM = "HS256"
 FRONTEND_URL = os.environ.get("FRONTEND_URL")
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY")
+FIREBASE_PROJECT_ID = os.environ.get("FIREBASE_PROJECT_ID")
+FIREBASE_WEB_API_KEY = os.environ.get("FIREBASE_WEB_API_KEY")
 
 REQUIRED_ENV = {
     "MONGO_URL": MONGO_URL,
@@ -149,6 +152,8 @@ def serialize_post(post: dict) -> dict:
         "lng": post.get("lng"),
         "likes_count": len(post.get("likes", [])),
         "comments_count": len(post.get("comments", [])),
+        "audience": post.get("audience", "public"),
+        "tags": post.get("tags", []),
         "created_at": post.get("created_at", "").isoformat() if isinstance(post.get("created_at"), datetime) else str(post.get("created_at", "")),
     }
 
@@ -182,6 +187,10 @@ def serialize_conversation(conv: dict, current_user_id: str = None) -> dict:
         "streak_count": conv.get("streak_count", 0),
         "streak_best": conv.get("streak_best", conv.get("streak_count", 0)),
         "is_starred": current_user_id in conv.get("starred_by", []) if current_user_id else False,
+        "posting_permission": conv.get("posting_permission", "admins" if conv.get("is_channel") else "members"),
+        "approval_required": conv.get("approval_required", False),
+        "is_muted": current_user_id in conv.get("muted_by", []) if current_user_id else False,
+        "member_count": len(conv.get("participant_ids", [])),
     }
 
 def parse_object_id(value: str, field_name: str) -> ObjectId:
@@ -451,6 +460,8 @@ class CreateGroupBody(BaseModel):
     name: str
     participant_ids: List[str]
     is_channel: bool = False
+    posting_permission: str = "admins"
+    approval_required: bool = False
 
 class UpdateProfileBody(BaseModel):
     name: Optional[str] = None
@@ -463,6 +474,10 @@ class PinMessageBody(BaseModel):
 class StoryBody(BaseModel):
     content: str
     type: str = "text"
+    caption: Optional[str] = None
+    audience: str = "friends"
+    location_label: Optional[str] = None
+    tags: List[str] = []
 class EditMessageBody(BaseModel):
     content: str
 
@@ -470,6 +485,9 @@ class EditMessageBody(BaseModel):
 class ReelBody(BaseModel):
     media_url: str
     caption: str = ""
+    audience: str = "public"
+    location_label: Optional[str] = None
+    tags: List[str] = []
 
 class CommentBody(BaseModel):
     text: str
@@ -505,6 +523,9 @@ class FeedPostBody(BaseModel):
     location_label: Optional[str] = None
     lat: Optional[float] = None
     lng: Optional[float] = None
+    audience: str = "public"
+    tags: List[str] = []
+    schedule_minutes: int = 0
 
 class PhoneOTPRequestBody(BaseModel):
     phone_number: str
@@ -524,6 +545,42 @@ class ScheduleMessageBody(BaseModel):
     type: str = "text"
     reply_to: Optional[str] = None
 
+class FirebaseExchangeBody(BaseModel):
+    id_token: str
+    purpose: str = "login"
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
+
+class ChannelSettingsBody(BaseModel):
+    posting_permission: str = "admins"
+    approval_required: bool = False
+    member_approval_required: bool = False
+
+class ChannelPublishBody(BaseModel):
+    content: str
+    media_url: Optional[str] = None
+    audience: str = "subscribers"
+    tags: List[str] = []
+    location_label: Optional[str] = None
+    publish_mode: str = "instant"
+    schedule_minutes: int = 0
+
+class ChannelDraftBody(BaseModel):
+    content: str
+    media_url: Optional[str] = None
+    audience: str = "subscribers"
+    tags: List[str] = []
+    location_label: Optional[str] = None
+
+class BroadcastListBody(BaseModel):
+    name: str
+    participant_ids: List[str]
+
+class BroadcastSendBody(BaseModel):
+    content: str
+    type: str = "text"
+
 # --- Startup ---
 @fastapi_app.on_event("startup")
 async def startup():
@@ -540,6 +597,9 @@ async def startup():
     await db.phone_otps.create_index("expires_at", expireAfterSeconds=0)
     await db.saved_messages.create_index([("user_id", 1), ("saved_at", -1)])
     await db.scheduled_messages.create_index([("status", 1), ("deliver_at", 1)])
+    await db.channel_drafts.create_index([("channel_id", 1), ("created_at", -1)])
+    await db.broadcast_lists.create_index([("owner_id", 1), ("created_at", -1)])
+    initialize_firebase_admin()
     await seed_admin()
     await seed_demo_users()
     await seed_demo_content()
@@ -870,6 +930,81 @@ async def verify_phone_otp(body: PhoneOTPVerifyBody, response: Response):
     response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=False, samesite="lax", max_age=604800, path="/")
     return {"user": serialize_user(user), "token": access_token, "firebase_ready": False}
 
+@fastapi_app.get("/api/auth/firebase/status")
+async def firebase_status():
+    return {
+        "firebase_ready": firebase_is_ready(),
+        "project_id": FIREBASE_PROJECT_ID,
+    }
+
+@fastapi_app.post("/api/auth/firebase/exchange")
+async def firebase_exchange(body: FirebaseExchangeBody, response: Response):
+    if not firebase_is_ready():
+        initialize_firebase_admin()
+    if not firebase_is_ready():
+        raise HTTPException(status_code=503, detail="Firebase Admin SDK not configured")
+
+    try:
+        decoded = verify_firebase_id_token(body.id_token)
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail=f"Invalid Firebase token: {exc}")
+
+    phone_number = decoded.get("phone_number") or decoded.get("phoneNumber")
+    firebase_uid = decoded.get("uid")
+    if not phone_number or not firebase_uid:
+        raise HTTPException(status_code=400, detail="Firebase phone identity missing")
+
+    user = await db.users.find_one({"firebase_uid": firebase_uid}) or await db.users.find_one({"phone_number": phone_number})
+    purpose = body.purpose.strip().lower()
+
+    if purpose == "signup":
+        if user:
+            raise HTTPException(status_code=400, detail="Phone already linked")
+        if not body.email or not body.password or not body.name:
+            raise HTTPException(status_code=400, detail="Name, email, and password required for signup")
+        existing_email = await db.users.find_one({"email": body.email.strip().lower()})
+        if existing_email:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        result = await db.users.insert_one({
+            "email": body.email.strip().lower(),
+            "password_hash": hash_password(body.password),
+            "name": body.name.strip(),
+            "phone_number": phone_number,
+            "firebase_uid": firebase_uid,
+            "auth_provider": "firebase_phone",
+            "role": "user",
+            "avatar": "",
+            "bio": "",
+            "online": False,
+            "last_seen": datetime.now(timezone.utc),
+            "created_at": datetime.now(timezone.utc),
+        })
+        user = await db.users.find_one({"_id": result.inserted_id})
+    elif purpose == "link":
+        if not body.email or not body.password:
+            raise HTTPException(status_code=400, detail="Existing account email and password required")
+        user = await db.users.find_one({"email": body.email.strip().lower()})
+        if not user or not verify_password(body.password, user["password_hash"]):
+            raise HTTPException(status_code=401, detail="Invalid account credentials")
+        await db.users.update_one({"_id": user["_id"]}, {"$set": {"phone_number": phone_number, "firebase_uid": firebase_uid, "auth_provider": "firebase_phone"}})
+        user = await db.users.find_one({"_id": user["_id"]})
+    elif purpose == "recovery":
+        if not user:
+            raise HTTPException(status_code=404, detail="Phone number not linked to any account yet")
+        await db.users.update_one({"_id": user["_id"]}, {"$set": {"firebase_uid": firebase_uid, "auth_provider": "firebase_phone"}})
+        user = await db.users.find_one({"_id": user["_id"]})
+    else:
+        if not user:
+            raise HTTPException(status_code=404, detail="Phone number not linked to any account yet")
+        await db.users.update_one({"_id": user["_id"]}, {"$set": {"firebase_uid": firebase_uid, "auth_provider": "firebase_phone"}})
+        user = await db.users.find_one({"_id": user["_id"]})
+
+    access_token = create_access_token(str(user["_id"]), user["email"])
+    refresh_token = create_refresh_token(str(user["_id"]))
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="lax", max_age=3600, path="/")
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=False, samesite="lax", max_age=604800, path="/")
+    return {"user": serialize_user(user), "token": access_token, "firebase_ready": True}
+
 @fastapi_app.get("/api/auth/me")
 async def get_me(request: Request):
     user = await get_current_user(request)
@@ -1002,6 +1137,10 @@ async def create_group(body: CreateGroupBody, request: Request):
         "participants": participants,
         "is_channel": body.is_channel,
         "admins": [uid],
+        "posting_permission": body.posting_permission,
+        "approval_required": body.approval_required,
+        "member_approval_required": body.approval_required,
+        "muted_by": [],
         "last_message": None,
         "last_message_time": datetime.now(timezone.utc),
         "unread_counts": {pid: 0 for pid in participant_ids},
@@ -1010,6 +1149,165 @@ async def create_group(body: CreateGroupBody, request: Request):
     result = await db.conversations.insert_one(conv)
     conv["_id"] = result.inserted_id
     return {"conversation": serialize_conversation(conv, uid)}
+
+@fastapi_app.get("/api/channels")
+async def get_channels(request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    channels = await db.conversations.find({"is_channel": True, "participant_ids": uid}).sort("last_message_time", -1).to_list(50)
+    return {"channels": [serialize_conversation(channel, uid) for channel in channels]}
+
+@fastapi_app.post("/api/channels")
+async def create_channel(body: CreateGroupBody, request: Request):
+    return await create_group(CreateGroupBody(name=body.name, participant_ids=body.participant_ids, is_channel=True, posting_permission=body.posting_permission, approval_required=body.approval_required), request)
+
+@fastapi_app.put("/api/channels/{channel_id}/settings")
+async def update_channel_settings(channel_id: str, body: ChannelSettingsBody, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    channel = await get_conversation_for_user(channel_id, uid)
+    if not channel.get("is_channel"):
+        raise HTTPException(status_code=400, detail="Not a channel")
+    if uid not in channel.get("admins", []):
+        raise HTTPException(status_code=403, detail="Only admins can update channel settings")
+    await db.conversations.update_one(
+        {"_id": parse_object_id(channel_id, "channel_id")},
+        {"$set": {
+            "posting_permission": body.posting_permission,
+            "approval_required": body.approval_required,
+            "member_approval_required": body.member_approval_required,
+        }}
+    )
+    updated = await db.conversations.find_one({"_id": parse_object_id(channel_id, "channel_id")})
+    return {"channel": serialize_conversation(updated, uid)}
+
+@fastapi_app.post("/api/channels/{channel_id}/mute")
+async def toggle_channel_mute(channel_id: str, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    channel = await get_conversation_for_user(channel_id, uid)
+    if not channel.get("is_channel"):
+        raise HTTPException(status_code=400, detail="Not a channel")
+    is_muted = uid not in channel.get("muted_by", [])
+    update = {"$addToSet": {"muted_by": uid}} if is_muted else {"$pull": {"muted_by": uid}}
+    await db.conversations.update_one({"_id": parse_object_id(channel_id, "channel_id")}, update)
+    return {"is_muted": is_muted}
+
+@fastapi_app.get("/api/channels/{channel_id}/drafts")
+async def get_channel_drafts(channel_id: str, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    channel = await get_conversation_for_user(channel_id, uid)
+    if uid not in channel.get("admins", []):
+        raise HTTPException(status_code=403, detail="Only admins can view drafts")
+    drafts = await db.channel_drafts.find({"channel_id": channel_id}).sort("created_at", -1).to_list(50)
+    return {"drafts": [{"id": str(draft["_id"]), "content": draft.get("content", ""), "media_url": draft.get("media_url", ""), "audience": draft.get("audience", "subscribers"), "tags": draft.get("tags", []), "location_label": draft.get("location_label", ""), "created_at": draft.get("created_at", "").isoformat() if isinstance(draft.get("created_at"), datetime) else str(draft.get("created_at", ""))} for draft in drafts]}
+
+@fastapi_app.post("/api/channels/{channel_id}/drafts")
+async def create_channel_draft(channel_id: str, body: ChannelDraftBody, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    channel = await get_conversation_for_user(channel_id, uid)
+    if uid not in channel.get("admins", []):
+        raise HTTPException(status_code=403, detail="Only admins can save drafts")
+    draft = {
+        "channel_id": channel_id,
+        "owner_id": uid,
+        "content": body.content.strip(),
+        "media_url": (body.media_url or "").strip(),
+        "audience": body.audience,
+        "tags": body.tags,
+        "location_label": (body.location_label or "").strip(),
+        "created_at": datetime.now(timezone.utc),
+    }
+    result = await db.channel_drafts.insert_one(draft)
+    return {"draft": {"id": str(result.inserted_id), "content": draft["content"]}}
+
+@fastapi_app.post("/api/channels/{channel_id}/publish")
+async def publish_channel_post(channel_id: str, body: ChannelPublishBody, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    channel = await get_conversation_for_user(channel_id, uid)
+    if not channel.get("is_channel"):
+        raise HTTPException(status_code=400, detail="Not a channel")
+    if uid not in channel.get("admins", []):
+        raise HTTPException(status_code=403, detail="Only admins can publish in channels")
+
+    content = body.content.strip()
+    media_url = (body.media_url or "").strip()
+    combined_content = content if not media_url else f"{content}\n{media_url}".strip()
+    if body.publish_mode == "draft":
+        return await create_channel_draft(channel_id, ChannelDraftBody(content=content, media_url=media_url, audience=body.audience, tags=body.tags, location_label=body.location_label), request)
+    if body.publish_mode == "scheduled":
+        delay = max(1, min(body.schedule_minutes, 7 * 24 * 60))
+        result = await db.scheduled_messages.insert_one({
+            "conversation_id": channel_id,
+            "sender_id": uid,
+            "content": combined_content,
+            "type": "channel_post",
+            "reply_to": None,
+            "reply_to_content": None,
+            "deliver_at": datetime.now(timezone.utc) + timedelta(minutes=delay),
+            "status": "scheduled",
+            "created_at": datetime.now(timezone.utc),
+        })
+        return {"scheduled_post": {"id": str(result.inserted_id), "deliver_in_minutes": delay}}
+    return await send_message(channel_id, MessageBody(content=combined_content, type="channel_post"), request)
+
+@fastapi_app.get("/api/broadcast-lists")
+async def get_broadcast_lists(request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    lists = await db.broadcast_lists.find({"owner_id": uid}).sort("created_at", -1).to_list(50)
+    return {"broadcast_lists": [{"id": str(item["_id"]), "name": item.get("name", ""), "participant_ids": item.get("participant_ids", []), "created_at": item.get("created_at", "").isoformat() if isinstance(item.get("created_at"), datetime) else str(item.get("created_at", ""))} for item in lists]}
+
+@fastapi_app.post("/api/broadcast-lists")
+async def create_broadcast_list(body: BroadcastListBody, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    payload = {
+        "owner_id": uid,
+        "name": body.name.strip(),
+        "participant_ids": list(dict.fromkeys(body.participant_ids)),
+        "created_at": datetime.now(timezone.utc),
+    }
+    result = await db.broadcast_lists.insert_one(payload)
+    return {"broadcast_list": {"id": str(result.inserted_id), "name": payload["name"], "participant_ids": payload["participant_ids"]}}
+
+@fastapi_app.post("/api/broadcast-lists/{broadcast_id}/send")
+async def send_broadcast_message(broadcast_id: str, body: BroadcastSendBody, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    broadcast = await db.broadcast_lists.find_one({"_id": parse_object_id(broadcast_id, "broadcast_id"), "owner_id": uid})
+    if not broadcast:
+        raise HTTPException(status_code=404, detail="Broadcast list not found")
+    sent = []
+    for participant_id in broadcast.get("participant_ids", []):
+        existing = await db.conversations.find_one({
+            "type": "direct",
+            "participant_ids": {"$all": [uid, participant_id], "$size": 2},
+        })
+        if not existing:
+            direct = {
+                "type": "direct",
+                "participant_ids": [uid, participant_id],
+                "participants": [
+                    {"user_id": uid, "name": user.get("name", ""), "avatar": user.get("avatar", "")},
+                ],
+                "last_message": None,
+                "last_message_time": datetime.now(timezone.utc),
+                "unread_counts": {uid: 0, participant_id: 0},
+                "created_at": datetime.now(timezone.utc),
+            }
+            target_user = await db.users.find_one({"_id": parse_object_id(participant_id, "participant_id")})
+            if target_user:
+                direct["participants"].append({"user_id": participant_id, "name": target_user.get("name", ""), "avatar": target_user.get("avatar", "")})
+            result = await db.conversations.insert_one(direct)
+            direct["_id"] = result.inserted_id
+            existing = direct
+        await send_message(str(existing["_id"]), MessageBody(content=body.content, type=body.type), request)
+        sent.append(str(existing["_id"]))
+    return {"sent_to": len(sent), "conversation_ids": sent}
 
 # --- Message Routes ---
 @fastapi_app.get("/api/conversations/{conv_id}/messages")
@@ -1035,8 +1333,10 @@ async def send_message(conv_id: str, body: MessageBody, request: Request):
     conv = await get_conversation_for_user(conv_id, uid)
     await deliver_due_scheduled_messages(uid, conv_id)
         
-    if conv.get("is_channel") and uid not in conv.get("admins", []):
-        raise HTTPException(status_code=403, detail="Only admins can post in this channel")
+    if conv.get("is_channel"):
+        posting_permission = conv.get("posting_permission", "admins")
+        if posting_permission == "admins" and uid not in conv.get("admins", []):
+            raise HTTPException(status_code=403, detail="Only admins can post in this channel")
 
     reply_to_content = None
     if body.reply_to:
@@ -1126,11 +1426,15 @@ async def create_story(body: StoryBody, request: Request):
         "user_avatar": user.get("avatar", ""),
         "content": body.content,
         "type": body.type,
+        "caption": (body.caption or "").strip(),
+        "audience": body.audience,
+        "location_label": (body.location_label or "").strip(),
+        "tags": body.tags,
         "created_at": datetime.now(timezone.utc),
     }
     result = await db.stories.insert_one(story)
     story["_id"] = result.inserted_id
-    return {"story": {"id": str(story["_id"]), "content": story["content"], "type": story["type"], "created_at": story["created_at"].isoformat()}}
+    return {"story": {"id": str(story["_id"]), "content": story["content"], "type": story["type"], "caption": story.get("caption", ""), "audience": story.get("audience", "friends"), "location_label": story.get("location_label", ""), "created_at": story["created_at"].isoformat()}}
 
 # --- Group Chat Routes ---
 @fastapi_app.get("/api/conversations/{conv_id}")
@@ -1527,6 +1831,9 @@ async def create_reel(body: ReelBody, request: Request):
         "user_avatar": user.get("avatar", ""),
         "media_url": body.media_url,
         "caption": body.caption,
+        "audience": body.audience,
+        "location_label": (body.location_label or "").strip(),
+        "tags": body.tags,
         "likes": [],
         "comments": [],
         "created_at": datetime.now(timezone.utc),
@@ -1706,6 +2013,8 @@ async def create_post(body: FeedPostBody, request: Request):
         "content": content,
         "media_url": (body.media_url or "").strip(),
         "visibility": body.visibility,
+        "audience": body.audience,
+        "tags": body.tags,
         "location_label": (body.location_label or "").strip(),
         "lat": body.lat,
         "lng": body.lng,

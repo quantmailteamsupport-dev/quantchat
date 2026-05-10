@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import axios from 'axios';
+import { signInWithPhoneNumber } from 'firebase/auth';
 import { AlertCircle, Eye, EyeOff, MessagesSquare, Play, Sparkles, Search, Download, Phone, X } from 'lucide-react';
 import { API } from '../lib/api';
+import { buildRecaptcha, firebaseConfigured, getFirebaseAuth } from '../lib/firebase';
 
 function formatError(detail) {
   if (detail == null) return 'System Error.';
@@ -29,7 +31,7 @@ const spotlightCards = [
 ];
 
 export default function LoginPage() {
-  const { login, demoLogin, user } = useAuth();
+  const { login, loginWithFirebase, demoLogin, user } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,6 +49,8 @@ export default function LoginPage() {
   const [otpRequested, setOtpRequested] = useState(false);
   const [otpDebugCode, setOtpDebugCode] = useState('');
   const [phoneLoading, setPhoneLoading] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState(null);
+  const firebaseReady = firebaseConfigured();
 
   if (user) {
     navigate('/', { replace: true });
@@ -84,9 +88,19 @@ export default function LoginPage() {
     setError('');
     setPhoneLoading(true);
     try {
-      const { data } = await axios.post(`${API}/api/auth/phone/request`, { phone_number: phoneNumber, purpose: phoneMode });
-      setOtpRequested(true);
-      setOtpDebugCode(data.debug_code || '');
+      if (firebaseReady && ['login', 'signup', 'recovery', 'link'].includes(phoneMode)) {
+        const auth = getFirebaseAuth();
+        if (!auth) throw new Error('Firebase auth not initialized');
+        const verifier = buildRecaptcha('firebase-phone-recaptcha');
+        const result = await signInWithPhoneNumber(auth, phoneNumber, verifier);
+        setConfirmationResult(result);
+        setOtpRequested(true);
+        setOtpDebugCode('Real Firebase OTP sent');
+      } else {
+        const { data } = await axios.post(`${API}/api/auth/phone/request`, { phone_number: phoneNumber, purpose: phoneMode });
+        setOtpRequested(true);
+        setOtpDebugCode(data.debug_code || '');
+      }
     } catch (err) {
       setError(formatError(err.response?.data?.detail) || err.message);
     } finally {
@@ -98,15 +112,22 @@ export default function LoginPage() {
     setError('');
     setPhoneLoading(true);
     try {
-      const payload = {
-        phone_number: phoneNumber,
-        code: otpCode,
-        purpose: phoneMode,
-        name: phoneName,
-        email: phoneEmail,
-        password: phonePassword,
-      };
-      await axios.post(`${API}/api/auth/phone/verify`, payload);
+      if (firebaseReady && confirmationResult) {
+        const verified = await confirmationResult.confirm(otpCode);
+        const idToken = await verified.user.getIdToken();
+        await loginWithFirebase({ id_token: idToken, purpose: phoneMode, name: phoneName, email: phoneEmail, password: phonePassword });
+      } else {
+        const payload = {
+          phone_number: phoneNumber,
+          code: otpCode,
+          purpose: phoneMode,
+          name: phoneName,
+          email: phoneEmail,
+          password: phonePassword,
+        };
+        const { data } = await axios.post(`${API}/api/auth/phone/verify`, payload);
+        localStorage.setItem('qc_token', data.token);
+      }
       navigate('/', { replace: true });
     } catch (err) {
       setError(formatError(err.response?.data?.detail) || err.message);
@@ -342,14 +363,16 @@ export default function LoginPage() {
                 <>
                   <input data-testid="phone-otp-input" value={otpCode} onChange={(event) => setOtpCode(event.target.value)} placeholder="Enter OTP code" className="w-full rounded-[20px] border border-white/10 bg-white/6 px-4 py-3 text-sm text-white placeholder:text-white/28" />
                   <div data-testid="phone-debug-otp" className="rounded-[20px] border border-[#ffe56a]/18 bg-[#ffe56a]/10 px-4 py-3 text-sm text-[#ffe56a]">
-                    Demo OTP: {otpDebugCode || 'Generated after request'}
+                    {firebaseReady ? otpDebugCode || 'Firebase OTP sent to device' : `Demo OTP: ${otpDebugCode || 'Generated after request'}`}
                   </div>
                 </>
               )}
 
               <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/62">
-                Firebase wiring later add hogi. Abhi backend + UI OTP flow demo-ready hai taaki aap full journey dekh sako.
+                {firebaseReady ? 'Real Firebase phone auth is active. Backend token exchange is now wired.' : 'Firebase config missing, so demo backend OTP flow is being used.'}
               </div>
+
+              <div id="firebase-phone-recaptcha" data-testid="firebase-phone-recaptcha" />
 
               <div className="grid grid-cols-2 gap-3">
                 <button type="button" data-testid="phone-request-otp-button" onClick={requestPhoneOtp} disabled={phoneLoading || !phoneNumber} className="rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">

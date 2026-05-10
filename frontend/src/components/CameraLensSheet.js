@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Camera, CameraOff, RotateCcw, Sparkles, Upload, X, Download } from 'lucide-react';
+import CapturePublishComposer from './CapturePublishComposer';
 
 const LENSES = [
   { id: 'none', label: 'Clean', filter: 'none' },
@@ -17,6 +18,7 @@ export default function CameraLensSheet({ open, onClose, onPublish }) {
   const [streamError, setStreamError] = useState('');
   const [capturedImage, setCapturedImage] = useState('');
   const [publishing, setPublishing] = useState('');
+  const [composeMode, setComposeMode] = useState('');
 
   const activeFilter = useMemo(() => LENSES.find((item) => item.id === lens)?.filter || 'none', [lens]);
 
@@ -69,11 +71,17 @@ export default function CameraLensSheet({ open, onClose, onPublish }) {
   };
 
   const handlePublish = async (mode) => {
+    if (!capturedImage) return;
+    setComposeMode(mode);
+  };
+
+  const handleComposerSubmit = async (payload) => {
     if (!capturedImage || !onPublish) return;
-    setPublishing(mode);
+    setPublishing(payload.mode);
     try {
-      await onPublish(mode, capturedImage);
+      await onPublish(payload);
       setCapturedImage('');
+      setComposeMode('');
       onClose?.();
     } catch {}
     setPublishing('');
@@ -121,7 +129,7 @@ export default function CameraLensSheet({ open, onClose, onPublish }) {
             ))}
           </div>
 
-          {capturedImage && (
+          {capturedImage && !composeMode && (
             <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4">
               <div className="text-[10px] uppercase tracking-[0.22em] text-white/46">Publish capture</div>
               <div className="mt-3 grid grid-cols-2 gap-2">
@@ -137,6 +145,20 @@ export default function CameraLensSheet({ open, onClose, onPublish }) {
                 ))}
               </div>
             </div>
+          )}
+
+          {capturedImage && composeMode && (
+            <CapturePublishComposer
+              mode={composeMode}
+              imageData={capturedImage}
+              loading={Boolean(publishing)}
+              onBack={() => setComposeMode('')}
+              onClose={() => {
+                setComposeMode('');
+                onClose?.();
+              }}
+              onSubmit={handleComposerSubmit}
+            />
           )}
         </div>
 

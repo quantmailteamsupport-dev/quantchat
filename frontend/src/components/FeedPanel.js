@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Compass, MapPinned, Plus, Camera, Sparkles } from 'lucide-react';
 import { API } from '../lib/api';
+import ChannelHub from './ChannelHub';
 
 export default function FeedPanel({ token, onOpenCamera }) {
   const [posts, setPosts] = useState([]);
@@ -55,6 +56,7 @@ export default function FeedPanel({ token, onOpenCamera }) {
           {[
             { id: 'feed', label: 'Feed', icon: Compass },
             { id: 'map', label: 'Snap Map', icon: MapPinned },
+            { id: 'channels', label: 'Channels', icon: Sparkles },
           ].map(({ id, label, icon: Icon }) => (
             <button key={id} type="button" data-testid={`feed-mode-${id}`} onClick={() => setMode(id)} className={`rounded-full px-4 py-2 text-sm border inline-flex items-center gap-2 ${mode === id ? 'border-white bg-white text-black' : 'border-white/10 bg-white/5 text-white/76'}`}>
               <Icon size={14} /> {label}
@@ -73,7 +75,9 @@ export default function FeedPanel({ token, onOpenCamera }) {
           </button>
         </section>
 
-        {mode === 'map' ? (
+        {mode === 'channels' ? (
+          <ChannelHub token={token} />
+        ) : mode === 'map' ? (
           <section className="rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-4 overflow-hidden">
             <div className="flex items-center justify-between gap-3 mb-4">
               <div>

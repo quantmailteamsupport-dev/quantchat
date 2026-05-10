@@ -338,23 +338,24 @@ export default function ChatApp() {
     );
   };
 
-  const handleCameraPublish = async (mode, imageData) => {
+  const handleCameraPublish = async ({ mode, imageData, caption, audience, locationLabel, tags, scheduleMinutes }) => {
     if (!token || !imageData) return;
     if (mode === 'snap' && activeConv?.id) {
-      await axios.post(`${API}/api/conversations/${activeConv.id}/messages`, { content: imageData, type: 'image' }, { headers });
+      const snapContent = [caption, imageData].filter(Boolean).join('\n');
+      await axios.post(`${API}/api/conversations/${activeConv.id}/messages`, { content: snapContent, type: 'image' }, { headers });
       await loadMessages(activeConv.id);
       await loadConversations();
       return;
     }
     if (mode === 'story') {
-      await axios.post(`${API}/api/stories`, { content: imageData, type: 'image' }, { headers });
+      await axios.post(`${API}/api/stories`, { content: imageData, type: 'image', caption, audience: (audience || 'Friends').toLowerCase(), location_label: locationLabel, tags }, { headers });
       return;
     }
     if (mode === 'reel') {
-      await axios.post(`${API}/api/reels`, { media_url: imageData, caption: 'Captured with QuantChat Camera' }, { headers });
+      await axios.post(`${API}/api/reels`, { media_url: imageData, caption: caption || 'Captured with QuantChat Camera', audience: (audience || 'Public').toLowerCase(), location_label: locationLabel, tags }, { headers });
       return;
     }
-    await axios.post(`${API}/api/posts`, { content: mode === 'snap' ? 'Quick snap drop from QuantChat Camera' : 'Captured with QuantChat Camera', media_url: imageData, visibility: 'public', location_label: 'Live camera drop' }, { headers });
+    await axios.post(`${API}/api/posts`, { content: caption || (mode === 'snap' ? 'Quick snap drop from QuantChat Camera' : 'Captured with QuantChat Camera'), media_url: imageData, visibility: 'public', audience: (audience || 'Public').toLowerCase(), tags, location_label: locationLabel || 'Live camera drop', schedule_minutes: scheduleMinutes || 0 }, { headers });
   };
 
   return (

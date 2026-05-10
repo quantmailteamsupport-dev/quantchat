@@ -55,6 +55,14 @@ function AuthProvider({ children }) {
 
   const demoLogin = async () => login('arjun@quantchat.com', 'Demo@1234');
 
+  const loginWithFirebase = async (payload) => {
+    const { data } = await axios.post(`${API}/api/auth/firebase/exchange`, payload);
+    setUser(data.user);
+    setToken(data.token);
+    localStorage.setItem('qc_token', data.token);
+    return data.user;
+  };
+
   const register = async (name, email, password) => {
     const { data } = await axios.post(`${API}/api/auth/register`, { name, email, password });
     setUser(data.user);
@@ -73,7 +81,7 @@ function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, demoLogin, register, logout, setUser, darkMode, toggleTheme }}>
+    <AuthContext.Provider value={{ user, token, loading, login, loginWithFirebase, demoLogin, register, logout, setUser, darkMode, toggleTheme }}>
       {children}
     </AuthContext.Provider>
   );
