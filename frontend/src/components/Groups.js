@@ -83,7 +83,7 @@ export default function Groups({ onSelectConv }) {
   ), [allUsers, memberSearch]);
 
   return (
-    <div data-testid="groups-panel" className="flex flex-col h-full bg-qc-bg relative overflow-hidden">
+    <div data-testid="groups-panel" className="flex flex-col h-full bg-qc-bg relative overflow-y-auto">
       <div className="px-4 py-4 sm:px-5 border-b border-qc-border bg-qc-surface">
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -222,7 +222,7 @@ export default function Groups({ onSelectConv }) {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-5 pb-[calc(env(safe-area-inset-bottom)+6.5rem)] md:pb-6">
+      <div className="px-4 py-5 sm:px-5 pb-[calc(env(safe-area-inset-bottom)+6.5rem)] md:pb-6">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader size={24} className="text-qc-text-primary animate-spin" />

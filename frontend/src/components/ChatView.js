@@ -724,6 +724,23 @@ export default function ChatArea({
         </div>
       </div>
 
+      {isMobile && (
+        <div className="px-3 py-2 border-b border-qc-border bg-qc-surface/92 backdrop-blur-md flex gap-2 overflow-x-auto hide-scrollbar relative z-20">
+          <button onClick={() => setShowSearch((value) => !value)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs border ${showSearch ? 'bg-qc-accent-tertiary text-qc-accent-primary border-qc-border' : 'bg-qc-surface-hover text-qc-text-secondary border-qc-border'}`}>
+            Search
+          </button>
+          <button onClick={() => { setShowAttachMenu((value) => !value); setShowEmojiPicker(false); }} className={`shrink-0 rounded-full px-3 py-1.5 text-xs border ${showAttachMenu ? 'bg-qc-accent-tertiary text-qc-accent-primary border-qc-border' : 'bg-qc-surface-hover text-qc-text-secondary border-qc-border'}`}>
+            Media
+          </button>
+          <button onClick={() => { setShowDisappearingMenu((value) => !value); setShowChatMenu(false); }} className={`shrink-0 rounded-full px-3 py-1.5 text-xs border ${showDisappearingMenu ? 'bg-qc-accent-tertiary text-qc-accent-primary border-qc-border' : 'bg-qc-surface-hover text-qc-text-secondary border-qc-border'}`}>
+            Vanish {formatDisappearingLabel(conversation.disappearing_minutes)}
+          </button>
+          <button onClick={() => setActiveCall({ type: 'audio', status: 'ringing' })} className="shrink-0 rounded-full px-3 py-1.5 text-xs border border-qc-border bg-qc-surface-hover text-qc-text-secondary">
+            Call
+          </button>
+        </div>
+      )}
+
       {showSearch && (
         <div className={`bg-qc-surface px-3 md:px-4 py-3 border-b border-qc-border flex items-center gap-3 relative z-20 ${isMobile ? 'flex-wrap' : ''}`}>
           <div className="flex-1 rounded-2xl bg-qc-surface-hover border border-qc-border px-3 py-2 flex items-center gap-2 min-w-0">

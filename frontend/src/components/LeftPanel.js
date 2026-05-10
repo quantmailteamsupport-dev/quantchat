@@ -423,7 +423,7 @@ export default function LeftPanel({
   );
 
   const renderChats = () => (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-y-auto">
       {renderTopShell()}
       {view !== 'chats' && showPreviewHints && (
         <div className="px-4 py-3 border-b border-qc-border bg-qc-accent-tertiary/40">
@@ -449,7 +449,7 @@ export default function LeftPanel({
           </div>
         </div>
       )}
-      <div className="flex-1 overflow-y-auto bg-qc-surface">
+      <div className="bg-qc-surface">
         {filteredConversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-qc-text-secondary text-sm p-6 text-center">
             <div className="w-16 h-16 rounded-3xl bg-qc-accent-tertiary text-qc-accent-primary flex items-center justify-center mb-4">

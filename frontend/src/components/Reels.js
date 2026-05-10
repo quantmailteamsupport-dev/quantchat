@@ -176,7 +176,7 @@ export default function Reels({ userId, onStartConversation }) {
   }
 
   return (
-    <div data-testid="reels-panel" className="flex flex-col h-full bg-[linear-gradient(180deg,#09111f_0%,#13203a_100%)] relative overflow-hidden">
+    <div data-testid="reels-panel" className="flex flex-col h-full bg-[linear-gradient(180deg,#09111f_0%,#13203a_100%)] relative overflow-y-auto">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,107,61,0.18),transparent_28%),radial-gradient(circle_at_top_left,rgba(79,124,255,0.18),transparent_32%)] pointer-events-none" />
 
       <div className="relative z-10 px-4 py-4 sm:px-5 border-b border-white/10">

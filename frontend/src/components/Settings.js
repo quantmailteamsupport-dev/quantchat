@@ -77,7 +77,7 @@ export default function Settings() {
   };
 
   return (
-    <div data-testid="settings-panel" className="flex flex-col h-full bg-qc-bg">
+    <div data-testid="settings-panel" className="flex flex-col h-full bg-qc-bg overflow-y-auto">
       <div className="px-4 py-4 sm:px-5 border-b border-qc-border bg-qc-surface">
         <p className="text-[10px] uppercase tracking-[0.24em] text-qc-text-tertiary">Profile cockpit</p>
         <h2 data-testid="settings-title" className="font-heading text-2xl text-qc-text-primary mt-1">You</h2>
@@ -92,7 +92,7 @@ export default function Settings() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-5 space-y-6 pb-[calc(env(safe-area-inset-bottom)+6.5rem)] md:pb-6">
+      <div className="px-4 py-5 sm:px-5 space-y-6 pb-[calc(env(safe-area-inset-bottom)+6.5rem)] md:pb-6">
         <section className="rounded-[30px] border border-qc-border bg-qc-surface p-5 shadow-sm">
           <div className="flex items-center justify-between gap-4 mb-5">
             <div>
