@@ -53,6 +53,8 @@ function AuthProvider({ children }) {
     return data.user;
   };
 
+  const demoLogin = async () => login('arjun@quantchat.com', 'Demo@1234');
+
   const register = async (name, email, password) => {
     const { data } = await axios.post(`${API}/api/auth/register`, { name, email, password });
     setUser(data.user);
@@ -71,7 +73,7 @@ function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, setUser, darkMode, toggleTheme }}>
+    <AuthContext.Provider value={{ user, token, loading, login, demoLogin, register, logout, setUser, darkMode, toggleTheme }}>
       {children}
     </AuthContext.Provider>
   );
@@ -81,8 +83,14 @@ function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) {
     return (
-      <div className="h-screen bg-qc-bg flex items-center justify-center">
-        <div className="text-qc-accent-primary font-medium">Connecting...</div>
+      <div className="h-screen bg-[#020409] flex items-center justify-center px-6">
+        <div className="rounded-[28px] border border-white/10 bg-[rgba(11,13,20,0.88)] px-6 py-5 text-center shadow-[0_24px_80px_rgba(0,0,0,0.38)] backdrop-blur-xl">
+          <div className="mx-auto h-12 w-12 rounded-full border border-white/12 bg-white/5 flex items-center justify-center assistant-orb">
+            <span className="text-lg font-semibold text-white">Q</span>
+          </div>
+          <div className="mt-4 text-sm font-medium text-white/88">Connecting QuantChat</div>
+          <div className="mt-1 text-xs text-white/45">Loading your secure social shell...</div>
+        </div>
       </div>
     );
   }

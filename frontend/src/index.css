@@ -1,45 +1,45 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --bg: #f4f7fb;
-  --surface: rgba(255, 255, 255, 0.88);
-  --surface-hover: rgba(244, 248, 255, 0.95);
-  --elevated: rgba(19, 31, 51, 0.78);
-  --highlight: #4f7cff;
-  --text-primary: #122033;
-  --text-secondary: #5b6980;
-  --text-tertiary: #8a96ab;
-  --border: rgba(142, 159, 186, 0.24);
-  --accent-primary: #ff6b3d;
-  --accent-secondary: #ff4d14;
-  --accent-tertiary: #dbe7ff;
-  --chat-bg: #ebf2ff;
-  --bubble-mine: #ffe2d8;
-  --bubble-other: #ffffff;
-  --shell-gradient: radial-gradient(circle at top left, rgba(79, 124, 255, 0.20), transparent 32%), radial-gradient(circle at 80% 0%, rgba(255, 107, 61, 0.18), transparent 28%), linear-gradient(135deg, #f7faff 0%, #eff4ff 44%, #fef5ef 100%);
+  --bg: #000000;
+  --surface: rgba(15, 15, 19, 0.94);
+  --surface-hover: rgba(24, 24, 32, 0.96);
+  --elevated: rgba(9, 9, 14, 0.98);
+  --highlight: #00e5ff;
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #52525b;
+  --border: rgba(255, 255, 255, 0.09);
+  --accent-primary: #00e5ff;
+  --accent-secondary: #9d4cdd;
+  --accent-tertiary: rgba(255, 255, 255, 0.06);
+  --chat-bg: #05070c;
+  --bubble-mine: #ffffff;
+  --bubble-other: #1a1a24;
+  --shell-gradient: linear-gradient(180deg, #000000 0%, #040509 100%);
 }
 
 .dark {
-  --bg: #09111f;
-  --surface: rgba(13, 24, 41, 0.82);
-  --surface-hover: rgba(19, 31, 51, 0.92);
-  --elevated: rgba(8, 14, 25, 0.95);
-  --highlight: #5c87ff;
-  --text-primary: #f3f7ff;
-  --text-secondary: #9aa7bf;
-  --text-tertiary: #6f809d;
-  --border: rgba(136, 154, 184, 0.18);
-  --accent-primary: #ff8f5a;
-  --accent-secondary: #ff6b3d;
-  --accent-tertiary: rgba(92, 135, 255, 0.14);
-  --chat-bg: #071120;
-  --bubble-mine: #25314a;
-  --bubble-other: #111e32;
-  --shell-gradient: radial-gradient(circle at top left, rgba(92, 135, 255, 0.18), transparent 30%), radial-gradient(circle at 80% 0%, rgba(255, 143, 90, 0.16), transparent 28%), linear-gradient(135deg, #06101d 0%, #0a1526 45%, #11172d 100%);
+  --bg: #000000;
+  --surface: rgba(15, 15, 19, 0.94);
+  --surface-hover: rgba(24, 24, 32, 0.96);
+  --elevated: rgba(9, 9, 14, 0.98);
+  --highlight: #00e5ff;
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #52525b;
+  --border: rgba(255, 255, 255, 0.09);
+  --accent-primary: #00e5ff;
+  --accent-secondary: #9d4cdd;
+  --accent-tertiary: rgba(255, 255, 255, 0.06);
+  --chat-bg: #05070c;
+  --bubble-mine: #ffffff;
+  --bubble-other: #1a1a24;
+  --shell-gradient: linear-gradient(180deg, #000000 0%, #040509 100%);
 }
 
 * {
@@ -53,14 +53,28 @@ html, body, #root {
   min-height: 100svh;
   background: var(--bg);
   color: var(--text-primary);
-  font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
+  scroll-behavior: smooth;
 }
 
 body {
   background-image: var(--shell-gradient);
   background-attachment: fixed;
+}
+
+.font-heading {
+  font-family: "Outfit", system-ui, sans-serif;
+}
+
+.font-body {
+  font-family: "Manrope", system-ui, sans-serif;
+}
+
+::selection {
+  background: rgba(0, 229, 255, 0.22);
+  color: #ffffff;
 }
 
 ::-webkit-scrollbar {
@@ -76,17 +90,17 @@ body {
 .chat-bg-pattern {
   background-color: var(--chat-bg);
   background-image:
-    radial-gradient(circle at 25px 25px, rgba(79, 124, 255, 0.08) 2px, transparent 0),
-    linear-gradient(135deg, rgba(255, 107, 61, 0.08), transparent 55%),
-    linear-gradient(0deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.02));
-  background-size: 72px 72px, 100% 100%, 100% 100%;
+    radial-gradient(circle at 18px 18px, rgba(0, 229, 255, 0.06) 1.4px, transparent 0),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 44%),
+    radial-gradient(circle at top right, rgba(157, 76, 221, 0.09), transparent 28%);
+  background-size: 70px 70px, 100% 100%, 100% 100%;
   opacity: 1;
 }
 .dark .chat-bg-pattern {
   background-image:
-    radial-gradient(circle at 25px 25px, rgba(92, 135, 255, 0.12) 2px, transparent 0),
-    linear-gradient(135deg, rgba(255, 143, 90, 0.08), transparent 55%),
-    linear-gradient(0deg, rgba(255, 255, 255, 0.01), rgba(255, 255, 255, 0.01));
+    radial-gradient(circle at 18px 18px, rgba(0, 229, 255, 0.08) 1.4px, transparent 0),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 44%),
+    radial-gradient(circle at top right, rgba(157, 76, 221, 0.10), transparent 28%);
 }
 
 input, textarea, button {
@@ -115,6 +129,17 @@ a:focus-visible {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes sheetRise {
+  from { opacity: 0; transform: translateY(22px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes orbPulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 rgba(157, 76, 221, 0.2); }
+  50% { transform: scale(1.04); box-shadow: 0 0 24px rgba(157, 76, 221, 0.35); }
+  100% { transform: scale(1); box-shadow: 0 0 0 rgba(157, 76, 221, 0.2); }
+}
+
 @keyframes slideIn {
   from { opacity: 0; transform: translateX(-16px); }
   to { opacity: 1; transform: translateX(0); }
@@ -124,8 +149,16 @@ a:focus-visible {
   animation: slideUp 0.2s ease-out;
 }
 
+.animate-sheetRise {
+  animation: sheetRise 0.25s ease-out;
+}
+
 .animate-slideIn {
   animation: slideIn 0.18s ease-out;
+}
+
+.assistant-orb {
+  animation: orbPulse 3.4s ease-in-out infinite;
 }
 
 .hide-scrollbar {

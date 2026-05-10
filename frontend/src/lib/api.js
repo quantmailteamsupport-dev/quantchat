@@ -8,7 +8,9 @@ function resolveApiBase() {
   if (typeof window !== 'undefined') {
     const pageOrigin = trimTrailingSlash(window.location.origin);
     const protocol = window.location.protocol;
-    const isNativeShell = !['http:', 'https:'].includes(protocol) || window.location.hostname === 'localhost';
+    const host = window.location.hostname;
+    const isLocalHost = ['localhost', '127.0.0.1', '0.0.0.0'].includes(host);
+    const isNativeShell = !['http:', 'https:'].includes(protocol) || isLocalHost;
 
     if (!configured) {
       return pageOrigin;

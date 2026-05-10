@@ -15,6 +15,7 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from motor.motor_asyncio import AsyncIOMotorClient
 import json
+from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 # --- Config ---
 MONGO_URL = os.environ.get("MONGO_URL")
@@ -22,6 +23,7 @@ DB_NAME = os.environ.get("DB_NAME")
 JWT_SECRET = os.environ.get("JWT_SECRET")
 JWT_ALGORITHM = "HS256"
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY")
 
 # --- App ---
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
@@ -85,6 +87,17 @@ def serialize_message(msg: dict) -> dict:
         "reply_to_content": msg.get("reply_to_content"),
         "created_at": msg.get("created_at", "").isoformat() if isinstance(msg.get("created_at"), datetime) else str(msg.get("created_at", "")),
         "expires_at": msg.get("expires_at", "").isoformat() if isinstance(msg.get("expires_at"), datetime) else (str(msg.get("expires_at", "")) if msg.get("expires_at") else None),
+    }
+
+def serialize_assistant_message(item: dict) -> dict:
+    return {
+        "id": str(item["_id"]),
+        "session_id": item.get("session_id", ""),
+        "conversation_id": item.get("conversation_id"),
+        "role": item.get("role", "assistant"),
+        "mode": item.get("mode", "general"),
+        "content": item.get("content", ""),
+        "created_at": item.get("created_at", "").isoformat() if isinstance(item.get("created_at"), datetime) else str(item.get("created_at", "")),
     }
 
 def serialize_conversation(conv: dict, current_user_id: str = None) -> dict:
@@ -170,6 +183,81 @@ async def refresh_conversation_state(conv_id: str) -> dict:
     await db.conversations.update_one({"_id": conv_oid}, {"$set": updates})
     conv.update(updates)
     return conv
+
+def build_assistant_session_id(user_id: str, conversation_id: Optional[str] = None) -> str:
+    return f"assistant:{user_id}:{conversation_id or 'global'}"
+
+async def build_assistant_context(user: dict, conversation_id: Optional[str], mode: str) -> str:
+    uid = str(user["_id"])
+    if conversation_id:
+        conv = await db.conversations.find_one({"_id": parse_object_id(conversation_id, "conversation_id"), "participant_ids": uid})
+        if conv:
+            participants = ", ".join([p.get("name", "Unknown") for p in conv.get("participants", [])])
+            recent_messages = await db.messages.find({"conversation_id": conversation_id}).sort("created_at", -1).limit(14).to_list(14)
+            recent_messages.reverse()
+            transcript = []
+            for message in recent_messages:
+                sender_name = next((p.get("name", "Unknown") for p in conv.get("participants", []) if p.get("user_id") == message.get("sender_id")), "Unknown")
+                transcript.append(f"{sender_name}: {message.get('content', '')}")
+            return (
+                f"Mode: {mode}\n"
+                f"Conversation: {conv.get('name') or 'Direct chat'}\n"
+                f"Participants: {participants or user.get('name', 'Unknown')}\n"
+                f"Pinned: {conv.get('pinned_message', {}).get('content', 'None') if isinstance(conv.get('pinned_message'), dict) else 'None'}\n"
+                f"Unread for current user: {conv.get('unread_counts', {}).get(uid, 0)}\n"
+                "Recent transcript:\n"
+                + ("\n".join(transcript) if transcript else "No recent messages yet.")
+            )
+
+    convs = await db.conversations.find({"participant_ids": uid}).sort("last_message_time", -1).limit(8).to_list(8)
+    inbox_lines = []
+    for conv in convs:
+        label = conv.get("name") or (next((p.get("name", "Unknown") for p in conv.get("participants", []) if p.get("user_id") != uid), "Unknown"))
+        inbox_lines.append(
+            f"- {label} | unread={conv.get('unread_counts', {}).get(uid, 0)} | last_message={conv.get('last_message') or 'No messages yet'}"
+        )
+    return (
+        f"Mode: {mode}\n"
+        f"User: {user.get('name', 'Unknown')} ({user.get('email', '')})\n"
+        "Inbox snapshot:\n"
+        + ("\n".join(inbox_lines) if inbox_lines else "No active conversations.")
+    )
+
+def build_assistant_suggestions(mode: str, conversation_id: Optional[str]) -> List[str]:
+    if conversation_id:
+        return [
+            "Draft a warm reply for this chat.",
+            "Summarize the last messages in 3 bullets.",
+            "Suggest a confident but short response.",
+        ]
+    if mode == "unread_digest":
+        return [
+            "Which chats need my reply first?",
+            "Summarize unread items in one quick digest.",
+            "Give me a follow-up plan for today.",
+        ]
+    return [
+        "Help me write a clean intro message.",
+        "What should I post in Stories today?",
+        "Suggest micro-improvements for my chat flow.",
+    ]
+
+async def run_assistant_response(user: dict, session_id: str, prompt: str, context: str) -> str:
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=503, detail="AI assistant key missing")
+
+    system_message = (
+        "You are QuantChat Copilot, a privacy-aware in-app messaging assistant. "
+        "Help users summarize chats, draft replies, suggest follow-ups, and plan story/reel posts. "
+        "Never claim to auto-send anything. Keep answers concise, structured, and actionable. "
+        "Use simple English with a slight Hinglish touch only when natural."
+    )
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=session_id,
+        system_message=system_message,
+    ).with_model("openai", "gpt-5.2")
+    return await chat.send_message(UserMessage(text=f"Context:\n{context}\n\nUser request:\n{prompt}"))
 
 async def purge_expired_messages(conv_id: Optional[str] = None) -> None:
     now = datetime.now(timezone.utc)
@@ -284,6 +372,11 @@ class CommentBody(BaseModel):
 class DisappearingMessagesBody(BaseModel):
     minutes: int = 0
 
+class AssistantBody(BaseModel):
+    prompt: str
+    mode: str = "general"
+    conversation_id: Optional[str] = None
+
 # --- Startup ---
 @fastapi_app.on_event("startup")
 async def startup():
@@ -294,8 +387,10 @@ async def startup():
     await db.conversations.create_index("participant_ids")
     await db.stories.create_index("created_at", expireAfterSeconds=86400)
     await db.reels.create_index("created_at")
+    await db.assistant_messages.create_index([("user_id", 1), ("session_id", 1), ("created_at", -1)])
     await seed_admin()
     await seed_demo_users()
+    await seed_demo_content()
 
 async def seed_admin():
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@quantchat.com")
@@ -338,6 +433,103 @@ async def seed_demo_users():
                 "last_seen": datetime.now(timezone.utc),
                 "created_at": datetime.now(timezone.utc),
             })
+
+async def seed_demo_content():
+    if await db.conversations.count_documents({}) > 0:
+        return
+
+    seeded_users = await db.users.find({"email": {"$in": ["arjun@quantchat.com", "priya@quantchat.com", "rahul@quantchat.com", "neha@quantchat.com"]}}).to_list(10)
+    user_map = {user["email"]: user for user in seeded_users}
+    required_emails = {"arjun@quantchat.com", "priya@quantchat.com", "rahul@quantchat.com", "neha@quantchat.com"}
+    if not required_emails.issubset(set(user_map.keys())):
+        return
+
+    now = datetime.now(timezone.utc)
+    arjun = user_map["arjun@quantchat.com"]
+    priya = user_map["priya@quantchat.com"]
+    rahul = user_map["rahul@quantchat.com"]
+    neha = user_map["neha@quantchat.com"]
+
+    conversation_specs = [
+        {
+            "type": "direct",
+            "participant_ids": [str(arjun["_id"]), str(priya["_id"])],
+            "participants": [
+                {"user_id": str(arjun["_id"]), "name": arjun.get("name", ""), "avatar": arjun.get("avatar", "")},
+                {"user_id": str(priya["_id"]), "name": priya.get("name", ""), "avatar": priya.get("avatar", "")},
+            ],
+            "last_message": "Deck looks clean. Ready for a final mobile pass.",
+            "last_message_time": now - timedelta(minutes=6),
+            "unread_counts": {str(arjun["_id"]): 1, str(priya["_id"]): 0},
+            "created_at": now - timedelta(hours=4),
+            "streak_count": 4,
+            "streak_best": 6,
+            "streak_last_day": compute_streak_day_key(now),
+        },
+        {
+            "type": "direct",
+            "participant_ids": [str(arjun["_id"]), str(rahul["_id"])],
+            "participants": [
+                {"user_id": str(arjun["_id"]), "name": arjun.get("name", ""), "avatar": arjun.get("avatar", "")},
+                {"user_id": str(rahul["_id"]), "name": rahul.get("name", ""), "avatar": rahul.get("avatar", "")},
+            ],
+            "last_message": "Voice note works. Let's polish the assistant prompt next.",
+            "last_message_time": now - timedelta(minutes=17),
+            "unread_counts": {str(arjun["_id"]): 0, str(rahul["_id"]): 0},
+            "created_at": now - timedelta(hours=6),
+            "streak_count": 2,
+            "streak_best": 3,
+            "streak_last_day": compute_streak_day_key(now),
+        },
+        {
+            "type": "group",
+            "name": "Launch Room",
+            "avatar": "",
+            "participant_ids": [str(arjun["_id"]), str(priya["_id"]), str(neha["_id"])],
+            "participants": [
+                {"user_id": str(arjun["_id"]), "name": arjun.get("name", ""), "avatar": arjun.get("avatar", "")},
+                {"user_id": str(priya["_id"]), "name": priya.get("name", ""), "avatar": priya.get("avatar", "")},
+                {"user_id": str(neha["_id"]), "name": neha.get("name", ""), "avatar": neha.get("avatar", "")},
+            ],
+            "is_channel": False,
+            "admins": [str(arjun["_id"])],
+            "last_message": "Tomorrow morning we push the refreshed build.",
+            "last_message_time": now - timedelta(minutes=28),
+            "unread_counts": {str(arjun["_id"]): 2, str(priya["_id"]): 0, str(neha["_id"]): 0},
+            "created_at": now - timedelta(hours=7),
+            "streak_count": 5,
+            "streak_best": 7,
+            "streak_last_day": compute_streak_day_key(now),
+        },
+    ]
+
+    inserted = await db.conversations.insert_many(conversation_specs)
+    conversation_ids = [str(conv_id) for conv_id in inserted.inserted_ids]
+
+    demo_messages = [
+        {"conversation_id": conversation_ids[0], "sender_id": str(priya["_id"]), "content": "Mobile spacing looks way better now.", "type": "text", "status": "read", "created_at": now - timedelta(minutes=22)},
+        {"conversation_id": conversation_ids[0], "sender_id": str(arjun["_id"]), "content": "Good. I also added the AI copilot sheet.", "type": "text", "status": "read", "created_at": now - timedelta(minutes=14)},
+        {"conversation_id": conversation_ids[0], "sender_id": str(priya["_id"]), "content": "Deck looks clean. Ready for a final mobile pass.", "type": "text", "status": "sent", "created_at": now - timedelta(minutes=6)},
+        {"conversation_id": conversation_ids[1], "sender_id": str(rahul["_id"]), "content": "Audio notes and disappearing timers are stable.", "type": "text", "status": "read", "created_at": now - timedelta(minutes=35)},
+        {"conversation_id": conversation_ids[1], "sender_id": str(arjun["_id"]), "content": "Voice note works. Let's polish the assistant prompt next.", "type": "text", "status": "sent", "created_at": now - timedelta(minutes=17)},
+        {"conversation_id": conversation_ids[2], "sender_id": str(neha["_id"]), "content": "Need launch copy for spotlight and onboarding.", "type": "text", "status": "read", "created_at": now - timedelta(minutes=48)},
+        {"conversation_id": conversation_ids[2], "sender_id": str(arjun["_id"]), "content": "I'll update the shell and write the deployment guide today.", "type": "text", "status": "read", "created_at": now - timedelta(minutes=36)},
+        {"conversation_id": conversation_ids[2], "sender_id": str(priya["_id"]), "content": "Tomorrow morning we push the refreshed build.", "type": "text", "status": "sent", "created_at": now - timedelta(minutes=28)},
+    ]
+    await db.messages.insert_many(demo_messages)
+
+    if await db.stories.count_documents({}) == 0:
+        await db.stories.insert_many([
+            {"user_id": str(arjun["_id"]), "user_name": arjun.get("name", ""), "user_avatar": arjun.get("avatar", ""), "content": json.dumps({"text": "Ship mode on. Final mobile polish today.", "bg": "#111827"}), "type": "text", "created_at": now - timedelta(hours=1)},
+            {"user_id": str(priya["_id"]), "user_name": priya.get("name", ""), "user_avatar": priya.get("avatar", ""), "content": json.dumps({"text": "Palette locked. Micro-interactions feel premium now.", "bg": "#7C3AED"}), "type": "text", "created_at": now - timedelta(hours=2)},
+            {"user_id": str(neha["_id"]), "user_name": neha.get("name", ""), "user_avatar": neha.get("avatar", ""), "content": json.dumps({"text": "Launch checklist: auth, feeds, assistant, deployment notes.", "bg": "#EA580C"}), "type": "text", "created_at": now - timedelta(hours=3)},
+        ])
+
+    if await db.reels.count_documents({}) == 0:
+        await db.reels.insert_many([
+            {"user_id": str(priya["_id"]), "user_name": priya.get("name", ""), "user_avatar": priya.get("avatar", ""), "media_url": "https://images.unsplash.com/photo-1653104877761-181b3977808e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzV8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGRhcmslMjB0ZXh0dXJlJTIwYmFja2dyb3VuZHxlbnwwfHx8YmxhY2t8MTc3ODQyNTEyMnww&ixlib=rb-4.1.0&q=85", "caption": "Late-night product textures for the refreshed shell.", "likes": [str(arjun["_id"]), str(neha["_id"])], "comments": [], "created_at": now - timedelta(hours=5)},
+            {"user_id": str(rahul["_id"]), "user_name": rahul.get("name", ""), "user_avatar": rahul.get("avatar", ""), "media_url": "https://images.unsplash.com/photo-1581084349663-7ab88c58d362?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzV8MHwxfHNlYXJjaHwzfHxhYnN0cmFjdCUyMGRhcmslMjB0ZXh0dXJlJTIwYmFja2dyb3VuZHxlbnwwfHx8YmxhY2t8MTc3ODQyNTEyMnww&ixlib=rb-4.1.0&q=85", "caption": "Infra check complete. Server lane is feeling much cleaner.", "likes": [str(priya["_id"])], "comments": [], "created_at": now - timedelta(hours=7)},
+        ])
 
 # --- Auth Routes ---
 @fastapi_app.post("/api/auth/register")
@@ -603,7 +795,7 @@ async def send_message(conv_id: str, body: MessageBody, request: Request):
 # --- Stories Routes ---
 @fastapi_app.get("/api/stories")
 async def get_stories(request: Request):
-    user = await get_current_user(request)
+    await get_current_user(request)
     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
     stories = await db.stories.find({"created_at": {"$gte": cutoff}}).sort("created_at", -1).to_list(100)
     result = {}
@@ -1033,6 +1225,66 @@ async def comment_reel(reel_id: str, body: CommentBody, request: Request):
     await db.reels.update_one({"_id": parse_object_id(reel_id, "reel_id")}, {"$push": {"comments": comment}})
     comment["created_at"] = comment["created_at"].isoformat()
     return {"comment": comment}
+
+
+# --- AI Assistant Routes ---
+@fastapi_app.get("/api/assistant/history")
+async def get_assistant_history(request: Request, conversation_id: Optional[str] = None, limit: int = 18):
+    user = await get_current_user(request)
+    session_id = build_assistant_session_id(str(user["_id"]), conversation_id)
+    messages = await db.assistant_messages.find(
+        {"user_id": str(user["_id"]), "session_id": session_id}
+    ).sort("created_at", -1).limit(max(1, min(limit, 40))).to_list(max(1, min(limit, 40)))
+    messages.reverse()
+    return {
+        "session_id": session_id,
+        "messages": [serialize_assistant_message(message) for message in messages],
+        "suggestions": build_assistant_suggestions("general", conversation_id),
+    }
+
+@fastapi_app.post("/api/assistant/respond")
+async def assistant_respond(body: AssistantBody, request: Request):
+    user = await get_current_user(request)
+    prompt = body.prompt.strip()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Prompt is required")
+
+    session_id = build_assistant_session_id(str(user["_id"]), body.conversation_id)
+    context = await build_assistant_context(user, body.conversation_id, body.mode)
+    response_text = await run_assistant_response(user, session_id, prompt, context)
+    now = datetime.now(timezone.utc)
+    user_message = {
+        "user_id": str(user["_id"]),
+        "session_id": session_id,
+        "conversation_id": body.conversation_id,
+        "mode": body.mode,
+        "role": "user",
+        "content": prompt,
+        "created_at": now,
+    }
+    assistant_message = {
+        "user_id": str(user["_id"]),
+        "session_id": session_id,
+        "conversation_id": body.conversation_id,
+        "mode": body.mode,
+        "role": "assistant",
+        "content": response_text,
+        "created_at": now,
+    }
+    user_result = await db.assistant_messages.insert_one(user_message)
+    assistant_result = await db.assistant_messages.insert_one(assistant_message)
+    user_message["_id"] = user_result.inserted_id
+    assistant_message["_id"] = assistant_result.inserted_id
+    history = await db.assistant_messages.find(
+        {"user_id": str(user["_id"]), "session_id": session_id}
+    ).sort("created_at", -1).limit(18).to_list(18)
+    history.reverse()
+    return {
+        "session_id": session_id,
+        "message": serialize_assistant_message(assistant_message),
+        "messages": [serialize_assistant_message(item) for item in history],
+        "suggestions": build_assistant_suggestions(body.mode, body.conversation_id),
+    }
 
 
 # --- Socket.IO Events ---

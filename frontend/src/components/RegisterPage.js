@@ -71,11 +71,11 @@ export default function RegisterPage() {
                 Build your dark profile
               </div>
 
-              <h1 className="mt-5 text-4xl font-bold leading-tight sm:text-[3rem]">
-                Create your QuantChat account and start the Snapchat-style dark lane.
+              <h1 className="mt-5 text-[clamp(2.7rem,9vw,4.6rem)] font-bold leading-[0.96] max-w-[13ch]">
+                Create your account and unlock the dark social shell.
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-7 text-white/66">
-                Signup surface ko bhi ab split, rich aur media-first feel diya hai. Register karo aur seedha chat, stories, groups aur spotlight testing me jump karo.
+                Built for fast testing: chats, stories, groups, spotlight, and the new Copilot layer are ready right after signup.
               </p>
 
               <div className="mt-7 grid gap-4 md:grid-cols-3">
@@ -159,6 +159,7 @@ export default function RegisterPage() {
                       className="block w-full rounded-[22px] border border-white/10 bg-white/6 px-4 py-3.5 pr-12 text-sm text-white placeholder:text-white/28 focus:border-[#ffe56a]/55 focus:outline-none focus:ring-2 focus:ring-[#ffe56a]/18"
                     />
                     <button
+                      data-testid="register-password-visibility-toggle"
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute inset-y-0 right-0 pr-4 flex items-center text-white/55 hover:text-white"

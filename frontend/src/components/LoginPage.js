@@ -27,13 +27,14 @@ const spotlightCards = [
 ];
 
 export default function LoginPage() {
-  const { login, user } = useAuth();
+  const { login, demoLogin, user } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
 
   if (user) {
     navigate('/', { replace: true });
@@ -51,6 +52,19 @@ export default function LoginPage() {
       setError(formatError(err.response?.data?.detail) || err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setError('');
+    setDemoLoading(true);
+    try {
+      await demoLogin();
+      navigate('/', { replace: true });
+    } catch (err) {
+      setError(formatError(err.response?.data?.detail) || err.message);
+    } finally {
+      setDemoLoading(false);
     }
   };
 
@@ -72,12 +86,12 @@ export default function LoginPage() {
             </div>
 
             <div className="hidden lg:flex items-center gap-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-4 py-2 text-sm text-white/68">
+              <div data-testid="login-header-search-chip" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-4 py-2 text-sm text-white/68">
                 <Search size={15} />
                 Search friends
               </div>
-              <button className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#05070c]">Download</button>
-              <button className="rounded-full bg-[#ffe600] px-5 py-2.5 text-sm font-semibold text-[#05070c]">Log In</button>
+              <button data-testid="login-header-download-button" className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#05070c]">Download</button>
+              <button data-testid="login-header-login-button" className="rounded-full bg-[#ffe600] px-5 py-2.5 text-sm font-semibold text-[#05070c]">Log In</button>
             </div>
           </header>
 
@@ -88,12 +102,20 @@ export default function LoginPage() {
                 Snapchat-style dark lane
               </div>
 
-              <h2 className="mt-5 text-4xl font-bold leading-tight text-white sm:text-[2.85rem]">
-                Log in and jump straight into chats, stories and spotlight.
+              <h2 className="mt-5 text-[clamp(2.7rem,9vw,4.7rem)] font-bold leading-[0.96] text-white max-w-[12ch]">
+                Jump into chats, stories, spotlight and your AI copilot.
               </h2>
               <p className="mt-4 max-w-md text-base leading-7 text-white/64">
-                QuantChat ko main ab media-first dark shell me le ja raha hoon. Is login screen ko bhi Snapchat web ki split vibe ke closer kiya hai.
+                Premium dark shell, faster mobile spacing, demo access, and a cleaner auth flow built for direct testing.
               </p>
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                {['Mobile-first shell', 'Instant demo login', 'AI workflows'].map((item) => (
+                  <div key={item} className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] text-white/56">
+                    {item}
+                  </div>
+                ))}
+              </div>
 
               <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
                 {error && (
@@ -132,6 +154,7 @@ export default function LoginPage() {
                       className="block w-full rounded-[22px] border border-white/10 bg-white/6 px-4 py-3.5 pr-12 text-sm text-white placeholder:text-white/28 focus:border-[#ffe56a]/55 focus:outline-none focus:ring-2 focus:ring-[#ffe56a]/18"
                     />
                     <button
+                      data-testid="login-password-visibility-toggle"
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute inset-y-0 right-0 pr-4 flex items-center text-white/55 hover:text-white"
@@ -149,6 +172,16 @@ export default function LoginPage() {
                 >
                   {loading ? 'Signing in...' : 'Log In'}
                 </button>
+
+                <button
+                  type="button"
+                  data-testid="login-demo-btn"
+                  onClick={handleDemoLogin}
+                  disabled={demoLoading}
+                  className="w-full rounded-full border border-white/10 bg-white text-[#05070c] px-5 py-3.5 text-base font-semibold transition hover:bg-white/90 disabled:opacity-50"
+                >
+                  {demoLoading ? 'Opening demo...' : 'Login as Demo User'}
+                </button>
               </form>
 
               <div className="mt-6 flex flex-wrap items-center gap-3 text-sm">
@@ -165,7 +198,7 @@ export default function LoginPage() {
                   <MessagesSquare size={16} />
                   Demo quick access
                 </div>
-                <p className="mt-2 text-sm text-white/68">`arjun@quantchat.com / Demo@1234`</p>
+                <p data-testid="demo-credentials-card" className="mt-2 text-sm text-white/68">arjun@quantchat.com / Demo@1234</p>
               </div>
             </section>
 
@@ -177,10 +210,10 @@ export default function LoginPage() {
                     Stories + Spotlight
                   </div>
                   <div>
-                    <h3 className="max-w-md text-3xl font-bold leading-tight sm:text-4xl">Have fun with your friends and family.</h3>
-                    <p className="mt-3 max-w-md text-white/68">Watch story drops, open reels, aur jump to DMs without leaving the same dark shell.</p>
+                    <h3 className="max-w-md text-3xl font-bold leading-tight sm:text-4xl">Move between media, messages and smart help without friction.</h3>
+                    <p className="mt-3 max-w-md text-white/68">Watch story drops, open spotlight, ask Copilot for a reply draft, and jump back into DMs from the same shell.</p>
                   </div>
-                  <button className="w-fit rounded-full bg-white/16 px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm">
+                  <button data-testid="login-find-friends-button" className="w-fit rounded-full bg-white/16 px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm">
                     Find Your Friends
                   </button>
                 </div>
@@ -196,7 +229,7 @@ export default function LoginPage() {
                         <h3 className="text-3xl font-bold leading-tight">{card.title}</h3>
                         <p className="mt-3 max-w-sm text-white/72">{card.body}</p>
                       </div>
-                      <button className="w-fit rounded-full bg-black/30 px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm">
+                      <button data-testid={`spotlight-card-${card.title.toLowerCase().replace(/\s+/g, '-')}`} className="w-fit rounded-full bg-black/30 px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm">
                         {card.cta}
                       </button>
                     </article>

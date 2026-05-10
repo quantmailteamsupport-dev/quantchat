@@ -8,6 +8,7 @@ import StoriesPanel from './Stories';
 import ReelsPanel from './Reels';
 import GroupsPanel from './Groups';
 import SettingsPanel from './Settings';
+import AIAssistant from './AIAssistant';
 import { MessageSquare, CircleDashed, Clapperboard, Users, Settings as SettingsIcon } from 'lucide-react';
 import { API } from '../lib/api';
 
@@ -33,6 +34,7 @@ export default function ChatApp() {
   const [showChat, setShowChat] = useState(false);
   const socketRef = useRef(null);
   const baseViewportHeightRef = useRef(0);
+  const totalUnread = conversations.reduce((sum, conversation) => sum + (conversation.unread_count || 0), 0);
 
   const loadConversations = useCallback(async () => {
     try {
@@ -331,14 +333,14 @@ export default function ChatApp() {
   return (
     <div
       data-testid="chat-app"
-      className="w-screen bg-[#0A1014] flex items-center justify-center overflow-hidden xl:py-4 xl:px-4"
+      className="w-screen bg-[radial-gradient(circle_at_top,rgba(0,229,255,0.08),transparent_24%),linear-gradient(180deg,#020409,#05070c_55%,#020409)] flex items-center justify-center overflow-hidden px-0 md:px-5 md:py-5"
       style={{
         height: appHeight,
         minHeight: '100svh',
         '--mobile-nav-height': isKeyboardOpen ? '0px' : '74px',
       }}
     >
-      <div className="flex h-full w-full xl:max-w-[1600px] xl:h-[95vh] bg-qc-surface xl:shadow-lg xl:rounded-xl overflow-hidden relative">
+      <div className="flex h-full w-full md:max-w-[1460px] md:h-[94vh] bg-[rgba(8,10,15,0.92)] md:border md:border-white/10 md:rounded-[34px] overflow-hidden relative shadow-[0_28px_90px_rgba(0,0,0,0.42)] backdrop-blur-2xl">
         <div className={`w-full md:w-[400px] flex-shrink-0 border-r border-qc-border bg-qc-surface flex flex-col ${isMobileView && showChat ? 'hidden' : 'flex'}`}>
           <LeftPanel
             user={user}
@@ -362,9 +364,16 @@ export default function ChatApp() {
           {renderMainContent()}
         </div>
 
+        <AIAssistant
+          token={token}
+          activeConversation={activeConv}
+          activeSection={activeSection}
+          conversations={conversations}
+        />
+
         {isMobileView && !isKeyboardOpen && (
           <div className="absolute inset-x-0 bottom-0 z-40 px-3 pb-[max(0.6rem,env(safe-area-inset-bottom))]">
-            <div className="mx-auto max-w-[420px] rounded-[28px] border border-white/8 bg-[rgba(16,28,42,0.92)] backdrop-blur-2xl shadow-[0_16px_50px_rgba(0,0,0,0.35)] px-2 py-2">
+            <div className="mx-auto max-w-[430px] rounded-[30px] border border-white/10 bg-[rgba(8,10,15,0.82)] backdrop-blur-2xl shadow-[0_22px_60px_rgba(0,0,0,0.42)] px-2 py-2">
             <div className="grid grid-cols-5 gap-1">
               {MOBILE_NAV_ITEMS.map((item) => {
                 const Icon = item.icon;
@@ -372,10 +381,11 @@ export default function ChatApp() {
                 return (
                   <button
                     key={item.id}
+                    data-testid={`mobile-nav-${item.id}`}
                     onClick={() => selectSection(item.id)}
                     className={`rounded-2xl px-2 py-2 flex flex-col items-center justify-center gap-1 transition-all ${
                       isActive
-                        ? 'bg-[#244463] text-[#6dc8ff]'
+                        ? 'bg-white text-black shadow-[0_12px_26px_rgba(255,255,255,0.14)]'
                         : 'text-qc-text-secondary hover:bg-white/5'
                     }`}
                   >
@@ -386,6 +396,12 @@ export default function ChatApp() {
               })}
             </div>
             </div>
+          </div>
+        )}
+
+        {!isMobileView && totalUnread > 0 && (
+          <div data-testid="desktop-unread-pill" className="absolute top-4 right-4 z-30 rounded-full border border-white/10 bg-black/45 px-4 py-2 text-xs uppercase tracking-[0.24em] text-white/68 backdrop-blur-xl">
+            {totalUnread} unread
           </div>
         )}
       </div>
