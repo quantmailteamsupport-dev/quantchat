@@ -18,10 +18,6 @@ import {
 import { format, isToday, isYesterday } from 'date-fns';
 import axios from 'axios';
 import { API } from '../lib/api';
-import StoriesPanel from './Stories';
-import ReelsPanel from './Reels';
-import GroupsPanel from './Groups';
-import SettingsPanel from './Settings';
 
 function formatMsgTimeShort(time) {
   if (!time || time === 'None' || time === '') return '';
@@ -48,8 +44,9 @@ export default function LeftPanel({
   typingUsers,
   onReloadConversations,
   token,
+  view,
+  onViewChange,
 }) {
-  const [view, setView] = useState('chats');
   const [searchQuery, setSearchQuery] = useState('');
   const [showMenu, setShowMenu] = useState(false);
   const [chatFilter, setChatFilter] = useState('all');
@@ -118,7 +115,7 @@ export default function LeftPanel({
     <>
       <div className="px-4 pt-4 pb-3 border-b border-qc-border bg-qc-surface backdrop-blur-xl relative">
         <div className="flex items-start justify-between gap-3">
-          <button onClick={() => setView('settings')} className="flex items-center gap-3 text-left">
+          <button onClick={() => onViewChange('settings')} className="flex items-center gap-3 text-left">
             <div className="w-12 h-12 rounded-2xl overflow-hidden bg-qc-accent-tertiary flex items-center justify-center shadow-glow">
               {user?.avatar ? <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" /> : <User size={20} className="text-qc-text-secondary" />}
             </div>
@@ -129,10 +126,10 @@ export default function LeftPanel({
           </button>
 
           <div className="flex items-center gap-2 relative" ref={menuRef}>
-            <button onClick={() => setView('stories')} className="w-10 h-10 rounded-2xl flex items-center justify-center text-qc-text-secondary hover:bg-qc-accent-tertiary transition-colors" title="Open stories">
+            <button onClick={() => onViewChange('stories')} className="w-10 h-10 rounded-2xl flex items-center justify-center text-qc-text-secondary hover:bg-qc-accent-tertiary transition-colors" title="Open stories">
               <CircleDashed size={18} />
             </button>
-            <button onClick={() => setView('newChat')} className="w-10 h-10 rounded-2xl flex items-center justify-center text-white bg-qc-accent-primary hover:bg-qc-accent-secondary transition-colors shadow-glow" title="Start a chat">
+            <button onClick={() => onViewChange('newChat')} className="w-10 h-10 rounded-2xl flex items-center justify-center text-white bg-qc-accent-primary hover:bg-qc-accent-secondary transition-colors shadow-glow" title="Start a chat">
               <MessageSquare size={18} />
             </button>
             <button onClick={() => setShowMenu(value => !value)} className="w-10 h-10 rounded-2xl flex items-center justify-center text-qc-text-secondary hover:bg-qc-accent-tertiary transition-colors" title="Open menu">
@@ -141,7 +138,7 @@ export default function LeftPanel({
 
             {showMenu && (
               <div className="absolute top-12 right-0 w-56 bg-qc-surface border border-qc-border rounded-2xl shadow-xl py-2 z-50 animate-fadeIn">
-                <button onClick={() => { setView('groups'); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-qc-text-primary hover:bg-qc-surface-hover flex items-center gap-2">
+                <button onClick={() => { onViewChange('groups'); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-qc-text-primary hover:bg-qc-surface-hover flex items-center gap-2">
                   <Users size={15} /> Manage groups
                 </button>
                 <button onClick={() => { onReloadConversations?.(); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-qc-text-primary hover:bg-qc-surface-hover flex items-center gap-2">
@@ -163,27 +160,27 @@ export default function LeftPanel({
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] uppercase tracking-[0.24em] text-white/70">Daily streak</p>
-              <h3 className="font-heading text-2xl leading-none mt-1">Social cockpit</h3>
-              <p className="text-sm text-white/80 mt-2 max-w-[18rem]">Chats, stories, spotlight and squads - sab ek hi shell mein fast access ke saath.</p>
+              <h3 className="font-heading text-xl leading-none mt-1">Social cockpit</h3>
+              <p className="text-xs text-white/80 mt-2 max-w-[18rem]">Chats pinned rakho, baaki stories aur spotlight ab main stage par open hote hain.</p>
             </div>
-            <div className="rounded-2xl bg-white/15 px-3 py-2 text-right">
+            <div className="rounded-2xl bg-white/15 px-3 py-2 text-right min-w-[78px]">
               <p className="text-[11px] uppercase tracking-[0.24em] text-white/70">Unread</p>
-              <p className="text-2xl font-semibold">{totalUnread}</p>
+              <p className="text-xl font-semibold">{totalUnread}</p>
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="mt-3 grid grid-cols-3 gap-2">
             <div className="rounded-2xl bg-white/12 px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.22em] text-white/65">Online</p>
-              <p className="text-lg font-semibold">{onlineDirectConversations}</p>
+              <p className="text-base font-semibold">{onlineDirectConversations}</p>
             </div>
             <div className="rounded-2xl bg-white/12 px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.22em] text-white/65">Squads</p>
-              <p className="text-lg font-semibold">{groupCount}</p>
+              <p className="text-base font-semibold">{groupCount}</p>
             </div>
             <div className="rounded-2xl bg-white/12 px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.22em] text-white/65">Profile</p>
-              <p className="text-lg font-semibold truncate">{user?.role || 'user'}</p>
+              <p className="text-base font-semibold truncate">{user?.role || 'user'}</p>
             </div>
           </div>
         </div>
@@ -237,6 +234,30 @@ export default function LeftPanel({
   const renderChats = () => (
     <div className="flex flex-col h-full">
       {renderTopShell()}
+      {view !== 'chats' && (
+        <div className="px-4 py-3 border-b border-qc-border bg-qc-accent-tertiary/40">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.24em] text-qc-text-tertiary">Active space</p>
+              <p className="text-sm font-medium text-qc-text-primary">
+                {view === 'stories' && 'Stories are open in the main panel'}
+                {view === 'reels' && 'Spotlight is open in the main panel'}
+                {view === 'groups' && 'Groups are open in the main panel'}
+                {view === 'settings' && 'Profile settings are open in the main panel'}
+                {view === 'newChat' && 'Start a chat from the overlay'}
+              </p>
+            </div>
+            {view !== 'newChat' && (
+              <button
+                onClick={() => onViewChange('chats')}
+                className="rounded-full border border-qc-border px-3 py-1.5 text-xs font-medium text-qc-text-primary hover:bg-qc-surface"
+              >
+                Back to chats
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto bg-qc-surface">
         {filteredConversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-qc-text-secondary text-sm p-6 text-center">
@@ -319,7 +340,7 @@ export default function LeftPanel({
   const renderNewChat = () => (
     <div className="absolute inset-0 z-30 bg-qc-surface flex flex-col animate-slideIn">
       <div className="px-4 py-4 border-b border-qc-border flex items-center gap-3 bg-qc-surface-hover">
-        <button onClick={() => setView('chats')} className="w-10 h-10 rounded-2xl flex items-center justify-center hover:bg-qc-surface">
+        <button onClick={() => onViewChange('chats')} className="w-10 h-10 rounded-2xl flex items-center justify-center hover:bg-qc-surface">
           <ArrowLeft size={20} />
         </button>
         <div className="min-w-0">
@@ -341,11 +362,11 @@ export default function LeftPanel({
         </div>
 
         <div className="grid grid-cols-2 gap-3 mt-3">
-          <button onClick={() => setView('groups')} className="rounded-2xl border border-qc-border bg-qc-surface-hover p-3 text-left hover:bg-qc-accent-tertiary transition-colors">
+          <button onClick={() => onViewChange('groups')} className="rounded-2xl border border-qc-border bg-qc-surface-hover p-3 text-left hover:bg-qc-accent-tertiary transition-colors">
             <p className="text-[11px] uppercase tracking-[0.2em] text-qc-text-tertiary">Quick action</p>
             <p className="font-medium text-qc-text-primary mt-1">Create group</p>
           </button>
-          <button onClick={() => setView('stories')} className="rounded-2xl border border-qc-border bg-qc-surface-hover p-3 text-left hover:bg-qc-accent-tertiary transition-colors">
+          <button onClick={() => onViewChange('stories')} className="rounded-2xl border border-qc-border bg-qc-surface-hover p-3 text-left hover:bg-qc-accent-tertiary transition-colors">
             <p className="text-[11px] uppercase tracking-[0.2em] text-qc-text-tertiary">Quick action</p>
             <p className="font-medium text-qc-text-primary mt-1">Post story</p>
           </button>
@@ -361,7 +382,7 @@ export default function LeftPanel({
           users.map(person => (
             <button
               key={person.id}
-              onClick={() => { onStartChat(person.id); setView('chats'); }}
+              onClick={() => { onStartChat(person.id); onViewChange('chats'); }}
               className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-qc-surface-hover transition-colors text-left border-b border-qc-border"
             >
               <div className="w-12 h-12 rounded-2xl overflow-hidden bg-qc-accent-tertiary flex items-center justify-center flex-shrink-0">
@@ -381,17 +402,9 @@ export default function LeftPanel({
     </div>
   );
 
-  const renderCurrentView = () => {
-    if (view === 'stories') return <StoriesPanel userId={user?.id} />;
-    if (view === 'reels') return <ReelsPanel userId={user?.id} />;
-    if (view === 'groups') return <GroupsPanel userId={user?.id} onSelectConv={(conv) => { onReloadConversations?.(); onSelectConv(conv); setView('chats'); }} />;
-    if (view === 'settings') return <SettingsPanel user={user} />;
-    return renderChats();
-  };
-
   return (
     <div className="flex flex-col h-full bg-qc-surface w-full overflow-hidden relative">
-      <div className="flex-1 min-h-0">{renderCurrentView()}</div>
+      <div className="flex-1 min-h-0">{renderChats()}</div>
 
       {view === 'newChat' && renderNewChat()}
 
@@ -402,7 +415,7 @@ export default function LeftPanel({
           return (
             <button
               key={item.id}
-              onClick={() => setView(item.id)}
+              onClick={() => onViewChange(item.id)}
               className={`rounded-2xl px-2 py-2.5 flex flex-col items-center justify-center gap-1 transition-all ${
                 isActive
                   ? 'bg-qc-text-primary text-white'

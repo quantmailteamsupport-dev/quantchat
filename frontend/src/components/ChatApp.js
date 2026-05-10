@@ -4,12 +4,17 @@ import axios from 'axios';
 import { io } from 'socket.io-client';
 import LeftPanel from './LeftPanel';
 import ChatArea from './ChatView';
+import StoriesPanel from './Stories';
+import ReelsPanel from './Reels';
+import GroupsPanel from './Groups';
+import SettingsPanel from './Settings';
 import { API } from '../lib/api';
 
 export default function ChatApp() {
   const { user, token, logout, darkMode, toggleTheme } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [activeConv, setActiveConv] = useState(null);
+  const [activeSection, setActiveSection] = useState('chats');
   const [messages, setMessages] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const [typingUsers, setTypingUsers] = useState({});
@@ -184,12 +189,89 @@ export default function ChatApp() {
 
   const selectConversation = (conv) => {
     setActiveConv(conv);
+    setActiveSection('chats');
     setShowChat(true);
   };
 
+  const selectSection = (section) => {
+    setActiveSection(section);
+    if (isMobileView) {
+      setShowChat(section !== 'chats');
+    }
+  };
+
   const handleMobileBack = () => {
+    if (activeSection !== 'chats') {
+      setActiveSection('chats');
+    }
     setShowChat(false);
-    setActiveConv(null);
+  };
+
+  const renderMainContent = () => {
+    if (activeSection === 'stories') {
+      return <StoriesPanel userId={user?.id} />;
+    }
+
+    if (activeSection === 'reels') {
+      return <ReelsPanel userId={user?.id} />;
+    }
+
+    if (activeSection === 'groups') {
+      return (
+        <GroupsPanel
+          userId={user?.id}
+          onSelectConv={(conv) => {
+            setActiveConv(conv);
+            setActiveSection('chats');
+            setShowChat(true);
+            loadConversations();
+          }}
+        />
+      );
+    }
+
+    if (activeSection === 'settings') {
+      return <SettingsPanel user={user} />;
+    }
+
+    if (activeConv) {
+      return (
+        <ChatArea
+          conversation={activeConv}
+          messages={messages}
+          onSend={sendMessage}
+          onEdit={editMessage}
+          userId={user?.id}
+          onlineUsers={onlineUsers}
+          typingUsers={typingUsers}
+          emitTyping={emitTyping}
+          onBack={handleMobileBack}
+          conversations={conversations}
+          token={token}
+          onReloadMessages={loadMessages}
+          onReloadConversations={loadConversations}
+          isMobile={isMobileView}
+          onConversationUpdate={setActiveConv}
+        />
+      );
+    }
+
+    return (
+      <div className="hidden md:flex flex-col items-center justify-center h-full text-center bg-qc-bg chat-bg-pattern border-l border-qc-border">
+        <div className="bg-qc-surface rounded-full p-6 shadow-sm mb-6">
+          <span className="text-4xl text-qc-accent-primary font-bold">Q</span>
+        </div>
+        <h2 className="text-3xl font-light text-qc-text-primary mb-4">QuantChat for Web</h2>
+        <p className="text-qc-text-secondary text-sm max-w-md">
+          Open a conversation, jump into Stories, or browse Spotlight without losing your place.
+          <br />
+          Your chats stay ready while the social feed now owns the main stage.
+        </p>
+        <div className="mt-10 flex items-center justify-center gap-2 text-qc-text-secondary text-xs">
+          <span>End-to-end encrypted</span>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -209,44 +291,14 @@ export default function ChatApp() {
             typingUsers={typingUsers}
             onReloadConversations={loadConversations}
             token={token}
+            view={activeSection}
+            onViewChange={selectSection}
+            isMobile={isMobileView}
           />
         </div>
 
         <div className={`flex-1 flex flex-col bg-qc-bg ${isMobileView && !showChat ? 'hidden' : 'flex'}`}>
-          {activeConv ? (
-            <ChatArea
-              conversation={activeConv}
-              messages={messages}
-              onSend={sendMessage}
-              onEdit={editMessage}
-              userId={user?.id}
-              onlineUsers={onlineUsers}
-              typingUsers={typingUsers}
-              emitTyping={emitTyping}
-              onBack={handleMobileBack}
-              conversations={conversations}
-              token={token}
-              onReloadMessages={loadMessages}
-              onReloadConversations={loadConversations}
-              isMobile={isMobileView}
-              onConversationUpdate={setActiveConv}
-            />
-          ) : (
-            <div className="hidden md:flex flex-col items-center justify-center h-full text-center bg-qc-bg chat-bg-pattern border-l border-qc-border">
-              <div className="bg-qc-surface rounded-full p-6 shadow-sm mb-6">
-                <span className="text-4xl text-qc-accent-primary font-bold">Q</span>
-              </div>
-              <h2 className="text-3xl font-light text-qc-text-primary mb-4">QuantChat for Web</h2>
-              <p className="text-qc-text-secondary text-sm max-w-md">
-                Send and receive messages without keeping your phone online.
-                <br />
-                Use QuantChat on up to 4 linked devices and 1 phone at the same time.
-              </p>
-              <div className="mt-10 flex items-center justify-center gap-2 text-qc-text-secondary text-xs">
-                <span>End-to-end encrypted</span>
-              </div>
-            </div>
-          )}
+          {renderMainContent()}
         </div>
       </div>
     </div>
