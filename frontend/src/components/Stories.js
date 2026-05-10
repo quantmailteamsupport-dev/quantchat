@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { Radio, Plus, User, X, Send, Loader, ChevronLeft, ChevronRight, Clock3 } from 'lucide-react';
+import { Radio, Plus, User, X, Send, Loader, ChevronLeft, ChevronRight, Clock3, MessageSquare, Wand2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { API } from '../lib/api';
 
 const COLORS = ['#1D4ED8', '#FF5A36', '#0F766E', '#7C3AED', '#EA580C', '#111827', '#D946EF'];
 const STORY_PREF_EVENT = 'qc-preferences-changed';
+const STORY_PROMPTS = ['Shipping something new today', 'Tiny win of the day', 'Coffee + code update', 'Sneak peek for the squad', 'Moodboard drop'];
 
 function parseStoryPayload(story) {
   try {
@@ -22,7 +23,7 @@ function parseStoryPayload(story) {
   }
 }
 
-function StoryViewer({ stories, activeIndex, onClose, autoAdvance }) {
+function StoryViewer({ stories, activeIndex, onClose, autoAdvance, currentUserId, onReply }) {
   const [index, setIndex] = useState(activeIndex);
 
   useEffect(() => {
@@ -41,6 +42,7 @@ function StoryViewer({ stories, activeIndex, onClose, autoAdvance }) {
   if (!currentStory) return null;
 
   const payload = parseStoryPayload(currentStory);
+  const canReply = currentStory.user_id && currentStory.user_id !== currentUserId;
 
   return (
     <div className="absolute inset-0 z-40 bg-[#071120]/88 backdrop-blur-md flex items-center justify-center p-4" onClick={onClose}>
@@ -94,6 +96,18 @@ function StoryViewer({ stories, activeIndex, onClose, autoAdvance }) {
             </p>
           </div>
 
+          {canReply && (
+            <div className="absolute inset-x-4 bottom-4 sm:bottom-5 flex justify-center">
+              <button
+                onClick={() => onReply?.(currentStory.user_id, `Replying to your story: ${payload.text.slice(0, 80)}`)}
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/25 px-4 py-2 text-sm font-medium text-white backdrop-blur-md hover:bg-black/40 transition-colors"
+              >
+                <MessageSquare size={16} />
+                Reply privately
+              </button>
+            </div>
+          )}
+
           {stories.length > 1 && (
             <>
               <button
@@ -116,7 +130,7 @@ function StoryViewer({ stories, activeIndex, onClose, autoAdvance }) {
   );
 }
 
-export default function Stories({ userId }) {
+export default function Stories({ userId, onStartConversation }) {
   const [storyGroups, setStoryGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showComposer, setShowComposer] = useState(false);
@@ -125,6 +139,7 @@ export default function Stories({ userId }) {
   const [submitting, setSubmitting] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(null);
   const [autoAdvance, setAutoAdvance] = useState(localStorage.getItem('qc_pref_story_autoadvance') !== 'false');
+  const remainingChars = 180 - content.length;
 
   const loadStories = async () => {
     setLoading(true);
@@ -166,6 +181,12 @@ export default function Stories({ userId }) {
       await loadStories();
     } catch {}
     setSubmitting(false);
+  };
+
+  const handleReplyToStory = async (targetUserId, draftText) => {
+    if (!targetUserId || !onStartConversation) return;
+    setViewerIndex(null);
+    await onStartConversation(targetUserId, draftText);
   };
 
   const myStoryGroup = storyGroups.find((storyGroup) => storyGroup.user_id === userId);
@@ -247,14 +268,40 @@ export default function Stories({ userId }) {
                   />
                 ))}
               </div>
+              <div className="flex gap-2 overflow-x-auto hide-scrollbar">
+                {STORY_PROMPTS.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => setContent(prompt)}
+                    className="shrink-0 rounded-full border border-qc-border bg-qc-surface-hover px-3 py-2 text-xs text-qc-text-primary"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
               <textarea
                 data-testid="story-input"
                 value={content}
                 onChange={(event) => setContent(event.target.value)}
+                maxLength={180}
                 placeholder="Share a quick update, thought, or launch note"
                 className="w-full h-44 rounded-[24px] p-5 text-white placeholder:text-white/70 resize-none outline-none"
                 style={{ backgroundColor: bgColor }}
               />
+              <div className="flex items-center justify-between gap-3 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setBgColor(COLORS[Math.floor(Math.random() * COLORS.length)])}
+                  className="inline-flex items-center gap-2 rounded-full border border-qc-border bg-qc-surface-hover px-3 py-2 text-qc-text-primary"
+                >
+                  <Wand2 size={14} />
+                  Shuffle color
+                </button>
+                <span className={`${remainingChars < 25 ? 'text-qc-accent-primary' : 'text-qc-text-tertiary'}`}>
+                  {remainingChars} chars left
+                </span>
+              </div>
             </div>
             <div className="p-5 pt-4 border-t border-qc-border bg-qc-surface flex-shrink-0 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
               <button
@@ -276,6 +323,8 @@ export default function Stories({ userId }) {
           stories={timelineStories}
           activeIndex={viewerIndex}
           autoAdvance={autoAdvance}
+          currentUserId={userId}
+          onReply={handleReplyToStory}
           onClose={() => setViewerIndex(null)}
         />
       )}

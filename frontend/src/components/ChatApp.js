@@ -20,7 +20,7 @@ const MOBILE_NAV_ITEMS = [
 ];
 
 export default function ChatApp() {
-  const { user, token, logout, darkMode, toggleTheme } = useAuth();
+  const { user, token, logout } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [activeConv, setActiveConv] = useState(null);
   const [activeSection, setActiveSection] = useState('chats');
@@ -220,12 +220,16 @@ export default function ChatApp() {
     } catch {}
   };
 
-  const startConversation = async (otherUserId) => {
+  const startConversation = async (otherUserId, draftText = '') => {
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const { data } = await axios.post(`${API}/api/conversations`, { participant_id: otherUserId }, { headers });
+      if (draftText?.trim()) {
+        localStorage.setItem(`qc_draft_${data.conversation.id}`, draftText.trim());
+      }
       await loadConversations();
       setActiveConv(data.conversation);
+      setActiveSection('chats');
       setShowChat(true);
     } catch {}
   };
@@ -258,11 +262,11 @@ export default function ChatApp() {
 
   const renderMainContent = () => {
     if (activeSection === 'stories') {
-      return <StoriesPanel userId={user?.id} />;
+      return <StoriesPanel userId={user?.id} onStartConversation={startConversation} />;
     }
 
     if (activeSection === 'reels') {
-      return <ReelsPanel userId={user?.id} />;
+      return <ReelsPanel userId={user?.id} onStartConversation={startConversation} />;
     }
 
     if (activeSection === 'groups') {

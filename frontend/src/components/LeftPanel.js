@@ -30,6 +30,19 @@ function formatMsgTimeShort(time) {
   }
 }
 
+function formatConversationSnippet(lastMessage) {
+  if (!lastMessage) return '';
+  if (typeof lastMessage === 'string' && lastMessage.startsWith('data:image')) return 'Photo';
+  if (typeof lastMessage === 'string' && lastMessage.startsWith('data:audio')) return 'Voice note';
+  try {
+    const parsed = JSON.parse(lastMessage);
+    if (parsed?.name) {
+      return `File: ${parsed.name}`;
+    }
+  } catch {}
+  return lastMessage;
+}
+
 export default function LeftPanel({
   user,
   logout,
@@ -105,7 +118,7 @@ export default function LeftPanel({
       ? conv.name
       : (conv.other_user?.name || conv.participants?.find(p => p.user_id !== user?.id)?.name || '');
 
-    return name.toLowerCase().includes(searchQuery.toLowerCase()) || (conv.last_message || '').toLowerCase().includes(searchQuery.toLowerCase());
+    return name.toLowerCase().includes(searchQuery.toLowerCase()) || formatConversationSnippet(conv.last_message).toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   const navItems = [
@@ -300,7 +313,11 @@ export default function LeftPanel({
                   <div className="flex justify-between items-center gap-3 mb-1">
                     <div className="min-w-0 flex items-center gap-2">
                       <span className="font-medium text-qc-text-primary text-[15px] truncate">{name}</span>
-                      {conv.streak_count > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-qc-accent-tertiary text-qc-accent-primary font-medium whitespace-nowrap">🔥 {conv.streak_count}</span>}
+                      {conv.streak_count > 0 && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-qc-accent-tertiary text-qc-accent-primary font-medium whitespace-nowrap">
+                          {'\u{1F525}'} {conv.streak_count}
+                        </span>
+                      )}
                     </div>
                     <span className={`text-xs whitespace-nowrap ${conv.unread_count > 0 ? 'text-qc-accent-primary font-medium' : 'text-qc-text-secondary'}`}>
                       {formatMsgTimeShort(conv.last_message_time)}
@@ -314,7 +331,7 @@ export default function LeftPanel({
                       ) : (
                         <div className="min-w-0">
                           <span className="text-[13px] text-qc-text-secondary truncate block">
-                            {conv.last_message || (isGroup ? 'Group ready for activity' : 'Say hi to kick things off')}
+                            {formatConversationSnippet(conv.last_message) || (isGroup ? 'Group ready for activity' : 'Say hi to kick things off')}
                           </span>
                           {conv.disappearing_minutes > 0 && (
                             <span className="text-[10px] text-qc-text-tertiary">Vanish mode: {conv.disappearing_minutes < 60 ? `${conv.disappearing_minutes}m` : conv.disappearing_minutes < 1440 ? `${Math.round(conv.disappearing_minutes / 60)}h` : `${Math.round(conv.disappearing_minutes / 1440)}d`}</span>

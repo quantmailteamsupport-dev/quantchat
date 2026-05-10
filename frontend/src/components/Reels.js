@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
-import { Video, Heart, MessageCircle, X, Plus, Sparkles, Play, Volume2, User } from 'lucide-react';
+import { Video, Heart, MessageCircle, X, Plus, Sparkles, Play, Pause, Volume2, VolumeX, User, UploadCloud, Send } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { API } from '../lib/api';
 
 const PREF_EVENT = 'qc-preferences-changed';
 
-export default function Reels({ userId }) {
+export default function Reels({ userId, onStartConversation }) {
   const [reels, setReels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -16,8 +16,12 @@ export default function Reels({ userId }) {
   const [showComments, setShowComments] = useState(null);
   const [commentText, setCommentText] = useState('');
   const [autoplay, setAutoplay] = useState(localStorage.getItem('qc_pref_autoplay_reels') !== 'false');
+  const [isMuted, setIsMuted] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
   const token = localStorage.getItem('qc_token');
   const containerRef = useRef(null);
+  const uploadInputRef = useRef(null);
+  const videoRefs = useRef({});
 
   useEffect(() => {
     loadReels();
@@ -50,6 +54,17 @@ export default function Reels({ userId }) {
       setShowCreate(false);
       loadReels();
     } catch {}
+  };
+
+  const handleLocalMedia = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (loadEvent) => {
+      setNewReelUrl(loadEvent.target?.result || '');
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
   };
 
   const handleLike = async (reelId) => {
@@ -89,6 +104,28 @@ export default function Reels({ userId }) {
     if (index !== currentIdx) {
       setCurrentIdx(index);
     }
+  };
+
+  useEffect(() => {
+    Object.entries(videoRefs.current).forEach(([key, element]) => {
+      if (!element) return;
+      const shouldPlay = Number(key) === currentIdx && autoplay && !isPaused;
+      element.muted = isMuted;
+      if (shouldPlay) {
+        element.play().catch(() => {});
+      } else {
+        element.pause();
+      }
+    });
+  }, [autoplay, currentIdx, isMuted, isPaused, reels.length]);
+
+  const togglePlayback = () => {
+    setIsPaused((current) => !current);
+  };
+
+  const handleMessageCreator = async (reel) => {
+    if (!reel?.user_id || reel.user_id === userId || !onStartConversation) return;
+    await onStartConversation(reel.user_id, `About your reel: ${reel.caption || 'Loved this drop'}`);
   };
 
   const currentReel = reels[currentIdx];
@@ -148,6 +185,15 @@ export default function Reels({ userId }) {
               </button>
             </div>
             <div className="p-5 space-y-4 flex-1 overflow-y-auto pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+              <input type="file" accept="video/*,image/*" ref={uploadInputRef} className="hidden" onChange={handleLocalMedia} />
+              <button
+                type="button"
+                onClick={() => uploadInputRef.current?.click()}
+                className="w-full rounded-2xl border border-dashed border-white/15 bg-white/5 px-4 py-4 text-left text-white/80 hover:bg-white/10 transition-colors flex items-center gap-3"
+              >
+                <UploadCloud size={18} />
+                <span className="text-sm">Upload from device</span>
+              </button>
               <input
                 type="text"
                 value={newReelUrl}
@@ -162,6 +208,15 @@ export default function Reels({ userId }) {
                 rows={4}
                 className="w-full bg-white/8 border border-white/10 text-white text-sm px-4 py-3 resize-none rounded-2xl"
               />
+              {newReelUrl && (
+                <div className="rounded-[24px] overflow-hidden border border-white/10 bg-black/30">
+                  {/\.(mp4|webm|ogg)$/i.test(newReelUrl) || newReelUrl.startsWith('data:video') ? (
+                    <video src={newReelUrl} className="w-full max-h-56 object-cover" controls muted playsInline />
+                  ) : (
+                    <img src={newReelUrl} alt="Reel preview" className="w-full max-h-56 object-cover" />
+                  )}
+                </div>
+              )}
             </div>
             <div className="p-5 pt-4 border-t border-white/10 bg-[#0e1930] flex-shrink-0 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
               <button
@@ -190,6 +245,15 @@ export default function Reels({ userId }) {
                 <p className="text-[10px] uppercase tracking-[0.22em] text-white/50">Now playing</p>
                 <p className="text-white text-lg font-semibold mt-2 line-clamp-2">{currentReel?.caption || 'Untitled reel'}</p>
                 <p className="text-white/60 text-sm mt-2">{currentReel?.user_name || 'Unknown creator'}</p>
+                {currentReel?.user_id !== userId && (
+                  <button
+                    onClick={() => handleMessageCreator(currentReel)}
+                    className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/16 transition-colors"
+                  >
+                    <Send size={14} />
+                    Message creator
+                  </button>
+                )}
               </div>
 
               <div className="rounded-[28px] border border-white/10 bg-white/5 p-4">
@@ -218,22 +282,26 @@ export default function Reels({ userId }) {
 
             <div ref={containerRef} onScroll={handleScroll} className="h-full overflow-y-auto snap-y snap-mandatory hide-scrollbar">
               {reels.map((reel, index) => {
-                const isVideo = /\.(mp4|webm|ogg)$/i.test(reel.media_url);
+                const isVideo = /\.(mp4|webm|ogg)$/i.test(reel.media_url) || reel.media_url.startsWith('data:video');
                 return (
                   <div key={reel.id} className="h-full snap-start flex items-center justify-center pb-4">
                     <div className="relative w-full max-w-[430px] h-full min-h-[min(520px,calc(100dvh-270px))] rounded-[34px] overflow-hidden border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.38)] bg-black">
                       {isVideo ? (
                         <video
                           src={reel.media_url}
+                          ref={(element) => {
+                            videoRefs.current[index] = element;
+                          }}
                           className="absolute inset-0 w-full h-full object-cover"
-                          autoPlay={autoplay && index === currentIdx}
+                          onClick={togglePlayback}
+                          autoPlay={autoplay && index === currentIdx && !isPaused}
                           loop
-                          muted
+                          muted={isMuted}
                           controls={!autoplay}
                           playsInline
                         />
                       ) : (
-                        <img src={reel.media_url} className="absolute inset-0 w-full h-full object-cover" alt="reel" />
+                        <img src={reel.media_url} className="absolute inset-0 w-full h-full object-cover" alt="reel" onClick={togglePlayback} />
                       )}
 
                       <div className="absolute inset-0 bg-gradient-to-t from-black/88 via-black/18 to-transparent pointer-events-none" />
@@ -243,8 +311,8 @@ export default function Reels({ userId }) {
                           {index + 1} / {reels.length}
                         </div>
                         <div className="rounded-full border border-white/10 bg-black/25 backdrop-blur-md px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-white/75 flex items-center gap-2">
-                          {autoplay ? <Play size={12} /> : <Volume2 size={12} />}
-                          <span>{autoplay ? 'Autoplay' : 'Manual'}</span>
+                          {isPaused ? <Pause size={12} /> : <Play size={12} />}
+                          <span>{isPaused ? 'Paused' : autoplay ? 'Autoplay' : 'Manual'}</span>
                         </div>
                       </div>
 
@@ -271,13 +339,27 @@ export default function Reels({ userId }) {
                         </div>
 
                         <div className="flex flex-col items-center gap-4 pb-4 w-12 flex-shrink-0">
-                          <button onClick={() => handleLike(reel.id)} className="flex flex-col items-center gap-1 group">
+                          <button onClick={() => setIsMuted((current) => !current)} className="flex flex-col items-center gap-1 group relative z-10">
+                            <div className="w-11 h-11 rounded-full bg-black/22 backdrop-blur-sm flex items-center justify-center group-hover:bg-black/40 transition">
+                              {isMuted ? <VolumeX size={20} className="text-white" /> : <Volume2 size={20} className="text-white" />}
+                            </div>
+                            <span className="text-white text-[11px] drop-shadow font-mono">{isMuted ? 'Muted' : 'Sound'}</span>
+                          </button>
+                          {reel.user_id !== userId && (
+                            <button onClick={() => handleMessageCreator(reel)} className="flex flex-col items-center gap-1 group relative z-10">
+                              <div className="w-11 h-11 rounded-full bg-black/22 backdrop-blur-sm flex items-center justify-center group-hover:bg-black/40 transition">
+                                <Send size={20} className="text-white" />
+                              </div>
+                              <span className="text-white text-[11px] drop-shadow font-mono">Chat</span>
+                            </button>
+                          )}
+                          <button onClick={() => handleLike(reel.id)} className="flex flex-col items-center gap-1 group relative z-10">
                             <div className="w-11 h-11 rounded-full bg-black/22 backdrop-blur-sm flex items-center justify-center group-hover:bg-black/40 transition">
                               <Heart size={22} className={reel.is_liked ? 'text-red-500 fill-red-500' : 'text-white'} />
                             </div>
                             <span className="text-white text-xs drop-shadow font-mono">{reel.likes_count}</span>
                           </button>
-                          <button onClick={() => setShowComments(reel.id)} className="flex flex-col items-center gap-1 group">
+                          <button onClick={() => setShowComments(reel.id)} className="flex flex-col items-center gap-1 group relative z-10">
                             <div className="w-11 h-11 rounded-full bg-black/22 backdrop-blur-sm flex items-center justify-center group-hover:bg-black/40 transition">
                               <MessageCircle size={22} className="text-white" />
                             </div>

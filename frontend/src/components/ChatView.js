@@ -26,6 +26,7 @@ import {
   FileText,
   Zap,
   ChevronDown,
+  Download,
 } from 'lucide-react';
 import axios from 'axios';
 import { API } from '../lib/api';
@@ -64,6 +65,24 @@ function formatExpiry(time) {
   }
 }
 
+function formatFileSize(size = 0) {
+  if (!size) return 'Unknown size';
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function parseAttachmentPayload(content) {
+  if (!content || typeof content !== 'string') return null;
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed && typeof parsed === 'object' && parsed.name) {
+      return parsed;
+    }
+  } catch {}
+  return null;
+}
+
 function buildConversationSubtitle({ isGroup, conversation, isOnline, isTyping }) {
   if (isTyping) return 'typing...';
   const streakText = conversation.streak_count ? ` • ${conversation.streak_count} day streak` : '';
@@ -88,6 +107,7 @@ function MessageBubble({
   repliedMsg,
   isPinned,
   isMobile,
+  onPreviewImage,
 }) {
   const [showMenu, setShowMenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -122,6 +142,7 @@ function MessageBubble({
           src={msg.content}
           alt="Attachment"
           className="max-w-[220px] sm:max-w-xs md:max-w-sm h-auto rounded-2xl mt-1 cursor-pointer"
+          onClick={() => onPreviewImage?.(msg.content)}
         />
       );
     }
@@ -130,6 +151,34 @@ function MessageBubble({
       return (
         <div className="mt-1 flex items-center gap-2 bg-black/10 rounded-full p-1 pr-3">
           <audio controls src={msg.content} className={`${isMobile ? 'w-[180px]' : 'w-[220px]'} h-10`} />
+        </div>
+      );
+    }
+
+    if (msg.type === 'file') {
+      const attachment = parseAttachmentPayload(msg.content);
+      return (
+        <div className="mt-1 rounded-2xl border border-black/10 bg-black/5 p-3 min-w-[220px]">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-qc-surface flex items-center justify-center text-qc-accent-primary flex-shrink-0">
+              <FileText size={18} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-current truncate">{attachment?.name || 'Shared file'}</p>
+              <p className="text-[12px] text-gray-500 mt-1">
+                {attachment?.mime || 'File'} · {formatFileSize(attachment?.size)}
+              </p>
+            </div>
+            {attachment?.url && (
+              <a
+                href={attachment.url}
+                download={attachment?.name || 'attachment'}
+                className="w-9 h-9 rounded-full bg-qc-surface flex items-center justify-center text-qc-text-primary hover:bg-qc-surface-hover"
+              >
+                <Download size={16} />
+              </a>
+            )}
+          </div>
         </div>
       );
     }
@@ -269,11 +318,14 @@ export default function ChatArea({
   const [showQuickNote, setShowQuickNote] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [permissionNotice, setPermissionNotice] = useState('');
+  const [pendingAttachment, setPendingAttachment] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
   const messagesContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
   const typingTimeout = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+  const imageInputRef = useRef(null);
   const fileInputRef = useRef(null);
 
   const isGroup = conversation.type === 'group';
@@ -307,6 +359,7 @@ export default function ChatArea({
     setShowEmojiPicker(false);
     setShowAttachMenu(false);
     setShowJumpToBottom(false);
+    setPendingAttachment(null);
   }, [draftKey]);
 
   useEffect(() => {
@@ -342,6 +395,14 @@ export default function ChatArea({
     setReplyToMsg(null);
     setShowEmojiPicker(false);
     emitTyping(conversation.id, false);
+  };
+
+  const sendPendingAttachment = () => {
+    if (!pendingAttachment) return;
+    onSend(pendingAttachment.payload, pendingAttachment.messageType, replyToMsg?.id);
+    setPendingAttachment(null);
+    setReplyToMsg(null);
+    setShowAttachMenu(false);
   };
 
   const handleQuickReply = (reply) => {
@@ -409,24 +470,42 @@ export default function ChatArea({
     } catch {}
   };
 
-  const processFile = (file) => {
+  const processFile = (file, mode = 'file') => {
     const reader = new FileReader();
     reader.onload = (event) => {
-      if (file.type.startsWith('image/')) {
-        onSend(event.target.result, 'image', replyToMsg?.id);
-      } else {
-        onSend(`Shared file: ${file.name}`, 'text', replyToMsg?.id);
+      const result = event.target?.result;
+      if (mode === 'image' || file.type.startsWith('image/')) {
+        setPendingAttachment({
+          messageType: 'image',
+          payload: result,
+          fileName: file.name,
+          mime: file.type,
+          previewUrl: result,
+        });
+        setShowAttachMenu(false);
+        return;
       }
-      setReplyToMsg(null);
+
+      setPendingAttachment({
+        messageType: 'file',
+        payload: JSON.stringify({
+          name: file.name,
+          size: file.size,
+          mime: file.type || 'application/octet-stream',
+          url: file.size <= 2 * 1024 * 1024 ? result : '',
+        }),
+        fileName: file.name,
+        mime: file.type || 'application/octet-stream',
+      });
       setShowAttachMenu(false);
     };
     reader.readAsDataURL(file);
   };
 
-  const handleFileChange = (event) => {
+  const handleFileChange = (event, mode = 'file') => {
     const file = event.target.files[0];
     if (!file) return;
-    processFile(file);
+    processFile(file, mode);
     event.target.value = '';
   };
 
@@ -444,7 +523,7 @@ export default function ChatArea({
     event.preventDefault();
     setIsDragging(false);
     if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
-      processFile(event.dataTransfer.files[0]);
+      processFile(event.dataTransfer.files[0], event.dataTransfer.files[0].type.startsWith('image/') ? 'image' : 'file');
       event.dataTransfer.clearData();
     }
   };
@@ -730,6 +809,7 @@ export default function ChatArea({
                 repliedMsg={repliedMsg}
                 isPinned={conversation.pinned_message_id === message.id}
                 isMobile={isMobile}
+                onPreviewImage={setPreviewImage}
               />
             </React.Fragment>
           );
@@ -754,6 +834,30 @@ export default function ChatArea({
             <p className="text-[13px] text-qc-text-secondary truncate">{replyToMsg.type === 'text' ? replyToMsg.content : (replyToMsg.type === 'image' ? 'Photo' : 'Audio')}</p>
           </div>
           <button onClick={() => setReplyToMsg(null)} className="text-qc-text-secondary hover:text-qc-text-primary p-2"><X size={20} /></button>
+        </div>
+      )}
+
+      {pendingAttachment && (
+        <div className="bg-qc-surface-hover px-4 py-3 border-t border-qc-border relative z-20">
+          <div className="rounded-[22px] border border-qc-border bg-qc-surface p-3 flex items-center gap-3">
+            {pendingAttachment.previewUrl ? (
+              <img src={pendingAttachment.previewUrl} alt={pendingAttachment.fileName} className="w-14 h-14 rounded-2xl object-cover flex-shrink-0" />
+            ) : (
+              <div className="w-14 h-14 rounded-2xl bg-qc-accent-tertiary text-qc-accent-primary flex items-center justify-center flex-shrink-0">
+                <FileText size={20} />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-qc-text-primary truncate">{pendingAttachment.fileName}</p>
+              <p className="text-xs text-qc-text-secondary mt-1">{pendingAttachment.mime || 'Attachment ready'}</p>
+            </div>
+            <button onClick={() => setPendingAttachment(null)} className="w-9 h-9 rounded-full border border-qc-border text-qc-text-secondary hover:text-qc-text-primary">
+              <X size={16} className="mx-auto" />
+            </button>
+            <button onClick={sendPendingAttachment} className="h-10 px-4 rounded-full bg-qc-accent-primary text-white text-sm font-medium hover:bg-qc-accent-secondary">
+              Send
+            </button>
+          </div>
         </div>
       )}
 
@@ -808,9 +912,10 @@ export default function ChatArea({
       )}
 
       <div className={`bg-qc-surface-hover px-3 md:px-4 py-2.5 flex items-end gap-2 flex-shrink-0 relative z-20 border-t border-qc-border ${isMobile && !keyboardOpen ? 'pb-[calc(0.7rem+env(safe-area-inset-bottom))]' : ''}`}>
-        <input type="file" accept="image/*,.pdf,.txt,.doc,.docx" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
+        <input type="file" accept="image/*" className="hidden" ref={imageInputRef} onChange={(event) => handleFileChange(event, 'image')} />
+        <input type="file" accept=".pdf,.txt,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip" className="hidden" ref={fileInputRef} onChange={(event) => handleFileChange(event, 'file')} />
 
-        {!input.trim() && !isRecording && !showEmojiPicker && !showAttachMenu && (
+        {!input.trim() && !isRecording && !showEmojiPicker && !showAttachMenu && !pendingAttachment && (
           <div className={`${isMobile ? 'fixed inset-x-3 bottom-[calc(var(--mobile-nav-height)+5.05rem)]' : 'absolute bottom-16 left-4 right-4'} z-30 flex gap-2 overflow-x-auto hide-scrollbar pointer-events-auto`}>
             {QUICK_REPLIES.map((reply) => (
               <button
@@ -851,7 +956,9 @@ export default function ChatArea({
           )}
         </div>
 
-        {input.trim() ? (
+        {pendingAttachment ? (
+          <button onClick={sendPendingAttachment} className="p-2.5 bg-qc-accent-primary text-white rounded-full hover:bg-qc-accent-secondary transition-colors"><Send size={20} className="ml-0.5" /></button>
+        ) : input.trim() ? (
           <button onClick={handleSend} className="p-2.5 bg-qc-accent-primary text-white rounded-full hover:bg-qc-accent-secondary transition-colors"><Send size={20} className="ml-0.5" /></button>
         ) : isRecording ? (
           <button onClick={stopRecording} className="p-2.5 bg-[#FF3333] text-white rounded-full hover:bg-red-600 transition-colors"><Square size={20} className="fill-current" /></button>
@@ -871,9 +978,15 @@ export default function ChatArea({
 
         {showAttachMenu && (
           <div className={`${isMobile ? 'fixed inset-x-3 bottom-[calc(var(--mobile-nav-height)+4.75rem)]' : 'absolute bottom-14 left-14 w-56'} rounded-2xl border border-qc-border bg-qc-surface shadow-xl p-2 animate-fadeIn z-40`}>
-            <button onClick={() => fileInputRef.current?.click()} className="w-full text-left px-3 py-3 rounded-xl hover:bg-qc-surface-hover text-sm flex items-center gap-3"><ImageIcon size={17} /> Attach photo</button>
+            <button onClick={() => imageInputRef.current?.click()} className="w-full text-left px-3 py-3 rounded-xl hover:bg-qc-surface-hover text-sm flex items-center gap-3"><ImageIcon size={17} /> Attach photo</button>
             <button onClick={() => fileInputRef.current?.click()} className="w-full text-left px-3 py-3 rounded-xl hover:bg-qc-surface-hover text-sm flex items-center gap-3"><FileText size={17} /> Attach file</button>
             <button onClick={handleQuickNote} className="w-full text-left px-3 py-3 rounded-xl hover:bg-qc-surface-hover text-sm flex items-center gap-3"><Zap size={17} /> Drop quick note</button>
+          </div>
+        )}
+
+        {previewImage && (
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setPreviewImage(null)}>
+            <img src={previewImage} alt="Preview" className="max-h-full max-w-full rounded-[28px] shadow-[0_24px_80px_rgba(0,0,0,0.45)]" />
           </div>
         )}
       </div>
