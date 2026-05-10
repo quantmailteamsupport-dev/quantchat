@@ -139,34 +139,40 @@ export default function Reels({ userId }) {
       </div>
 
       {showCreate && (
-        <div className="absolute inset-x-4 bottom-24 md:top-28 md:right-5 md:left-auto md:bottom-auto md:w-[420px] z-20 p-5 rounded-[28px] bg-[#0e1930] border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.34)] space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="font-heading text-lg text-white">Create Reel</span>
-            <button onClick={() => setShowCreate(false)} className="text-white/75 hover:text-white">
-              <X size={16} />
-            </button>
+        <div className="absolute inset-0 z-20 bg-[#020814]/72 backdrop-blur-sm flex items-end md:items-start md:justify-end" onClick={() => setShowCreate(false)}>
+          <div className="w-full md:w-[420px] md:mt-28 md:mr-5 max-h-[100dvh] md:max-h-[min(760px,88dvh)] rounded-t-[28px] md:rounded-[28px] bg-[#0e1930] border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.34)] flex flex-col overflow-hidden" onClick={(event) => event.stopPropagation()}>
+            <div className="flex justify-between items-center p-5 border-b border-white/10 flex-shrink-0">
+              <span className="font-heading text-lg text-white">Create Reel</span>
+              <button onClick={() => setShowCreate(false)} className="text-white/75 hover:text-white">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4 flex-1 overflow-y-auto pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+              <input
+                type="text"
+                value={newReelUrl}
+                onChange={(event) => setNewReelUrl(event.target.value)}
+                placeholder="Video or image URL"
+                className="w-full bg-white/8 border border-white/10 text-white text-sm px-4 py-3 rounded-2xl"
+              />
+              <textarea
+                value={newReelCaption}
+                onChange={(event) => setNewReelCaption(event.target.value)}
+                placeholder="Caption..."
+                rows={4}
+                className="w-full bg-white/8 border border-white/10 text-white text-sm px-4 py-3 resize-none rounded-2xl"
+              />
+            </div>
+            <div className="p-5 pt-4 border-t border-white/10 bg-[#0e1930] flex-shrink-0 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+              <button
+                onClick={createReel}
+                disabled={!newReelUrl}
+                className="w-full bg-qc-accent-primary hover:bg-qc-accent-secondary text-white py-3 rounded-2xl text-sm disabled:opacity-50"
+              >
+                Publish reel
+              </button>
+            </div>
           </div>
-          <input
-            type="text"
-            value={newReelUrl}
-            onChange={(event) => setNewReelUrl(event.target.value)}
-            placeholder="Video or image URL"
-            className="w-full bg-white/8 border border-white/10 text-white text-sm px-4 py-3 rounded-2xl"
-          />
-          <textarea
-            value={newReelCaption}
-            onChange={(event) => setNewReelCaption(event.target.value)}
-            placeholder="Caption..."
-            rows={3}
-            className="w-full bg-white/8 border border-white/10 text-white text-sm px-4 py-3 resize-none rounded-2xl"
-          />
-          <button
-            onClick={createReel}
-            disabled={!newReelUrl}
-            className="w-full bg-qc-accent-primary hover:bg-qc-accent-secondary text-white py-3 rounded-2xl text-sm disabled:opacity-50"
-          >
-            Publish reel
-          </button>
         </div>
       )}
 
@@ -215,7 +221,7 @@ export default function Reels({ userId }) {
                 const isVideo = /\.(mp4|webm|ogg)$/i.test(reel.media_url);
                 return (
                   <div key={reel.id} className="h-full snap-start flex items-center justify-center pb-4">
-                    <div className="relative w-full max-w-[430px] h-full min-h-[520px] rounded-[34px] overflow-hidden border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.38)] bg-black">
+                    <div className="relative w-full max-w-[430px] h-full min-h-[min(520px,calc(100dvh-270px))] rounded-[34px] overflow-hidden border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.38)] bg-black">
                       {isVideo ? (
                         <video
                           src={reel.media_url}

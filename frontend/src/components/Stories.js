@@ -87,7 +87,7 @@ function StoryViewer({ stories, activeIndex, onClose, autoAdvance }) {
           </div>
         </div>
 
-        <div className="relative min-h-[420px] sm:min-h-[520px] flex items-center justify-center" style={{ backgroundColor: payload.bg }}>
+        <div className="relative min-h-[min(420px,calc(100dvh-190px))] sm:min-h-[520px] flex items-center justify-center" style={{ backgroundColor: payload.bg }}>
           <div className="max-w-xl px-8 text-center">
             <p className="text-white text-2xl sm:text-4xl font-semibold whitespace-pre-wrap break-words leading-tight">
               {payload.text}
@@ -228,15 +228,15 @@ export default function Stories({ userId }) {
       </div>
 
       {showComposer && (
-        <div className="absolute inset-0 z-30 bg-black/60 flex items-end sm:items-center justify-center p-4" onClick={() => setShowComposer(false)}>
-          <div className="w-full max-w-[460px] bg-qc-surface border border-qc-border rounded-[28px] overflow-hidden shadow-[0_24px_70px_rgba(19,31,51,0.24)]" onClick={(event) => event.stopPropagation()}>
-            <div className="h-14 border-b border-qc-border px-5 flex items-center justify-between">
+        <div className="absolute inset-0 z-30 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setShowComposer(false)}>
+          <div className="w-full max-w-[460px] max-h-[100dvh] sm:max-h-[min(760px,92dvh)] bg-qc-surface border border-qc-border rounded-t-[28px] sm:rounded-[28px] overflow-hidden shadow-[0_24px_70px_rgba(19,31,51,0.24)] flex flex-col" onClick={(event) => event.stopPropagation()}>
+            <div className="h-14 border-b border-qc-border px-5 flex items-center justify-between flex-shrink-0">
               <span className="text-qc-text-primary font-heading text-xl">Create Story</span>
               <button onClick={() => setShowComposer(false)} className="text-qc-text-secondary hover:text-qc-text-primary">
                 <X size={18} />
               </button>
             </div>
-            <div className="p-5 space-y-4">
+            <div className="p-5 space-y-4 flex-1 overflow-y-auto pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
               <div className="flex gap-2 flex-wrap">
                 {COLORS.map((color) => (
                   <button
@@ -255,6 +255,8 @@ export default function Stories({ userId }) {
                 className="w-full h-44 rounded-[24px] p-5 text-white placeholder:text-white/70 resize-none outline-none"
                 style={{ backgroundColor: bgColor }}
               />
+            </div>
+            <div className="p-5 pt-4 border-t border-qc-border bg-qc-surface flex-shrink-0 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
               <button
                 data-testid="submit-story"
                 onClick={createStory}

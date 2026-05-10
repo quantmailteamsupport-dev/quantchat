@@ -28,8 +28,11 @@ export default function ChatApp() {
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const [typingUsers, setTypingUsers] = useState({});
   const [isMobileView, setIsMobileView] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+  const [appHeight, setAppHeight] = useState('100dvh');
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const socketRef = useRef(null);
+  const baseViewportHeightRef = useRef(0);
 
   const loadConversations = useCallback(async () => {
     try {
@@ -56,11 +59,48 @@ export default function ChatApp() {
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
 
-    const handleResize = () => setIsMobileView(window.innerWidth < 768);
+    const isEditableTarget = () => {
+      const active = document.activeElement;
+      if (!active) return false;
+      return (
+        active.tagName === 'INPUT' ||
+        active.tagName === 'TEXTAREA' ||
+        active.getAttribute('contenteditable') === 'true'
+      );
+    };
 
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const updateViewport = () => {
+      const viewport = window.visualViewport;
+      const viewportHeight = viewport?.height || window.innerHeight;
+      const viewportOffsetTop = viewport?.offsetTop || 0;
+      const nextIsMobile = window.innerWidth < 768;
+      const effectiveHeight = Math.max(viewportHeight + viewportOffsetTop, viewportHeight);
+
+      if (!baseViewportHeightRef.current || (!isEditableTarget() && effectiveHeight > baseViewportHeightRef.current - 40)) {
+        baseViewportHeightRef.current = effectiveHeight;
+      }
+
+      const keyboardDelta = baseViewportHeightRef.current - effectiveHeight;
+      const keyboardLikelyOpen = nextIsMobile && isEditableTarget() && keyboardDelta > 160;
+
+      setAppHeight(`${effectiveHeight}px`);
+      setIsMobileView(nextIsMobile);
+      setIsKeyboardOpen(keyboardLikelyOpen);
+    };
+
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    window.visualViewport?.addEventListener('resize', updateViewport);
+    window.visualViewport?.addEventListener('scroll', updateViewport);
+    window.addEventListener('focusin', updateViewport);
+    window.addEventListener('focusout', updateViewport);
+    return () => {
+      window.removeEventListener('resize', updateViewport);
+      window.visualViewport?.removeEventListener('resize', updateViewport);
+      window.visualViewport?.removeEventListener('scroll', updateViewport);
+      window.removeEventListener('focusin', updateViewport);
+      window.removeEventListener('focusout', updateViewport);
+    };
   }, []);
 
   useEffect(() => {
@@ -260,6 +300,7 @@ export default function ChatApp() {
           onReloadMessages={loadMessages}
           onReloadConversations={loadConversations}
           isMobile={isMobileView}
+          keyboardOpen={isKeyboardOpen}
           onConversationUpdate={setActiveConv}
         />
       );
@@ -284,7 +325,15 @@ export default function ChatApp() {
   };
 
   return (
-    <div data-testid="chat-app" className="h-screen w-screen bg-[#0A1014] flex items-center justify-center overflow-hidden xl:py-4 xl:px-4">
+    <div
+      data-testid="chat-app"
+      className="w-screen bg-[#0A1014] flex items-center justify-center overflow-hidden xl:py-4 xl:px-4"
+      style={{
+        height: appHeight,
+        minHeight: '100svh',
+        '--mobile-nav-height': isKeyboardOpen ? '0px' : '74px',
+      }}
+    >
       <div className="flex h-full w-full xl:max-w-[1600px] xl:h-[95vh] bg-qc-surface xl:shadow-lg xl:rounded-xl overflow-hidden relative">
         <div className={`w-full md:w-[400px] flex-shrink-0 border-r border-qc-border bg-qc-surface flex flex-col ${isMobileView && showChat ? 'hidden' : 'flex'}`}>
           <LeftPanel
@@ -307,11 +356,11 @@ export default function ChatApp() {
           />
         </div>
 
-        <div className={`flex-1 flex flex-col bg-qc-bg ${isMobileView && !showChat ? 'hidden' : 'flex'} ${isMobileView ? 'pb-[88px]' : ''}`}>
+        <div className={`flex-1 flex flex-col bg-qc-bg ${isMobileView && !showChat ? 'hidden' : 'flex'} ${isMobileView && !isKeyboardOpen ? 'pb-[var(--mobile-nav-height)]' : ''}`}>
           {renderMainContent()}
         </div>
 
-        {isMobileView && (
+        {isMobileView && !isKeyboardOpen && (
           <div className="absolute inset-x-0 bottom-0 z-40 border-t border-qc-border bg-[rgba(9,17,31,0.94)] backdrop-blur-xl px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
             <div className="grid grid-cols-5 gap-1">
               {MOBILE_NAV_ITEMS.map((item) => {

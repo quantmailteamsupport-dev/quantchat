@@ -22,11 +22,17 @@ import {
   PhoneOff,
   MicOff,
   VideoOff,
+  Image as ImageIcon,
+  FileText,
+  Zap,
+  ChevronDown,
 } from 'lucide-react';
 import axios from 'axios';
 import { API } from '../lib/api';
 
 const EMOJIS = ['\u{1F44D}', '\u2764\uFE0F', '\u{1F602}', '\u{1F62E}', '\u{1F622}', '\u{1F525}', '\u{1F389}', '\u{1F4AF}', '\u{1F64F}', '\u{1F440}', '\u2728', '\u{1F91D}'];
+const FIRE = '\u{1F525}';
+const QUICK_REPLIES = ['On my way', 'Seen', 'Give me 5', 'Call me', 'Send photo'];
 const DISAPPEARING_OPTIONS = [
   { label: 'Off', minutes: 0 },
   { label: '5 min', minutes: 5 },
@@ -98,8 +104,8 @@ function MessageBubble({
       }
     }
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('pointerdown', handleClickOutside);
+    return () => document.removeEventListener('pointerdown', handleClickOutside);
   }, []);
 
   const handleEditSubmit = () => {
@@ -241,6 +247,7 @@ export default function ChatArea({
   onReloadMessages,
   onReloadConversations,
   isMobile,
+  keyboardOpen,
   onConversationUpdate,
 }) {
   const [input, setInput] = useState('');
@@ -257,6 +264,12 @@ export default function ChatArea({
   const [recordingTime, setRecordingTime] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [activeCall, setActiveCall] = useState(null);
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
+  const [quickNoteDraft, setQuickNoteDraft] = useState('');
+  const [showQuickNote, setShowQuickNote] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [permissionNotice, setPermissionNotice] = useState('');
+  const messagesContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
   const typingTimeout = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -272,10 +285,37 @@ export default function ChatArea({
       ? messages.filter((message) => (message.content || '').toLowerCase().includes(searchTerm.toLowerCase()))
       : []
   ), [messages, searchTerm]);
+  const draftKey = `qc_draft_${conversation.id}`;
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!messagesContainerRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 180;
+    if (isNearBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setShowJumpToBottom(false);
+    }
   }, [messages]);
+
+  useEffect(() => {
+    setInput(localStorage.getItem(draftKey) || '');
+    setReplyToMsg(null);
+    setShowEmojiPicker(false);
+    setShowAttachMenu(false);
+    setShowJumpToBottom(false);
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (input.trim()) {
+      localStorage.setItem(draftKey, input);
+    } else {
+      localStorage.removeItem(draftKey);
+    }
+  }, [draftKey, input]);
 
   useEffect(() => {
     let interval;
@@ -298,9 +338,16 @@ export default function ChatArea({
     if (!input.trim()) return;
     onSend(input.trim(), 'text', replyToMsg?.id);
     setInput('');
+    localStorage.removeItem(draftKey);
     setReplyToMsg(null);
     setShowEmojiPicker(false);
     emitTyping(conversation.id, false);
+  };
+
+  const handleQuickReply = (reply) => {
+    setInput((current) => (current.trim() ? `${current.trim()} ${reply}` : reply));
+    setShowEmojiPicker(false);
+    setShowAttachMenu(false);
   };
 
   const handleInputChange = (event) => {
@@ -311,7 +358,7 @@ export default function ChatArea({
   };
 
   const handleKeyDown = (event) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
+    if (!isMobile && event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       handleSend();
     }
@@ -423,7 +470,7 @@ export default function ChatArea({
       mediaRecorder.start();
       setIsRecording(true);
     } catch {
-      window.alert('Microphone access denied.');
+      setPermissionNotice('Microphone permission is blocked. Enable it in browser or app settings to send voice notes.');
     }
   };
 
@@ -436,24 +483,39 @@ export default function ChatArea({
   };
 
   const handleQuickNote = () => {
-    const note = window.prompt('Drop a quick note');
-    if (note?.trim()) {
-      onSend(`Snap note: ${note.trim()}`, 'text', replyToMsg?.id);
-      setReplyToMsg(null);
-      setShowAttachMenu(false);
-    }
+    setQuickNoteDraft('');
+    setShowQuickNote(true);
+    setShowAttachMenu(false);
+  };
+
+  const sendQuickNote = (note = quickNoteDraft) => {
+    if (!note.trim()) return;
+    onSend(`Snap note: ${note.trim()}`, 'text', replyToMsg?.id);
+    setReplyToMsg(null);
+    setQuickNoteDraft('');
+    setShowQuickNote(false);
   };
 
   const handleClearChat = async () => {
-    const confirmed = window.confirm('Clear all messages in this chat?');
-    if (!confirmed) return;
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       await axios.post(`${API}/api/conversations/${conversation.id}/clear`, {}, { headers });
       setShowChatMenu(false);
+      setShowClearConfirm(false);
       onReloadMessages?.(conversation.id);
       onReloadConversations?.();
     } catch {}
+  };
+
+  const handleMessagesScroll = () => {
+    if (!messagesContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    setShowJumpToBottom(scrollHeight - scrollTop - clientHeight > 220);
+  };
+
+  const jumpToLatest = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setShowJumpToBottom(false);
   };
 
   let lastDate = null;
@@ -563,7 +625,7 @@ export default function ChatArea({
                 <span className="text-qc-text-tertiary text-xs">{formatDisappearingLabel(conversation.disappearing_minutes)}</span>
               </button>
               <button onClick={() => { onReloadMessages?.(conversation.id); setShowChatMenu(false); }} className="w-full text-left px-4 py-3 text-sm hover:bg-qc-surface-hover">Reload messages</button>
-              <button onClick={handleClearChat} className="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-qc-surface-hover">Clear chat</button>
+              <button onClick={() => { setShowClearConfirm(true); setShowChatMenu(false); }} className="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-qc-surface-hover">Clear chat</button>
             </div>
           )}
 
@@ -613,7 +675,7 @@ export default function ChatArea({
       {(conversation.disappearing_minutes > 0 || conversation.streak_count > 0) && (
         <div className={`bg-qc-surface px-4 py-2 border-b border-qc-border text-xs text-qc-text-secondary relative z-10 ${isMobile ? 'flex flex-col items-start gap-1' : 'flex items-center justify-between'}`}>
           <span>{conversation.disappearing_minutes > 0 ? `Snaps vanish after ${formatDisappearingLabel(conversation.disappearing_minutes)}` : 'Disappear timer off'}</span>
-          {conversation.streak_count > 0 && <span className="text-qc-accent-primary font-medium">🔥 {conversation.streak_count} day streak</span>}
+          {conversation.streak_count > 0 && <span className="text-qc-accent-primary font-medium">{FIRE} {conversation.streak_count} day streak</span>}
         </div>
       )}
 
@@ -628,7 +690,11 @@ export default function ChatArea({
         </div>
       )}
 
-      <div className={`flex-1 overflow-y-auto py-4 space-y-1 relative z-10 ${isMobile ? 'px-3' : 'px-4 sm:px-[5%] md:px-[10%]'}`}>
+      <div
+        ref={messagesContainerRef}
+        onScroll={handleMessagesScroll}
+        className={`flex-1 overflow-y-auto py-4 space-y-1 relative z-10 ${isMobile ? 'px-3' : 'px-4 sm:px-[5%] md:px-[10%]'}`}
+      >
         {messages.length === 0 ? (
           <div className="flex justify-center mt-10">
             <div className="bg-[#FFEECD] text-[#54656F] text-[12.5px] px-4 py-2 rounded-lg shadow-sm text-center max-w-sm">
@@ -671,6 +737,16 @@ export default function ChatArea({
         <div ref={messagesEndRef} />
       </div>
 
+      {showJumpToBottom && (
+        <button
+          onClick={jumpToLatest}
+          className="absolute right-4 bottom-24 z-30 h-10 w-10 rounded-full border border-qc-border bg-qc-surface text-qc-text-primary shadow-xl flex items-center justify-center hover:bg-qc-surface-hover"
+          title="Jump to latest"
+        >
+          <ChevronDown size={19} />
+        </button>
+      )}
+
       {replyToMsg && (
         <div className="bg-qc-surface-hover px-4 py-2 flex items-center justify-between border-l-4 border-qc-accent-primary relative z-20 shadow-sm border-t border-qc-border">
           <div className="flex-1 min-w-0">
@@ -681,8 +757,72 @@ export default function ChatArea({
         </div>
       )}
 
-      <div className={`bg-qc-surface-hover px-3 md:px-4 py-2.5 flex items-end gap-2 flex-shrink-0 relative z-20 border-t border-qc-border ${isMobile ? 'pb-[calc(0.7rem+env(safe-area-inset-bottom))]' : ''}`}>
+      {(showQuickNote || showClearConfirm || permissionNotice) && (
+        <div className="absolute inset-0 z-50 bg-black/45 backdrop-blur-sm flex items-end sm:items-center justify-center p-3" onClick={() => { setShowQuickNote(false); setShowClearConfirm(false); setPermissionNotice(''); }}>
+          <div className="w-full max-w-sm rounded-[24px] border border-qc-border bg-qc-surface shadow-xl overflow-hidden animate-slideUp" onClick={(event) => event.stopPropagation()}>
+            {showQuickNote && (
+              <>
+                <div className="px-4 py-3 border-b border-qc-border flex items-center justify-between">
+                  <span className="text-sm font-semibold text-qc-text-primary">Quick note</span>
+                  <button onClick={() => setShowQuickNote(false)} className="text-qc-text-secondary"><ChevronDown size={18} /></button>
+                </div>
+                <div className="p-4 space-y-3">
+                  <textarea
+                    value={quickNoteDraft}
+                    onChange={(event) => setQuickNoteDraft(event.target.value)}
+                    placeholder="Write a short snap note"
+                    className="w-full min-h-[96px] rounded-2xl border border-qc-border bg-qc-surface-hover px-4 py-3 text-sm text-qc-text-primary resize-none"
+                  />
+                  <div className="flex gap-2 overflow-x-auto hide-scrollbar">
+                    {QUICK_REPLIES.map((reply) => (
+                      <button key={reply} onClick={() => sendQuickNote(reply)} className="rounded-full border border-qc-border bg-qc-surface-hover px-3 py-2 text-xs text-qc-text-primary whitespace-nowrap">
+                        {reply}
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={() => sendQuickNote()} disabled={!quickNoteDraft.trim()} className="w-full rounded-2xl bg-qc-accent-primary py-3 text-sm font-semibold text-white disabled:opacity-40">
+                    Send note
+                  </button>
+                </div>
+              </>
+            )}
+            {showClearConfirm && (
+              <div className="p-4">
+                <h3 className="text-base font-semibold text-qc-text-primary">Clear this chat?</h3>
+                <p className="mt-2 text-sm text-qc-text-secondary">This removes the visible messages in this conversation.</p>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button onClick={() => setShowClearConfirm(false)} className="rounded-2xl border border-qc-border py-3 text-sm text-qc-text-primary">Cancel</button>
+                  <button onClick={handleClearChat} className="rounded-2xl bg-red-500 py-3 text-sm font-semibold text-white">Clear</button>
+                </div>
+              </div>
+            )}
+            {permissionNotice && (
+              <div className="p-4">
+                <h3 className="text-base font-semibold text-qc-text-primary">Permission needed</h3>
+                <p className="mt-2 text-sm text-qc-text-secondary">{permissionNotice}</p>
+                <button onClick={() => setPermissionNotice('')} className="mt-4 w-full rounded-2xl bg-qc-accent-primary py-3 text-sm font-semibold text-white">Okay</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className={`bg-qc-surface-hover px-3 md:px-4 py-2.5 flex items-end gap-2 flex-shrink-0 relative z-20 border-t border-qc-border ${isMobile && !keyboardOpen ? 'pb-[calc(0.7rem+env(safe-area-inset-bottom))]' : ''}`}>
         <input type="file" accept="image/*,.pdf,.txt,.doc,.docx" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
+
+        {!input.trim() && !isRecording && !showEmojiPicker && !showAttachMenu && (
+          <div className={`${isMobile ? 'fixed inset-x-3 bottom-[calc(var(--mobile-nav-height)+5.05rem)]' : 'absolute bottom-16 left-4 right-4'} z-30 flex gap-2 overflow-x-auto hide-scrollbar pointer-events-auto`}>
+            {QUICK_REPLIES.map((reply) => (
+              <button
+                key={reply}
+                onClick={() => handleQuickReply(reply)}
+                className="shrink-0 rounded-full border border-qc-border bg-qc-surface px-3 py-1.5 text-xs text-qc-text-secondary shadow-sm hover:bg-qc-surface-hover hover:text-qc-text-primary"
+              >
+                {reply}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="relative">
           <button onClick={() => { setShowEmojiPicker((value) => !value); setShowAttachMenu(false); }} className={`p-2 rounded-full ${showEmojiPicker ? 'text-qc-accent-primary' : 'text-qc-text-secondary hover:text-qc-text-primary'}`}><Smile size={24} /></button>
@@ -702,6 +842,7 @@ export default function ChatArea({
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
+              enterKeyHint="send"
               placeholder="Type a message"
               className={`flex-1 bg-transparent text-qc-text-primary px-2 py-2.5 resize-none max-h-[120px] focus:outline-none overflow-y-auto ${isMobile ? 'text-base' : 'text-[15px]'}`}
               rows={1}
@@ -719,7 +860,7 @@ export default function ChatArea({
         )}
 
         {showEmojiPicker && (
-          <div className={`${isMobile ? 'fixed inset-x-3 bottom-24' : 'absolute bottom-14 left-4'} rounded-2xl border border-qc-border bg-qc-surface shadow-xl p-3 grid grid-cols-4 gap-2 animate-fadeIn z-40`}>
+          <div className={`${isMobile ? 'fixed inset-x-3 bottom-[calc(var(--mobile-nav-height)+4.75rem)]' : 'absolute bottom-14 left-4'} rounded-2xl border border-qc-border bg-qc-surface shadow-xl p-3 grid grid-cols-4 gap-2 animate-fadeIn z-40`}>
             {EMOJIS.map((emoji) => (
               <button key={emoji} onClick={() => setInput((current) => `${current}${emoji}`)} className="h-11 rounded-xl hover:bg-qc-surface-hover text-2xl">
                 {emoji}
@@ -729,9 +870,10 @@ export default function ChatArea({
         )}
 
         {showAttachMenu && (
-          <div className={`${isMobile ? 'fixed inset-x-3 bottom-24' : 'absolute bottom-14 left-14 w-48'} rounded-2xl border border-qc-border bg-qc-surface shadow-xl p-2 animate-fadeIn z-40`}>
-            <button onClick={() => fileInputRef.current?.click()} className="w-full text-left px-3 py-3 rounded-xl hover:bg-qc-surface-hover text-sm">Attach photo</button>
-            <button onClick={handleQuickNote} className="w-full text-left px-3 py-3 rounded-xl hover:bg-qc-surface-hover text-sm">Drop quick note</button>
+          <div className={`${isMobile ? 'fixed inset-x-3 bottom-[calc(var(--mobile-nav-height)+4.75rem)]' : 'absolute bottom-14 left-14 w-56'} rounded-2xl border border-qc-border bg-qc-surface shadow-xl p-2 animate-fadeIn z-40`}>
+            <button onClick={() => fileInputRef.current?.click()} className="w-full text-left px-3 py-3 rounded-xl hover:bg-qc-surface-hover text-sm flex items-center gap-3"><ImageIcon size={17} /> Attach photo</button>
+            <button onClick={() => fileInputRef.current?.click()} className="w-full text-left px-3 py-3 rounded-xl hover:bg-qc-surface-hover text-sm flex items-center gap-3"><FileText size={17} /> Attach file</button>
+            <button onClick={handleQuickNote} className="w-full text-left px-3 py-3 rounded-xl hover:bg-qc-surface-hover text-sm flex items-center gap-3"><Zap size={17} /> Drop quick note</button>
           </div>
         )}
       </div>
