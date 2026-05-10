@@ -203,7 +203,7 @@ export default function LoginPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="mt-2 block w-full rounded-[22px] border border-white/10 bg-white/6 px-4 py-3.5 text-sm text-white placeholder:text-white/28 focus:border-[#ffe56a]/55 focus:outline-none focus:ring-2 focus:ring-[#ffe56a]/18"
+                    className="auth-field mt-2 block w-full rounded-[22px] border px-4 py-3.5 text-sm focus:border-[#ffe56a]/55 focus:outline-none focus:ring-2 focus:ring-[#ffe56a]/18"
                   />
                 </div>
 
@@ -219,7 +219,7 @@ export default function LoginPage() {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="block w-full rounded-[22px] border border-white/10 bg-white/6 px-4 py-3.5 pr-12 text-sm text-white placeholder:text-white/28 focus:border-[#ffe56a]/55 focus:outline-none focus:ring-2 focus:ring-[#ffe56a]/18"
+                      className="auth-field block w-full rounded-[22px] border px-4 py-3.5 pr-12 text-sm focus:border-[#ffe56a]/55 focus:outline-none focus:ring-2 focus:ring-[#ffe56a]/18"
                     />
                     <button
                       data-testid="login-password-visibility-toggle"
@@ -349,19 +349,19 @@ export default function LoginPage() {
                 ))}
               </div>
 
-              <input data-testid="phone-number-input" value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} placeholder="Phone number" className="w-full rounded-[20px] border border-white/10 bg-white/6 px-4 py-3 text-sm text-white placeholder:text-white/28" />
+              <input data-testid="phone-number-input" value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} placeholder="Phone number" className="auth-field w-full rounded-[20px] border px-4 py-3 text-sm" />
 
               {(phoneMode === 'signup' || phoneMode === 'link') && (
                 <div className="grid gap-3">
-                  {phoneMode === 'signup' && <input data-testid="phone-name-input" value={phoneName} onChange={(event) => setPhoneName(event.target.value)} placeholder="Full name" className="w-full rounded-[20px] border border-white/10 bg-white/6 px-4 py-3 text-sm text-white placeholder:text-white/28" />}
-                  <input data-testid="phone-email-input" value={phoneEmail} onChange={(event) => setPhoneEmail(event.target.value)} placeholder="Email" className="w-full rounded-[20px] border border-white/10 bg-white/6 px-4 py-3 text-sm text-white placeholder:text-white/28" />
-                  <input data-testid="phone-password-input" type="password" value={phonePassword} onChange={(event) => setPhonePassword(event.target.value)} placeholder="Password" className="w-full rounded-[20px] border border-white/10 bg-white/6 px-4 py-3 text-sm text-white placeholder:text-white/28" />
+                  {phoneMode === 'signup' && <input data-testid="phone-name-input" value={phoneName} onChange={(event) => setPhoneName(event.target.value)} placeholder="Full name" className="auth-field w-full rounded-[20px] border px-4 py-3 text-sm" />}
+                  <input data-testid="phone-email-input" value={phoneEmail} onChange={(event) => setPhoneEmail(event.target.value)} placeholder="Email" className="auth-field w-full rounded-[20px] border px-4 py-3 text-sm" />
+                  <input data-testid="phone-password-input" type="password" value={phonePassword} onChange={(event) => setPhonePassword(event.target.value)} placeholder="Password" className="auth-field w-full rounded-[20px] border px-4 py-3 text-sm" />
                 </div>
               )}
 
               {otpRequested && (
                 <>
-                  <input data-testid="phone-otp-input" value={otpCode} onChange={(event) => setOtpCode(event.target.value)} placeholder="Enter OTP code" className="w-full rounded-[20px] border border-white/10 bg-white/6 px-4 py-3 text-sm text-white placeholder:text-white/28" />
+                  <input data-testid="phone-otp-input" value={otpCode} onChange={(event) => setOtpCode(event.target.value)} placeholder="Enter OTP code" className="auth-field w-full rounded-[20px] border px-4 py-3 text-sm" />
                   <div data-testid="phone-debug-otp" className="rounded-[20px] border border-[#ffe56a]/18 bg-[#ffe56a]/10 px-4 py-3 text-sm text-[#ffe56a]">
                     {firebaseReady ? otpDebugCode || 'Firebase OTP sent to device' : `Demo OTP: ${otpDebugCode || 'Generated after request'}`}
                   </div>

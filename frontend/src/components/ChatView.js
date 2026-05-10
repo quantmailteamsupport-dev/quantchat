@@ -253,7 +253,7 @@ function MessageBubble({
             <textarea
               value={editContent}
               onChange={(event) => setEditContent(event.target.value)}
-              className="w-full bg-white/60 border border-gray-300 rounded-xl p-2 text-[14.2px] resize-none focus:outline-none focus:ring-1 focus:ring-qc-accent-primary"
+              className="w-full bg-white/70 border border-gray-300 rounded-xl p-2 text-[14.2px] text-slate-900 placeholder:text-slate-500 resize-none focus:outline-none focus:ring-1 focus:ring-qc-accent-primary"
               rows={2}
             />
             <div className="flex gap-2 justify-end">
