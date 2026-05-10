@@ -550,6 +550,9 @@ async def add_group_member(conv_id: str, request: Request):
     await db.conversations.update_one({"_id": ObjectId(conv_id)}, {
         "$push": {"participant_ids": member_id, "participants": {"user_id": member_id, "name": new_user.get("name", ""), "avatar": new_user.get("avatar", "")}},
         "$set": {f"unread_counts.{member_id}": 0}
+    })
+    return {"message": "Member added"}
+
 @fastapi_app.post("/api/conversations/{conv_id}/pin_message")
 async def pin_chat_message(conv_id: str, body: PinMessageBody, request: Request):
     user = await get_current_user(request)
@@ -571,9 +574,6 @@ async def pin_chat_message(conv_id: str, body: PinMessageBody, request: Request)
         }, room=f"user_{pid}")
         
     return {"message": "Pinned message updated"}
-
-    })
-    return {"message": "Member added"}
 
 @fastapi_app.post("/api/conversations/{conv_id}/leave")
 async def leave_group(conv_id: str, request: Request):
