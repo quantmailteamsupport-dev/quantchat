@@ -178,25 +178,25 @@ export default function LeftPanel({
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] uppercase tracking-[0.24em] text-white/70">Daily streak</p>
-              <h3 className="font-heading text-xl leading-none mt-1">Social cockpit</h3>
-              <p className="text-xs text-white/80 mt-2 max-w-[18rem]">{isMobile ? 'Chats, stories aur spotlight ke beech fast switch.' : 'Chats pinned rakho, baaki stories aur spotlight ab main stage par open hote hain.'}</p>
+              <h3 className={`font-heading leading-none mt-1 ${isMobile ? 'text-lg' : 'text-xl'}`}>Social cockpit</h3>
+              <p className="text-xs text-white/80 mt-2 max-w-[18rem]">{isMobile ? 'Fast switch between chats, stories aur spotlight.' : 'Chats pinned rakho, baaki stories aur spotlight ab main stage par open hote hain.'}</p>
             </div>
-            <div className="rounded-2xl bg-white/15 px-3 py-2 text-right min-w-[78px]">
+            <div className={`rounded-2xl bg-white/15 text-right min-w-[78px] ${isMobile ? 'px-3 py-1.5' : 'px-3 py-2'}`}>
               <p className="text-[11px] uppercase tracking-[0.24em] text-white/70">Unread</p>
               <p className="text-xl font-semibold">{totalUnread}</p>
             </div>
           </div>
 
-          <div className={`mt-3 grid gap-2 ${isMobile ? 'grid-cols-2' : 'grid-cols-3'}`}>
-            <div className="rounded-2xl bg-white/12 px-3 py-2">
+          <div className="mt-3 grid gap-2 grid-cols-3">
+            <div className={`rounded-2xl bg-white/12 ${isMobile ? 'px-2.5 py-2' : 'px-3 py-2'}`}>
               <p className="text-[10px] uppercase tracking-[0.22em] text-white/65">Online</p>
               <p className="text-base font-semibold">{onlineDirectConversations}</p>
             </div>
-            <div className="rounded-2xl bg-white/12 px-3 py-2">
+            <div className={`rounded-2xl bg-white/12 ${isMobile ? 'px-2.5 py-2' : 'px-3 py-2'}`}>
               <p className="text-[10px] uppercase tracking-[0.22em] text-white/65">Squads</p>
               <p className="text-base font-semibold">{groupCount}</p>
             </div>
-            <div className={`rounded-2xl bg-white/12 px-3 py-2 ${isMobile ? 'col-span-2' : ''}`}>
+            <div className={`rounded-2xl bg-white/12 ${isMobile ? 'px-2.5 py-2' : 'px-3 py-2'}`}>
               <p className="text-[10px] uppercase tracking-[0.22em] text-white/65">Profile</p>
               <p className="text-base font-semibold truncate">{user?.role || 'user'}</p>
             </div>

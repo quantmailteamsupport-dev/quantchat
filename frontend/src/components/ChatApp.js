@@ -343,8 +343,6 @@ export default function ChatApp() {
           <LeftPanel
             user={user}
             logout={logout}
-            darkMode={darkMode}
-            toggleTheme={toggleTheme}
             conversations={conversations}
             activeConv={activeConv}
             onSelectConv={selectConversation}
