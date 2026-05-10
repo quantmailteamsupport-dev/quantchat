@@ -52,3 +52,11 @@ Deeply check karo kaisa bana hai app apk build kar ke do server pe check karo au
   - /app/deploy/quantchat-backend.service
   - /app/deploy/quantchat-nginx.conf
 - As soon as valid SSH access is available, server deployment can proceed immediately using the prepared script.
+
+
+## Latest Bug Fix Phase
+- Fixed invisible text / contrast issue on login and phone auth inputs by hardening auth field styles and autofill handling.
+- Fixed phone OTP modal cleanup so closing it no longer traps/block normal login flow in same session.
+- Fixed pre-login auth probe noise by skipping `/api/auth/me` request when no local auth token exists.
+- Fixed incoming chat bubble contrast risk by using bright text on dark incoming bubbles.
+- Live deployment updated and verified on http://52.66.196.236.

@@ -28,6 +28,11 @@ function AuthProvider({ children }) {
   const toggleTheme = () => setDarkMode(true);
 
   const checkAuth = useCallback(async () => {
+    if (!token) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const { data } = await axios.get(`${API}/api/auth/me`, { headers });

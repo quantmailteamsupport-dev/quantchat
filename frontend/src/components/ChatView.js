@@ -194,7 +194,7 @@ function MessageBubble({
       <div
         className={`max-w-[92%] sm:max-w-[72%] px-3 py-2 rounded-[22px] shadow-sm relative flex flex-col transition-all ${
           isPinned ? 'ring-2 ring-qc-accent-primary ring-offset-2 ring-offset-qc-bg' : ''
-        } ${isMine ? 'bg-qc-bubble-mine rounded-tr-md text-[#111B21]' : 'bg-qc-bubble-other rounded-tl-md text-[#111B21]'}`}
+        } ${isMine ? 'bg-qc-bubble-mine rounded-tr-md text-[#111B21]' : 'bg-qc-bubble-other rounded-tl-md text-white/92'}`}
       >
         <div
           className={`absolute top-1 right-1 p-1 cursor-pointer ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity z-10 ${
