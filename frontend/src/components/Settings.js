@@ -1,57 +1,126 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import axios from 'axios';
-import { User, Mail, Edit3, Save, Shield } from 'lucide-react';
+import { User, Mail, Edit3, Save, Shield, Moon, Sun, BellRing, PlayCircle, Radio } from 'lucide-react';
 import { API } from '../lib/api';
+import { useAuth } from '../App';
 
-export default function Settings({ user }) {
+const PREF_EVENT = 'qc-preferences-changed';
+
+function PreferenceRow({ icon: Icon, title, description, enabled, onToggle }) {
+  return (
+    <div className="rounded-[24px] border border-qc-border bg-qc-surface p-4 flex items-center justify-between gap-4">
+      <div className="flex items-start gap-3 min-w-0">
+        <div className="w-11 h-11 rounded-2xl bg-qc-accent-tertiary text-qc-accent-primary flex items-center justify-center flex-shrink-0">
+          <Icon size={18} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-qc-text-primary">{title}</p>
+          <p className="text-xs text-qc-text-secondary mt-1">{description}</p>
+        </div>
+      </div>
+
+      <button
+        onClick={onToggle}
+        className={`w-14 h-8 rounded-full transition-colors relative ${enabled ? 'bg-qc-accent-primary' : 'bg-qc-surface-hover border border-qc-border'}`}
+      >
+        <span
+          className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-sm transition-transform ${enabled ? 'translate-x-7 left-0' : 'translate-x-1 left-0'}`}
+        />
+      </button>
+    </div>
+  );
+}
+
+export default function Settings() {
+  const { user, setUser, darkMode, toggleTheme } = useAuth();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [bio, setBio] = useState(user?.bio || '');
   const [saving, setSaving] = useState(false);
+  const [preferences, setPreferences] = useState(() => ({
+    autoplayReels: localStorage.getItem('qc_pref_autoplay_reels') !== 'false',
+    storyAutoadvance: localStorage.getItem('qc_pref_story_autoadvance') !== 'false',
+    showPreviewHints: localStorage.getItem('qc_pref_preview_hints') !== 'false',
+  }));
   const token = localStorage.getItem('qc_token');
+
+  const stats = useMemo(() => ([
+    { label: 'Theme', value: darkMode ? 'Dark' : 'Light' },
+    { label: 'Profile mode', value: editing ? 'Editing' : 'Viewing' },
+    { label: 'Story flow', value: preferences.storyAutoadvance ? 'Auto' : 'Manual' },
+  ]), [darkMode, editing, preferences.storyAutoadvance]);
+
+  const broadcastPreferences = (nextPreferences) => {
+    localStorage.setItem('qc_pref_autoplay_reels', String(nextPreferences.autoplayReels));
+    localStorage.setItem('qc_pref_story_autoadvance', String(nextPreferences.storyAutoadvance));
+    localStorage.setItem('qc_pref_preview_hints', String(nextPreferences.showPreviewHints));
+    window.dispatchEvent(new Event(PREF_EVENT));
+  };
+
+  const togglePreference = (key) => {
+    setPreferences((current) => {
+      const next = { ...current, [key]: !current[key] };
+      broadcastPreferences(next);
+      return next;
+    });
+  };
 
   const handleSave = async () => {
     setSaving(true);
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       await axios.patch(`${API}/api/users/profile`, { name, bio }, { headers });
+      setUser((current) => current ? { ...current, name, bio } : current);
       setEditing(false);
     } catch {}
     setSaving(false);
   };
 
   return (
-    <div data-testid="settings-panel" className="flex flex-col h-full bg-qc-surface">
-      <div className="p-5 border-b-2 border-qc-border bg-[#D8B2D8]">
-        <h2 data-testid="settings-title" className="font-heading font-black text-2xl text-qc-text-primary uppercase tracking-tighter">CONFIG</h2>
+    <div data-testid="settings-panel" className="flex flex-col h-full bg-qc-bg">
+      <div className="px-5 py-4 border-b border-qc-border bg-qc-surface">
+        <p className="text-[10px] uppercase tracking-[0.24em] text-qc-text-tertiary">Profile cockpit</p>
+        <h2 data-testid="settings-title" className="font-heading text-2xl text-qc-text-primary mt-1">You</h2>
+
+        <div className="grid grid-cols-3 gap-3 mt-4">
+          {stats.map((stat) => (
+            <div key={stat.label} className="rounded-2xl border border-qc-border bg-qc-surface-hover px-4 py-3">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">{stat.label}</p>
+              <p className="text-sm font-semibold text-qc-text-primary mt-2">{stat.value}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
-        {/* Profile section */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4 border-b-2 border-qc-border pb-2">
-            <span className="font-mono text-sm font-bold tracking-widest uppercase">IDENTITY</span>
+      <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
+        <section className="rounded-[30px] border border-qc-border bg-qc-surface p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-4 mb-5">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Identity</p>
+              <h3 className="text-lg font-semibold text-qc-text-primary mt-1">Profile and bio</h3>
+            </div>
             <button
               data-testid="edit-profile-btn"
-              onClick={() => editing ? handleSave() : setEditing(true)}
-              className="text-qc-text-primary border-2 border-transparent hover:border-qc-border p-1"
+              onClick={() => (editing ? handleSave() : setEditing(true))}
+              className="h-11 px-4 rounded-2xl border border-qc-border bg-qc-surface-hover text-qc-text-primary hover:bg-qc-accent-tertiary transition-colors flex items-center gap-2"
             >
-              {editing ? <Save size={18} /> : <Edit3 size={18} />}
+              {editing ? <Save size={16} /> : <Edit3 size={16} />}
+              <span className="text-sm font-medium">{editing ? 'Save' : 'Edit'}</span>
             </button>
           </div>
 
           <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 border-2 border-qc-border bg-qc-accent-tertiary flex items-center justify-center overflow-hidden shadow-[2px_2px_0px_#0A0A0A]">
+            <div className="w-20 h-20 rounded-[28px] bg-qc-accent-tertiary flex items-center justify-center overflow-hidden shadow-glow">
               {user?.avatar ? (
-                <img src={user.avatar} alt={user.name} className="w-full h-full object-cover grayscale contrast-125" />
+                <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
               ) : (
-                <User size={32} className="text-qc-text-primary" />
+                <User size={34} className="text-qc-accent-primary" />
               )}
             </div>
-            <div>
-              <p className="text-qc-text-primary font-bold font-mono uppercase text-lg">{user?.name}</p>
-              <p className="text-qc-text-secondary font-mono text-xs flex items-center gap-1 uppercase bg-qc-bg border-2 border-qc-border px-1 w-max">
-                <Mail size={12} /> {user?.email}
+            <div className="min-w-0">
+              <p className="text-qc-text-primary font-semibold text-xl truncate">{user?.name}</p>
+              <p className="text-qc-text-secondary text-sm flex items-center gap-2 mt-1 truncate">
+                <Mail size={14} /> {user?.email}
               </p>
             </div>
           </div>
@@ -59,59 +128,97 @@ export default function Settings({ user }) {
           {editing ? (
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-bold font-mono tracking-wider uppercase block mb-1">DESIGNATION</label>
+                <label className="text-xs font-medium tracking-wide uppercase text-qc-text-tertiary block mb-2">Display name</label>
                 <input
                   data-testid="settings-name-input"
                   type="text"
                   value={name}
-                  onChange={e => setName(e.target.value)}
-                  className="w-full bg-qc-bg border-2 border-qc-border text-qc-text-primary font-bold font-mono text-sm px-3 py-3 focus:bg-qc-surface focus:ring-2 focus:ring-qc-accent-primary"
+                  onChange={(event) => setName(event.target.value)}
+                  className="w-full bg-qc-surface-hover border border-qc-border text-qc-text-primary text-sm px-4 py-3 rounded-2xl"
                 />
               </div>
               <div>
-                <label className="text-xs font-bold font-mono tracking-wider uppercase block mb-1">STATUS</label>
+                <label className="text-xs font-medium tracking-wide uppercase text-qc-text-tertiary block mb-2">Bio</label>
                 <textarea
                   data-testid="settings-bio-input"
                   value={bio}
-                  onChange={e => setBio(e.target.value)}
-                  rows={3}
-                  className="w-full bg-qc-bg border-2 border-qc-border text-qc-text-primary font-bold font-mono text-sm px-3 py-3 resize-none focus:bg-qc-surface focus:ring-2 focus:ring-qc-accent-primary"
+                  onChange={(event) => setBio(event.target.value)}
+                  rows={4}
+                  className="w-full bg-qc-surface-hover border border-qc-border text-qc-text-primary text-sm px-4 py-3 rounded-2xl resize-none"
                 />
               </div>
               <button
                 data-testid="save-profile-btn"
                 onClick={handleSave}
                 disabled={saving}
-                className="w-full border-2 border-qc-border bg-[#00FF66] hover:bg-[#00CC55] text-qc-text-primary font-mono font-bold text-sm py-3 shadow-[4px_4px_0px_#0A0A0A] hover:-translate-y-1 hover:shadow-[6px_6px_0px_#0A0A0A] active:translate-y-1 active:translate-x-1 active:shadow-none transition-all disabled:opacity-50 flex justify-center"
+                className="w-full rounded-2xl bg-qc-accent-primary hover:bg-qc-accent-secondary text-white text-sm font-medium py-3 disabled:opacity-50 shadow-glow"
               >
-                {saving ? 'UPDATING...' : 'COMMIT_CHANGES'}
+                {saving ? 'Updating profile...' : 'Save profile'}
               </button>
             </div>
           ) : (
-            <div className="space-y-3">
-              <div className="bg-qc-bg border-2 border-qc-border p-4 shadow-[2px_2px_0px_#0A0A0A]">
-                <span className="text-[10px] font-bold text-qc-text-secondary font-mono tracking-wider uppercase block mb-1">STATUS</span>
-                <p className="text-sm font-mono uppercase text-qc-text-primary font-bold">{user?.bio || 'NO_STATUS_SET'}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-[24px] border border-qc-border bg-qc-surface-hover p-4">
+                <span className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary block mb-2">Status</span>
+                <p className="text-sm text-qc-text-primary">{user?.bio || 'No status set yet.'}</p>
               </div>
-              <div className="bg-qc-bg border-2 border-qc-border p-4 shadow-[2px_2px_0px_#0A0A0A]">
-                <span className="text-[10px] font-bold text-qc-text-secondary font-mono tracking-wider uppercase block mb-1">ACCESS_LEVEL</span>
-                <p className="text-sm font-mono uppercase text-qc-text-primary font-bold">{user?.role || 'OPERATIVE'}</p>
+              <div className="rounded-[24px] border border-qc-border bg-qc-surface-hover p-4">
+                <span className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary block mb-2">Access level</span>
+                <p className="text-sm text-qc-text-primary capitalize">{user?.role || 'user'}</p>
               </div>
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Security section */}
-        <div className="mt-8">
-          <span className="font-mono text-sm font-bold tracking-widest uppercase border-b-2 border-qc-border pb-2 block mb-4">SECURITY</span>
-          <div className="bg-qc-bg border-2 border-qc-border p-4 flex items-center gap-4 shadow-[2px_2px_0px_#0A0A0A]">
-            <Shield size={24} className="text-[#00FF66] flex-shrink-0" />
+        <section className="space-y-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Preferences</p>
+            <h3 className="text-lg font-semibold text-qc-text-primary mt-1">Experience toggles</h3>
+          </div>
+
+          <PreferenceRow
+            icon={darkMode ? Sun : Moon}
+            title={darkMode ? 'Use light theme' : 'Use dark theme'}
+            description="Switch the app shell without leaving the current conversation."
+            enabled={darkMode}
+            onToggle={toggleTheme}
+          />
+          <PreferenceRow
+            icon={PlayCircle}
+            title="Autoplay reels"
+            description="Let Spotlight videos start automatically when they hit the active frame."
+            enabled={preferences.autoplayReels}
+            onToggle={() => togglePreference('autoplayReels')}
+          />
+          <PreferenceRow
+            icon={Radio}
+            title="Story auto-advance"
+            description="Move through the story viewer automatically every few seconds."
+            enabled={preferences.storyAutoadvance}
+            onToggle={() => togglePreference('storyAutoadvance')}
+          />
+          <PreferenceRow
+            icon={BellRing}
+            title="Preview hints"
+            description="Show helper hints and navigation cues inside the social panels."
+            enabled={preferences.showPreviewHints}
+            onToggle={() => togglePreference('showPreviewHints')}
+          />
+        </section>
+
+        <section className="rounded-[28px] border border-qc-border bg-qc-surface p-5">
+          <div className="flex items-start gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-qc-accent-tertiary text-qc-accent-primary flex items-center justify-center flex-shrink-0">
+              <Shield size={20} />
+            </div>
             <div>
-              <p className="text-sm text-qc-text-primary font-mono font-bold uppercase">END-TO-END ENCRYPTION</p>
-              <p className="text-xs text-qc-text-secondary font-mono uppercase">TRANSMISSIONS SECURED</p>
+              <p className="text-sm font-semibold text-qc-text-primary">End-to-end encryption</p>
+              <p className="text-sm text-qc-text-secondary mt-2">
+                Messages stay encrypted in transit. This panel now also saves your profile edits and live UI preferences instantly.
+              </p>
             </div>
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );

@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
-import { Video, Heart, MessageCircle, X, Plus } from 'lucide-react';
+import { Video, Heart, MessageCircle, X, Plus, Sparkles, Play, Volume2, User } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { API } from '../lib/api';
+
+const PREF_EVENT = 'qc-preferences-changed';
 
 export default function Reels({ userId }) {
   const [reels, setReels] = useState([]);
@@ -13,6 +15,7 @@ export default function Reels({ userId }) {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [showComments, setShowComments] = useState(null);
   const [commentText, setCommentText] = useState('');
+  const [autoplay, setAutoplay] = useState(localStorage.getItem('qc_pref_autoplay_reels') !== 'false');
   const token = localStorage.getItem('qc_token');
   const containerRef = useRef(null);
 
@@ -20,12 +23,20 @@ export default function Reels({ userId }) {
     loadReels();
   }, []);
 
+  useEffect(() => {
+    const syncPreference = () => setAutoplay(localStorage.getItem('qc_pref_autoplay_reels') !== 'false');
+    window.addEventListener(PREF_EVENT, syncPreference);
+    return () => window.removeEventListener(PREF_EVENT, syncPreference);
+  }, []);
+
   const loadReels = async () => {
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const { data } = await axios.get(`${API}/api/reels`, { headers });
       setReels(data.reels || []);
-    } catch {}
+    } catch {
+      setReels([]);
+    }
     setLoading(false);
   };
 
@@ -45,134 +56,273 @@ export default function Reels({ userId }) {
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const { data } = await axios.post(`${API}/api/reels/${reelId}/like`, {}, { headers });
-      setReels(prev => prev.map(r => {
-        if (r.id === reelId) {
-          return { ...r, is_liked: data.is_liked, likes_count: data.likes_count };
-        }
-        return r;
-      }));
+      setReels((previous) =>
+        previous.map((reel) => (
+          reel.id === reelId
+            ? { ...reel, is_liked: data.is_liked, likes_count: data.likes_count }
+            : reel
+        ))
+      );
     } catch {}
   };
 
-  const handleComment = async (e) => {
-    e.preventDefault();
+  const handleComment = async (event) => {
+    event.preventDefault();
     if (!commentText.trim() || !showComments) return;
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const { data } = await axios.post(`${API}/api/reels/${showComments}/comment`, { text: commentText }, { headers });
-      setReels(prev => prev.map(r => {
-        if (r.id === showComments) {
-          return { ...r, comments: [...r.comments, data.comment] };
-        }
-        return r;
-      }));
+      setReels((previous) =>
+        previous.map((reel) => (
+          reel.id === showComments
+            ? { ...reel, comments: [...reel.comments, data.comment] }
+            : reel
+        ))
+      );
       setCommentText('');
     } catch {}
   };
 
-  const handleScroll = (e) => {
-    const { scrollTop, clientHeight } = e.target;
+  const handleScroll = (event) => {
+    const { scrollTop, clientHeight } = event.target;
     const index = Math.round(scrollTop / clientHeight);
     if (index !== currentIdx) {
       setCurrentIdx(index);
     }
   };
 
-  if (loading) return <div className="h-full flex items-center justify-center text-qc-text-secondary">Loading...</div>;
+  const currentReel = reels[currentIdx];
+  const yourReelsCount = useMemo(() => reels.filter((reel) => reel.user_id === userId).length, [reels, userId]);
+
+  if (loading) {
+    return <div className="h-full flex items-center justify-center text-qc-text-secondary">Loading...</div>;
+  }
 
   return (
-    <div data-testid="reels-panel" className="flex flex-col h-full bg-black relative">
-      <div className="absolute top-0 left-0 right-0 z-10 p-4 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.24em] text-white/60">Spotlight</p>
-          <h2 className="font-heading font-bold text-lg text-white drop-shadow-md">Reels</h2>
+    <div data-testid="reels-panel" className="flex flex-col h-full bg-[linear-gradient(180deg,#09111f_0%,#13203a_100%)] relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,107,61,0.18),transparent_28%),radial-gradient(circle_at_top_left,rgba(79,124,255,0.18),transparent_32%)] pointer-events-none" />
+
+      <div className="relative z-10 px-5 py-4 border-b border-white/10">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.24em] text-white/55">Spotlight feed</p>
+            <div className="flex items-center gap-2 mt-1">
+              <Sparkles size={18} className="text-[#ff8f5a]" />
+              <h2 className="font-heading text-2xl text-white">Reels</h2>
+            </div>
+          </div>
+
+          <button
+            data-testid="create-reel-btn"
+            onClick={() => setShowCreate((value) => !value)}
+            className="h-11 px-4 rounded-2xl bg-white/10 hover:bg-white/16 border border-white/10 text-white transition-colors flex items-center gap-2"
+          >
+            <Plus size={16} />
+            <span className="text-sm">New reel</span>
+          </button>
         </div>
-        <button data-testid="create-reel-btn" onClick={() => setShowCreate(!showCreate)} className="w-8 h-8 flex items-center justify-center bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full text-white transition-colors">
-          <Plus size={16}/>
-        </button>
+
+        <div className="grid grid-cols-3 gap-3 mt-4">
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-white/50">Feed size</p>
+            <p className="text-xl font-semibold text-white mt-1">{reels.length}</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-white/50">Your posts</p>
+            <p className="text-xl font-semibold text-white mt-1">{yourReelsCount}</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-white/50">Playback</p>
+            <p className="text-sm font-semibold text-white mt-2">{autoplay ? 'Autoplay on' : 'Tap to play'}</p>
+          </div>
+        </div>
       </div>
 
       {showCreate && (
-        <div className="absolute top-16 left-4 right-4 z-20 p-4 rounded-lg bg-qc-elevated border border-qc-border shadow-2xl space-y-3">
-          <div className="flex justify-between items-center mb-2">
-            <span className="font-mono text-[10px] text-qc-accent uppercase tracking-[0.24em]">Create Reel</span>
-            <button onClick={() => setShowCreate(false)} className="text-white"><X size={14}/></button>
+        <div className="absolute top-28 right-5 left-5 md:left-auto md:w-[420px] z-20 p-5 rounded-[28px] bg-[#0e1930] border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.34)] space-y-4">
+          <div className="flex justify-between items-center">
+            <span className="font-heading text-lg text-white">Create Reel</span>
+            <button onClick={() => setShowCreate(false)} className="text-white/75 hover:text-white">
+              <X size={16} />
+            </button>
           </div>
-          <input type="text" value={newReelUrl} onChange={e => setNewReelUrl(e.target.value)} placeholder="Video or Image URL" className="w-full bg-qc-surface border border-qc-border text-white text-sm px-3 py-2" />
-          <textarea value={newReelCaption} onChange={e => setNewReelCaption(e.target.value)} placeholder="Caption..." rows={2} className="w-full bg-qc-surface border border-qc-border text-white text-sm px-3 py-2 resize-none" />
-          <button onClick={createReel} disabled={!newReelUrl} className="w-full bg-qc-accent text-white py-2 text-sm disabled:opacity-50">Post</button>
+          <input
+            type="text"
+            value={newReelUrl}
+            onChange={(event) => setNewReelUrl(event.target.value)}
+            placeholder="Video or image URL"
+            className="w-full bg-white/8 border border-white/10 text-white text-sm px-4 py-3 rounded-2xl"
+          />
+          <textarea
+            value={newReelCaption}
+            onChange={(event) => setNewReelCaption(event.target.value)}
+            placeholder="Caption..."
+            rows={3}
+            className="w-full bg-white/8 border border-white/10 text-white text-sm px-4 py-3 resize-none rounded-2xl"
+          />
+          <button
+            onClick={createReel}
+            disabled={!newReelUrl}
+            className="w-full bg-qc-accent-primary hover:bg-qc-accent-secondary text-white py-3 rounded-2xl text-sm disabled:opacity-50"
+          >
+            Publish reel
+          </button>
         </div>
       )}
 
-      <div ref={containerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto snap-y snap-mandatory hide-scrollbar">
+      <div className="relative z-10 flex-1 overflow-hidden px-5 py-5">
         {reels.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center px-6">
-            <Video size={32} className="text-white/40 mb-3" />
-            <p className="text-white text-sm">No reels yet</p>
-            <p className="text-white/60 text-xs mt-2">Post a quick image or video URL to start your Spotlight feed.</p>
+          <div className="h-full rounded-[32px] border border-white/10 bg-white/5 flex flex-col items-center justify-center text-center px-6">
+            <Video size={34} className="text-white/40 mb-3" />
+            <p className="text-white text-base font-medium">No reels yet</p>
+            <p className="text-white/60 text-sm mt-2 max-w-sm">Drop a media URL and turn Spotlight into a vertical showcase for the team.</p>
           </div>
         ) : (
-          reels.map((reel, idx) => (
-            <div key={reel.id} className="h-full w-full snap-start relative flex flex-col justify-end bg-black">
-              {reel.media_url.match(/\.(mp4|webm|ogg)$/i) ? (
-                <video src={reel.media_url} className="absolute inset-0 w-full h-full object-cover" autoPlay={idx === currentIdx} loop muted playsInline />
-              ) : (
-                <img src={reel.media_url} className="absolute inset-0 w-full h-full object-cover" alt="reel" />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-              
-              <div className="relative z-10 p-4 flex items-end justify-between w-full h-full">
-                <div className="flex-1 min-w-0 pr-12 pb-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <img src={reel.user_avatar || 'https://via.placeholder.com/150'} alt="" className="w-8 h-8 rounded-full border border-white/30" />
-                    <span className="text-white font-medium text-sm drop-shadow">{reel.user_name}</span>
-                  </div>
-                  <p className="text-white text-sm line-clamp-2 drop-shadow">{reel.caption}</p>
-                </div>
-                
-                <div className="flex flex-col items-center gap-4 pb-4 w-12 flex-shrink-0">
-                  <button onClick={() => handleLike(reel.id)} className="flex flex-col items-center gap-1 group">
-                    <div className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-black/40 transition">
-                      <Heart size={22} className={reel.is_liked ? "text-red-500 fill-red-500" : "text-white"} />
-                    </div>
-                    <span className="text-white text-xs drop-shadow font-mono">{reel.likes_count}</span>
-                  </button>
-                  <button onClick={() => setShowComments(reel.id)} className="flex flex-col items-center gap-1 group">
-                    <div className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-black/40 transition">
-                      <MessageCircle size={22} className="text-white" />
-                    </div>
-                    <span className="text-white text-xs drop-shadow font-mono">{reel.comments.length}</span>
-                  </button>
+          <div className="h-full grid grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)] gap-5">
+            <div className="hidden xl:flex flex-col gap-4">
+              <div className="rounded-[28px] border border-white/10 bg-white/5 p-5">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-white/50">Now playing</p>
+                <p className="text-white text-lg font-semibold mt-2 line-clamp-2">{currentReel?.caption || 'Untitled reel'}</p>
+                <p className="text-white/60 text-sm mt-2">{currentReel?.user_name || 'Unknown creator'}</p>
+              </div>
+
+              <div className="rounded-[28px] border border-white/10 bg-white/5 p-4">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-white/50 mb-3">Queue</p>
+                <div className="space-y-2">
+                  {reels.slice(0, 5).map((reel, index) => (
+                    <button
+                      key={reel.id}
+                      onClick={() => {
+                        setCurrentIdx(index);
+                        containerRef.current?.scrollTo({ top: containerRef.current.clientHeight * index, behavior: 'smooth' });
+                      }}
+                      className={`w-full rounded-2xl border px-3 py-3 text-left transition-colors ${
+                        currentIdx === index
+                          ? 'border-white/20 bg-white/14 text-white'
+                          : 'border-white/10 bg-white/5 text-white/72 hover:bg-white/10'
+                      }`}
+                    >
+                      <p className="text-sm font-medium truncate">{reel.caption || 'Untitled reel'}</p>
+                      <p className="text-[11px] text-white/55 mt-1">{reel.user_name}</p>
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
-          ))
+
+            <div ref={containerRef} onScroll={handleScroll} className="h-full overflow-y-auto snap-y snap-mandatory hide-scrollbar">
+              {reels.map((reel, index) => {
+                const isVideo = /\.(mp4|webm|ogg)$/i.test(reel.media_url);
+                return (
+                  <div key={reel.id} className="h-full snap-start flex items-center justify-center pb-4">
+                    <div className="relative w-full max-w-[430px] h-full min-h-[520px] rounded-[34px] overflow-hidden border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.38)] bg-black">
+                      {isVideo ? (
+                        <video
+                          src={reel.media_url}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          autoPlay={autoplay && index === currentIdx}
+                          loop
+                          muted
+                          controls={!autoplay}
+                          playsInline
+                        />
+                      ) : (
+                        <img src={reel.media_url} className="absolute inset-0 w-full h-full object-cover" alt="reel" />
+                      )}
+
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/88 via-black/18 to-transparent pointer-events-none" />
+
+                      <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
+                        <div className="rounded-full border border-white/10 bg-black/25 backdrop-blur-md px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-white/75">
+                          {index + 1} / {reels.length}
+                        </div>
+                        <div className="rounded-full border border-white/10 bg-black/25 backdrop-blur-md px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-white/75 flex items-center gap-2">
+                          {autoplay ? <Play size={12} /> : <Volume2 size={12} />}
+                          <span>{autoplay ? 'Autoplay' : 'Manual'}</span>
+                        </div>
+                      </div>
+
+                      <div className="relative z-10 p-5 flex items-end justify-between w-full h-full">
+                        <div className="flex-1 min-w-0 pr-12 pb-4">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-10 h-10 rounded-full overflow-hidden border border-white/20 bg-white/10 flex items-center justify-center">
+                              {reel.user_avatar ? (
+                                <img src={reel.user_avatar} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <User size={16} className="text-white/80" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-white font-medium text-sm block drop-shadow truncate">{reel.user_name}</span>
+                              <span className="text-white/65 text-[11px]">
+                                {formatDistanceToNow(new Date(reel.created_at), { addSuffix: true })}
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-white text-sm leading-relaxed drop-shadow whitespace-pre-wrap line-clamp-4">
+                            {reel.caption || 'No caption'}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-col items-center gap-4 pb-4 w-12 flex-shrink-0">
+                          <button onClick={() => handleLike(reel.id)} className="flex flex-col items-center gap-1 group">
+                            <div className="w-11 h-11 rounded-full bg-black/22 backdrop-blur-sm flex items-center justify-center group-hover:bg-black/40 transition">
+                              <Heart size={22} className={reel.is_liked ? 'text-red-500 fill-red-500' : 'text-white'} />
+                            </div>
+                            <span className="text-white text-xs drop-shadow font-mono">{reel.likes_count}</span>
+                          </button>
+                          <button onClick={() => setShowComments(reel.id)} className="flex flex-col items-center gap-1 group">
+                            <div className="w-11 h-11 rounded-full bg-black/22 backdrop-blur-sm flex items-center justify-center group-hover:bg-black/40 transition">
+                              <MessageCircle size={22} className="text-white" />
+                            </div>
+                            <span className="text-white text-xs drop-shadow font-mono">{reel.comments.length}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
       </div>
 
       {showComments && (
-        <div className="absolute inset-x-0 bottom-0 top-1/3 bg-qc-surface rounded-t-xl z-30 flex flex-col shadow-2xl border-t border-qc-border animate-slideUp">
-          <div className="p-3 border-b border-qc-border flex items-center justify-between bg-qc-elevated rounded-t-xl">
+        <div className="absolute inset-x-0 bottom-0 top-1/3 bg-[#0f1a31] rounded-t-[32px] z-30 flex flex-col shadow-[0_-20px_70px_rgba(0,0,0,0.35)] border-t border-white/10 animate-slideUp">
+          <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/5 rounded-t-[32px]">
             <span className="text-white text-sm font-medium">Comments</span>
-            <button onClick={() => setShowComments(null)} className="text-qc-text-secondary"><X size={18}/></button>
+            <button onClick={() => setShowComments(null)} className="text-white/75">
+              <X size={18} />
+            </button>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {reels.find(r => r.id === showComments)?.comments.map(c => (
-              <div key={c.id} className="flex gap-2">
-                <div className="w-7 h-7 rounded bg-qc-highlight flex-shrink-0 flex items-center justify-center text-xs text-white uppercase">{c.user_name[0]}</div>
+            {(reels.find((reel) => reel.id === showComments)?.comments || []).map((comment) => (
+              <div key={comment.id} className="flex gap-3">
+                <div className="w-8 h-8 rounded-2xl bg-qc-highlight flex-shrink-0 flex items-center justify-center text-xs text-white uppercase">
+                  {comment.user_name?.[0] || '?'}
+                </div>
                 <div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-white text-xs font-medium">{c.user_name}</span>
-                    <span className="text-qc-text-tertiary text-[10px] font-mono">{formatDistanceToNow(new Date(c.created_at))} ago</span>
+                    <span className="text-white text-xs font-medium">{comment.user_name}</span>
+                    <span className="text-white/45 text-[10px] font-mono">{formatDistanceToNow(new Date(comment.created_at))} ago</span>
                   </div>
-                  <p className="text-qc-text-secondary text-sm">{c.text}</p>
+                  <p className="text-white/72 text-sm">{comment.text}</p>
                 </div>
               </div>
             ))}
           </div>
-          <form onSubmit={handleComment} className="p-3 border-t border-qc-border flex gap-2">
-            <input type="text" value={commentText} onChange={e => setCommentText(e.target.value)} placeholder="Add a comment..." className="flex-1 bg-qc-elevated border border-qc-border rounded-full px-3 py-1.5 text-sm text-white" />
-            <button type="submit" disabled={!commentText.trim()} className="text-qc-accent text-sm font-medium px-2 disabled:opacity-50">Post</button>
+          <form onSubmit={handleComment} className="p-4 border-t border-white/10 flex gap-2">
+            <input
+              type="text"
+              value={commentText}
+              onChange={(event) => setCommentText(event.target.value)}
+              placeholder="Add a comment..."
+              className="flex-1 bg-white/8 border border-white/10 rounded-full px-4 py-2 text-sm text-white"
+            />
+            <button type="submit" disabled={!commentText.trim()} className="text-qc-accent-primary text-sm font-medium px-2 disabled:opacity-50">
+              Post
+            </button>
           </form>
         </div>
       )}

@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { Users, Plus, User, Loader, X, Check } from 'lucide-react';
+import { Users, Plus, User, Loader, X, Check, Search, Sparkles } from 'lucide-react';
 import { API } from '../lib/api';
 
-export default function Groups({ onSelectConv, userId }) {
+export default function Groups({ onSelectConv }) {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -11,16 +11,22 @@ export default function Groups({ onSelectConv, userId }) {
   const [allUsers, setAllUsers] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [creating, setCreating] = useState(false);
+  const [search, setSearch] = useState('');
+  const [memberSearch, setMemberSearch] = useState('');
   const token = localStorage.getItem('qc_token');
 
-  useEffect(() => { loadGroups(); }, []);
+  useEffect(() => {
+    loadGroups();
+  }, []);
 
   const loadGroups = async () => {
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const { data } = await axios.get(`${API}/api/conversations`, { headers });
-      setGroups((data.conversations || []).filter(c => c.type === 'group'));
-    } catch {}
+      setGroups((data.conversations || []).filter((conversation) => conversation.type === 'group'));
+    } catch {
+      setGroups([]);
+    }
     setLoading(false);
   };
 
@@ -29,20 +35,30 @@ export default function Groups({ onSelectConv, userId }) {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const { data } = await axios.get(`${API}/api/users/search?q=`, { headers });
       setAllUsers(data.users || []);
-    } catch {}
+    } catch {
+      setAllUsers([]);
+    }
   };
 
-  const openCreate = () => { setShowCreate(true); loadUsers(); };
+  const openCreate = () => {
+    setShowCreate(true);
+    loadUsers();
+  };
 
   const createGroup = async () => {
     if (!groupName.trim() || selectedUsers.length === 0) return;
     setCreating(true);
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const { data } = await axios.post(`${API}/api/conversations/group`, { name: groupName, participant_ids: selectedUsers }, { headers });
+      const { data } = await axios.post(
+        `${API}/api/conversations/group`,
+        { name: groupName, participant_ids: selectedUsers },
+        { headers }
+      );
       setShowCreate(false);
       setGroupName('');
       setSelectedUsers([]);
+      setMemberSearch('');
       loadGroups();
       if (data.conversation) onSelectConv(data.conversation);
     } catch {}
@@ -50,71 +66,218 @@ export default function Groups({ onSelectConv, userId }) {
   };
 
   const toggleUser = (id) => {
-    setSelectedUsers(prev => prev.includes(id) ? prev.filter(u => u !== id) : [...prev, id]);
+    setSelectedUsers((previous) => (
+      previous.includes(id) ? previous.filter((userId) => userId !== id) : [...previous, id]
+    ));
   };
 
+  const filteredGroups = useMemo(() => (
+    groups.filter((group) => group.name?.toLowerCase().includes(search.toLowerCase()))
+  ), [groups, search]);
+
+  const filteredUsers = useMemo(() => (
+    allUsers.filter((user) => (
+      user.name?.toLowerCase().includes(memberSearch.toLowerCase()) ||
+      user.email?.toLowerCase().includes(memberSearch.toLowerCase())
+    ))
+  ), [allUsers, memberSearch]);
+
   return (
-    <div data-testid="groups-panel" className="flex flex-col h-full bg-qc-surface relative">
-      <div className="p-5 border-b-2 border-qc-border flex items-center justify-between bg-[#00FF66]">
-        <h2 className="font-heading font-black text-2xl text-qc-text-primary uppercase tracking-tighter">SQUADS</h2>
-        <button data-testid="create-group-btn" onClick={openCreate} className="w-8 h-8 flex items-center justify-center border-2 border-qc-border bg-qc-surface shadow-[2px_2px_0px_#0A0A0A] hover:translate-y-0.5 hover:translate-x-0.5 hover:shadow-none transition-all">
-          <Plus size={18}/>
-        </button>
+    <div data-testid="groups-panel" className="flex flex-col h-full bg-qc-bg relative overflow-hidden">
+      <div className="px-5 py-4 border-b border-qc-border bg-qc-surface">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.24em] text-qc-text-tertiary">Squad control</p>
+            <div className="flex items-center gap-2 mt-1">
+              <Users size={18} className="text-qc-accent-primary" />
+              <h2 className="font-heading text-2xl text-qc-text-primary">Groups</h2>
+            </div>
+          </div>
+
+          <button
+            data-testid="create-group-btn"
+            onClick={openCreate}
+            className="h-11 px-4 rounded-2xl bg-qc-accent-primary text-white hover:bg-qc-accent-secondary transition-colors flex items-center gap-2 shadow-glow"
+          >
+            <Plus size={16} />
+            <span className="text-sm font-medium">New group</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3 mt-4">
+          <div className="rounded-2xl border border-qc-border bg-qc-surface-hover px-4 py-3">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Active groups</p>
+            <p className="text-xl font-semibold text-qc-text-primary mt-1">{groups.length}</p>
+          </div>
+          <div className="rounded-2xl border border-qc-border bg-qc-surface-hover px-4 py-3">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Selected members</p>
+            <p className="text-xl font-semibold text-qc-text-primary mt-1">{selectedUsers.length}</p>
+          </div>
+          <div className="rounded-2xl border border-qc-border bg-qc-surface-hover px-4 py-3">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Mode</p>
+            <p className="text-sm font-semibold text-qc-text-primary mt-2">Fast squad setup</p>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-qc-border bg-qc-surface-hover px-3 py-2 flex items-center gap-2">
+          <Search size={16} className="text-qc-text-secondary" />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search existing groups"
+            className="w-full bg-transparent text-sm text-qc-text-primary"
+          />
+        </div>
       </div>
 
       {showCreate && (
-        <div className="absolute inset-0 z-30 bg-qc-surface flex flex-col">
-          <div className="p-4 border-b-2 border-qc-border flex items-center justify-between bg-qc-bg">
-            <span className="font-heading font-black text-xl uppercase">FORM_SQUAD</span>
-            <button onClick={() => setShowCreate(false)} className="border-2 border-qc-border p-1 bg-qc-surface hover:bg-[#FF3333] hover:text-white shadow-[2px_2px_0px_#0A0A0A]"><X size={18}/></button>
-          </div>
-          <div className="p-4 space-y-4 flex-1 overflow-y-auto">
-            <input data-testid="group-name-input" type="text" value={groupName} onChange={e => setGroupName(e.target.value)}
-              placeholder="SQUAD_DESIGNATION..." className="w-full bg-qc-bg border-2 border-qc-border p-3 font-mono font-bold focus:bg-qc-surface focus:ring-2 focus:ring-qc-accent-primary"/>
-            <div className="space-y-2">
-              <p className="font-mono text-xs font-bold uppercase tracking-widest text-qc-text-secondary border-b-2 border-qc-border pb-1">SELECT_OPERATIVES</p>
-              {allUsers.map(u => (
-                <button key={u.id} data-testid={`group-select-${u.id}`} onClick={() => toggleUser(u.id)}
-                  className={`w-full flex items-center gap-3 p-2 border-2 border-qc-border text-left ${selectedUsers.includes(u.id) ? 'bg-[#00FF66] shadow-[2px_2px_0px_#0A0A0A] -translate-y-0.5' : 'bg-qc-bg hover:bg-qc-surface'}`}>
-                  <div className="w-8 h-8 border-2 border-qc-border bg-qc-surface flex items-center justify-center overflow-hidden">
-                    {u.avatar ? <img src={u.avatar} alt="" className="w-full h-full object-cover grayscale"/> : <User size={16}/>}
-                  </div>
-                  <span className="flex-1 font-mono text-sm font-bold uppercase truncate">{u.name}</span>
-                  {selectedUsers.includes(u.id) && <Check size={18} className="text-black"/>}
-                </button>
-              ))}
+        <div className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" onClick={() => setShowCreate(false)}>
+          <div className="w-full max-w-[580px] max-h-[85vh] bg-qc-surface border border-qc-border rounded-[32px] overflow-hidden shadow-[0_24px_70px_rgba(19,31,51,0.24)] flex flex-col" onClick={(event) => event.stopPropagation()}>
+            <div className="p-5 border-b border-qc-border flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Create squad</p>
+                <h3 className="font-heading text-xl text-qc-text-primary mt-1">Build a focused group</h3>
+              </div>
+              <button onClick={() => setShowCreate(false)} className="text-qc-text-secondary hover:text-qc-text-primary">
+                <X size={18} />
+              </button>
             </div>
-          </div>
-          <div className="p-4 border-t-2 border-qc-border bg-qc-bg">
-            <button data-testid="create-group-submit" onClick={createGroup} disabled={creating || !groupName.trim() || selectedUsers.length === 0}
-              className="w-full border-2 border-qc-border bg-qc-accent-primary font-mono font-bold uppercase py-3 shadow-[4px_4px_0px_#0A0A0A] hover:-translate-y-1 hover:shadow-[6px_6px_0px_#0A0A0A] active:translate-y-1 active:translate-x-1 active:shadow-none transition-all disabled:opacity-50 disabled:pointer-events-none">
-              {creating ? 'PROCESSING...' : `DEPLOY_SQUAD (${selectedUsers.length})`}
-            </button>
+
+            <div className="p-5 space-y-4 flex-1 overflow-y-auto">
+              <input
+                data-testid="group-name-input"
+                type="text"
+                value={groupName}
+                onChange={(event) => setGroupName(event.target.value)}
+                placeholder="Squad name"
+                className="w-full bg-qc-surface-hover border border-qc-border rounded-2xl p-4 text-sm text-qc-text-primary"
+              />
+
+              <div className="rounded-2xl border border-qc-border bg-qc-surface-hover px-3 py-2 flex items-center gap-2">
+                <Search size={16} className="text-qc-text-secondary" />
+                <input
+                  value={memberSearch}
+                  onChange={(event) => setMemberSearch(event.target.value)}
+                  placeholder="Search people by name or email"
+                  className="w-full bg-transparent text-sm text-qc-text-primary"
+                />
+              </div>
+
+              {selectedUsers.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {filteredUsers
+                    .filter((user) => selectedUsers.includes(user.id))
+                    .map((user) => (
+                      <div key={user.id} className="rounded-full border border-qc-border bg-qc-accent-tertiary px-3 py-1 text-xs text-qc-text-primary">
+                        {user.name}
+                      </div>
+                    ))}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {filteredUsers.map((user) => (
+                  <button
+                    key={user.id}
+                    data-testid={`group-select-${user.id}`}
+                    onClick={() => toggleUser(user.id)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-2xl border text-left transition-all ${
+                      selectedUsers.includes(user.id)
+                        ? 'border-qc-accent-primary bg-qc-accent-tertiary'
+                        : 'border-qc-border bg-qc-surface hover:bg-qc-surface-hover'
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-2xl bg-qc-surface-hover flex items-center justify-center overflow-hidden">
+                      {user.avatar ? (
+                        <img src={user.avatar} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <User size={16} className="text-qc-text-secondary" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-qc-text-primary truncate">{user.name}</p>
+                      <p className="text-xs text-qc-text-secondary truncate">{user.email}</p>
+                    </div>
+                    {selectedUsers.includes(user.id) && (
+                      <div className="w-7 h-7 rounded-full bg-qc-accent-primary text-white flex items-center justify-center">
+                        <Check size={14} />
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-5 border-t border-qc-border bg-qc-surface-hover">
+              <button
+                data-testid="create-group-submit"
+                onClick={createGroup}
+                disabled={creating || !groupName.trim() || selectedUsers.length === 0}
+                className="w-full rounded-2xl bg-qc-accent-primary hover:bg-qc-accent-secondary text-white text-sm font-medium py-3 disabled:opacity-50 disabled:pointer-events-none shadow-glow"
+              >
+                {creating ? 'Creating squad...' : `Create group (${selectedUsers.length})`}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-5 py-5">
         {loading ? (
-          <div className="flex items-center justify-center py-8"><Loader size={24} className="text-qc-text-primary animate-spin"/></div>
-        ) : groups.length === 0 ? (
-          <div className="border-4 border-qc-border bg-qc-bg p-6 shadow-brutal text-center">
-            <Users size={32} className="mx-auto mb-2"/>
-            <p className="font-heading font-black text-xl uppercase mb-1">NO_SQUADS_ACTIVE</p>
-            <p className="font-mono text-xs font-bold uppercase text-qc-text-secondary">Deploy a squad to initiate group comms.</p>
+          <div className="flex items-center justify-center py-20">
+            <Loader size={24} className="text-qc-text-primary animate-spin" />
           </div>
-        ) : groups.map(g => (
-          <button key={g.id} data-testid={`group-item-${g.id}`} onClick={() => onSelectConv(g)}
-            className="w-full flex items-center gap-3 p-3 border-2 border-qc-border bg-qc-bg hover:bg-[#00FF66] hover:shadow-[4px_4px_0px_#0A0A0A] hover:-translate-y-1 transition-all text-left">
-            <div className="w-12 h-12 border-2 border-qc-border bg-qc-surface flex items-center justify-center flex-shrink-0">
-              <Users size={24}/>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold font-mono uppercase truncate">{g.name}</p>
-              <p className="text-[10px] font-mono font-bold uppercase text-qc-text-secondary mt-1 border-2 border-qc-border px-1 w-max bg-qc-surface">{g.participants?.length || 0}_UNITS</p>
-            </div>
-          </button>
-        ))}
+        ) : filteredGroups.length === 0 ? (
+          <div className="rounded-[30px] border border-dashed border-qc-border bg-qc-surface p-8 text-center shadow-sm">
+            <Sparkles size={34} className="mx-auto mb-4 text-qc-accent-primary" />
+            <p className="text-qc-text-primary text-lg font-medium">No groups in this view</p>
+            <p className="text-qc-text-secondary text-sm mt-2">
+              Create a focused squad for launches, support, or campaign work.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {filteredGroups.map((group) => (
+              <button
+                key={group.id}
+                data-testid={`group-item-${group.id}`}
+                onClick={() => onSelectConv(group)}
+                className="w-full rounded-[28px] border border-qc-border bg-qc-surface text-left p-5 hover:-translate-y-0.5 hover:shadow-glow transition-all"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-14 h-14 rounded-2xl bg-qc-accent-tertiary text-qc-accent-primary flex items-center justify-center flex-shrink-0">
+                      <Users size={22} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-base font-semibold text-qc-text-primary truncate">{group.name}</p>
+                      <p className="text-xs text-qc-text-secondary mt-1">
+                        {(group.participants?.length || 0)} members
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-full border border-qc-border bg-qc-surface-hover px-3 py-1 text-[11px] text-qc-text-secondary">
+                    Open
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {(group.participants || []).slice(0, 4).map((participant) => (
+                    <div key={participant.user_id} className="rounded-full border border-qc-border bg-qc-surface-hover px-3 py-1 text-xs text-qc-text-primary">
+                      {participant.name}
+                    </div>
+                  ))}
+                  {(group.participants?.length || 0) > 4 && (
+                    <div className="rounded-full border border-qc-border bg-qc-surface-hover px-3 py-1 text-xs text-qc-text-secondary">
+                      +{group.participants.length - 4} more
+                    </div>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

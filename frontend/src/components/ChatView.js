@@ -414,7 +414,7 @@ export default function ChatArea({
     : conversation.pinned_message;
 
   return (
-    <div className="flex flex-col h-full w-full relative bg-qc-bg overflow-hidden" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+    <div data-testid="chat-view" className="flex flex-col h-full w-full relative bg-qc-bg overflow-hidden" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
       <div className="absolute inset-0 chat-bg-pattern z-0 pointer-events-none" />
 
       {isDragging && (

@@ -53,6 +53,7 @@ export default function LeftPanel({
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [newChatSearch, setNewChatSearch] = useState('');
+  const [showPreviewHints, setShowPreviewHints] = useState(localStorage.getItem('qc_pref_preview_hints') !== 'false');
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -64,6 +65,12 @@ export default function LeftPanel({
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const syncPreferences = () => setShowPreviewHints(localStorage.getItem('qc_pref_preview_hints') !== 'false');
+    window.addEventListener('qc-preferences-changed', syncPreferences);
+    return () => window.removeEventListener('qc-preferences-changed', syncPreferences);
   }, []);
 
   useEffect(() => {
@@ -234,7 +241,7 @@ export default function LeftPanel({
   const renderChats = () => (
     <div className="flex flex-col h-full">
       {renderTopShell()}
-      {view !== 'chats' && (
+      {view !== 'chats' && showPreviewHints && (
         <div className="px-4 py-3 border-b border-qc-border bg-qc-accent-tertiary/40">
           <div className="flex items-center justify-between gap-3">
             <div>
