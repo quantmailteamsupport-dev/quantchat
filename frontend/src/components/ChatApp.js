@@ -363,7 +363,8 @@ export default function ChatApp() {
         </div>
 
         {isMobileView && !isKeyboardOpen && (
-          <div className="absolute inset-x-0 bottom-0 z-40 border-t border-qc-border bg-[rgba(9,17,31,0.94)] backdrop-blur-xl px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+          <div className="absolute inset-x-0 bottom-0 z-40 px-3 pb-[max(0.6rem,env(safe-area-inset-bottom))]">
+            <div className="mx-auto max-w-[420px] rounded-[28px] border border-white/8 bg-[rgba(16,28,42,0.92)] backdrop-blur-2xl shadow-[0_16px_50px_rgba(0,0,0,0.35)] px-2 py-2">
             <div className="grid grid-cols-5 gap-1">
               {MOBILE_NAV_ITEMS.map((item) => {
                 const Icon = item.icon;
@@ -374,7 +375,7 @@ export default function ChatApp() {
                     onClick={() => selectSection(item.id)}
                     className={`rounded-2xl px-2 py-2 flex flex-col items-center justify-center gap-1 transition-all ${
                       isActive
-                        ? 'bg-qc-accent-tertiary text-qc-accent-primary'
+                        ? 'bg-[#244463] text-[#6dc8ff]'
                         : 'text-qc-text-secondary hover:bg-white/5'
                     }`}
                   >
@@ -383,6 +384,7 @@ export default function ChatApp() {
                   </button>
                 );
               })}
+            </div>
             </div>
           </div>
         )}

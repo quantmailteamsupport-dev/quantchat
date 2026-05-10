@@ -15,6 +15,7 @@ import {
   Sparkles,
   Camera,
   Bookmark,
+  Archive,
 } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import axios from 'axios';
@@ -108,6 +109,7 @@ export default function LeftPanel({
   const totalUnread = conversations.reduce((sum, conv) => sum + (conv.unread_count || 0), 0);
   const onlineDirectConversations = conversations.filter(conv => conv.type === 'direct' && onlineUsers.has(conv.other_user?.user_id)).length;
   const groupCount = conversations.filter(conv => conv.type === 'group').length;
+  const directCount = conversations.filter((conv) => conv.type === 'direct').length;
   const orbitPeople = conversations
     .filter((conv) => conv.type === 'direct')
     .slice(0, 8)
@@ -117,6 +119,12 @@ export default function LeftPanel({
       avatar: conv.other_user?.avatar || conv.participants?.find(p => p.user_id !== user?.id)?.avatar || '',
       online: onlineUsers.has(conv.other_user?.user_id || conv.participants?.find(p => p.user_id !== user?.id)?.user_id),
     }));
+  const mobileCategoryPills = [
+    { id: 'all', label: 'All', count: conversations.length },
+    { id: 'direct', label: 'DMs', count: directCount },
+    { id: 'groups', label: 'Groups', count: groupCount },
+    { id: 'unread', label: 'Unread', count: totalUnread },
+  ];
 
   const filteredConversations = conversations.filter(conv => {
     if (chatFilter === 'unread' && !conv.unread_count) return false;
@@ -142,7 +150,121 @@ export default function LeftPanel({
 
   const renderTopShell = () => (
     <>
-      <div className={`px-4 border-b border-qc-border bg-qc-surface backdrop-blur-xl relative ${isMobile ? 'pt-3 pb-2' : 'pt-4 pb-3'}`}>
+      <div ref={menuRef} className={`px-4 border-b border-qc-border bg-qc-surface backdrop-blur-xl relative ${isMobile ? 'pt-3 pb-2' : 'pt-4 pb-3'}`}>
+        {isMobile ? (
+          <>
+            <div className="flex items-center justify-between gap-3">
+              <button onClick={() => onViewChange('settings')} className="flex items-center gap-3 min-w-0 text-left">
+                <div className="w-11 h-11 rounded-full overflow-hidden ring-2 ring-[#31d17c] ring-offset-2 ring-offset-[#162331] bg-qc-accent-tertiary flex items-center justify-center">
+                  {user?.avatar ? <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" /> : <User size={18} className="text-qc-text-secondary" />}
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-[2rem] leading-none font-semibold text-qc-text-primary">QuantChat</h2>
+                  <p className="text-xs text-qc-text-secondary mt-1">1 active device</p>
+                </div>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setChatFilter('all')}
+                  className="w-10 h-10 rounded-full bg-[#223041] text-qc-text-primary flex items-center justify-center"
+                  title="Search"
+                >
+                  <Search size={19} />
+                </button>
+                <button
+                  onClick={() => setShowMenu((value) => !value)}
+                  className="w-10 h-10 rounded-full text-qc-text-primary hover:bg-white/5 flex items-center justify-center"
+                  title="Menu"
+                >
+                  <MoreVertical size={20} />
+                </button>
+
+                {showMenu && (
+                  <div className="absolute top-14 right-4 w-56 bg-qc-surface border border-qc-border rounded-2xl shadow-xl py-2 z-50 animate-fadeIn">
+                    <button onClick={() => { onViewChange('groups'); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-qc-text-primary hover:bg-qc-surface-hover flex items-center gap-2">
+                      <Users size={15} /> Manage groups
+                    </button>
+                    <button onClick={() => { onReloadConversations?.(); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-qc-text-primary hover:bg-qc-surface-hover flex items-center gap-2">
+                      <Sparkles size={15} /> Refresh feed
+                    </button>
+                    <button onClick={() => setShowMenu(false)} className="w-full text-left px-4 py-2 text-sm text-qc-text-primary hover:bg-qc-surface-hover flex items-center justify-between">
+                      <span className="flex items-center gap-2"><Moon size={15} /> Dark mode locked</span>
+                      <span className="text-qc-text-tertiary text-xs">On</span>
+                    </button>
+                    <button onClick={() => { logout(); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-qc-surface-hover flex items-center gap-2">
+                      <LogOut size={15} /> Log out
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 relative flex items-center rounded-full bg-[#213042] border border-white/5 px-3 py-3">
+              <Search size={17} className="text-qc-text-secondary" />
+              <input
+                type="text"
+                placeholder="Search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                className="ml-3 flex-1 bg-transparent text-qc-text-primary text-sm placeholder:text-qc-text-secondary focus:outline-none"
+              />
+            </div>
+
+            <div className="mt-4 flex gap-2 overflow-x-auto hide-scrollbar">
+              {mobileCategoryPills.map((filter) => (
+                <button
+                  key={filter.id}
+                  onClick={() => setChatFilter(filter.id)}
+                  className={`shrink-0 inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm transition-all ${
+                    chatFilter === filter.id
+                      ? 'bg-[#244463] text-[#66beff]'
+                      : 'bg-[#1a2734] text-qc-text-secondary'
+                  }`}
+                >
+                  <span>{filter.label}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] ${chatFilter === filter.id ? 'bg-[#2f577c] text-[#8fd0ff]' : 'bg-[#243342] text-qc-text-secondary'}`}>
+                    {filter.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <button
+                onClick={() => setChatFilter('unread')}
+                className="w-full rounded-[24px] bg-[#1b2a38] border border-white/5 px-4 py-3 flex items-center gap-3 text-left"
+              >
+                <div className="w-12 h-12 rounded-full bg-[#6d7f93] flex items-center justify-center text-white">
+                  <Archive size={22} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-qc-text-primary text-[15px] font-semibold">Archived Chats</p>
+                  <p className="text-qc-text-secondary text-sm truncate">Unread stack, catch-up lane and older threads</p>
+                </div>
+                {totalUnread > 0 && (
+                  <span className="min-w-[28px] h-7 rounded-full bg-[#40a7ff] px-2 flex items-center justify-center text-white text-xs font-bold">
+                    {totalUnread}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => onViewChange('newChat')}
+                className="w-full rounded-[24px] bg-[#1b2a38] border border-white/5 px-4 py-3 flex items-center gap-3 text-left"
+              >
+                <div className="w-12 h-12 rounded-full bg-[#2ca8ff] flex items-center justify-center text-white">
+                  <Bookmark size={21} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-qc-text-primary text-[15px] font-semibold">Saved Space</p>
+                  <p className="text-qc-text-secondary text-sm truncate">Start a fresh DM, pin ideas and jump faster</p>
+                </div>
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
         <div className="flex items-start justify-between gap-3">
           <button onClick={() => onViewChange('settings')} className="flex items-center gap-3 text-left">
             <div className="w-12 h-12 rounded-2xl overflow-hidden bg-qc-accent-tertiary flex items-center justify-center shadow-glow">
@@ -154,7 +276,7 @@ export default function LeftPanel({
             </div>
           </button>
 
-          <div className="flex items-center gap-2 relative" ref={menuRef}>
+          <div className="flex items-center gap-2 relative">
             <button onClick={() => onViewChange('stories')} className="w-10 h-10 rounded-2xl flex items-center justify-center text-qc-text-secondary hover:bg-qc-accent-tertiary transition-colors" title="Open stories">
               <CircleDashed size={18} />
             </button>
@@ -227,11 +349,13 @@ export default function LeftPanel({
               Memories
             </button>
           </div>
-        </div>
+          </div>
+          </>
+        )}
       </div>
 
       <div className="px-4 py-3 border-b border-qc-border bg-qc-surface backdrop-blur-md">
-        {orbitPeople.length > 0 && (
+        {!isMobile && orbitPeople.length > 0 && (
           <div className="mb-3 flex gap-3 overflow-x-auto hide-scrollbar">
             {orbitPeople.map((person) => (
               <button
@@ -254,7 +378,7 @@ export default function LeftPanel({
           </div>
         )}
 
-        <div className="relative flex items-center">
+        {!isMobile && <div className="relative flex items-center">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search size={16} className="text-qc-text-secondary" />
           </div>
@@ -272,9 +396,9 @@ export default function LeftPanel({
           >
             <Filter size={18} />
           </button>
-        </div>
+        </div>}
 
-        <div className="flex gap-2 mt-3 overflow-x-auto hide-scrollbar">
+        {!isMobile && <div className="flex gap-2 mt-3 overflow-x-auto hide-scrollbar">
           {[
             { id: 'all', label: 'All chats' },
             { id: 'unread', label: 'Unread' },
@@ -293,7 +417,7 @@ export default function LeftPanel({
               {filter.label}
             </button>
           ))}
-        </div>
+        </div>}
       </div>
     </>
   );
@@ -346,22 +470,22 @@ export default function LeftPanel({
             return (
               <button
                 key={conv.id}
-                onClick={() => onSelectConv(conv)}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 hover:bg-qc-surface-hover transition-colors text-left border-b border-qc-border/80 ${
-                  activeConv?.id === conv.id ? 'bg-qc-accent-tertiary' : ''
+              onClick={() => onSelectConv(conv)}
+                className={`w-full flex items-center gap-3 ${isMobile ? 'px-4 py-3' : 'px-4 py-3.5'} hover:bg-qc-surface-hover transition-colors text-left border-b border-qc-border/80 ${
+                  activeConv?.id === conv.id ? (isMobile ? 'bg-[#21374c]' : 'bg-qc-accent-tertiary') : ''
                 }`}
               >
                 <div className="relative flex-shrink-0">
-                  <div className="w-12 h-12 rounded-2xl overflow-hidden bg-qc-accent-tertiary flex items-center justify-center">
+                  <div className={`${isMobile ? 'w-[54px] h-[54px] rounded-full' : 'w-12 h-12 rounded-2xl'} overflow-hidden bg-qc-accent-tertiary flex items-center justify-center`}>
                     {avatar ? <img src={avatar} alt="" className="w-full h-full object-cover" /> : (isGroup ? <Users size={20} className="text-qc-text-secondary" /> : <User size={20} className="text-qc-text-secondary" />)}
                   </div>
-                  {isOnline && <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-qc-accent-primary border-2 border-qc-surface rounded-full" />}
+                  {isOnline && <div className={`absolute -bottom-1 -right-1 ${isMobile ? 'w-[13px] h-[13px]' : 'w-4 h-4'} bg-qc-accent-primary border-2 border-qc-surface rounded-full`} />}
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center gap-3 mb-1">
                     <div className="min-w-0 flex items-center gap-2">
-                      <span className="font-medium text-qc-text-primary text-[15px] truncate">{name}</span>
+                      <span className={`font-medium text-qc-text-primary truncate ${isMobile ? 'text-[17px]' : 'text-[15px]'}`}>{name}</span>
                       {conv.streak_count > 0 && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-qc-accent-tertiary text-qc-accent-primary font-medium whitespace-nowrap">
                           {'\u{1F525}'} {conv.streak_count}
@@ -379,7 +503,7 @@ export default function LeftPanel({
                         <span className="text-qc-accent-primary font-medium italic text-[13px]">typing...</span>
                       ) : (
                         <div className="min-w-0">
-                          <span className="text-[13px] text-qc-text-secondary truncate block">
+                          <span className={`${isMobile ? 'text-[14px]' : 'text-[13px]'} text-qc-text-secondary truncate block`}>
                             {formatConversationSnippet(conv.last_message) || (isGroup ? 'Group ready for activity' : 'Say hi to kick things off')}
                           </span>
                           {conv.disappearing_minutes > 0 && (
