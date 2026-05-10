@@ -10,7 +10,6 @@ import {
   Settings as SettingsIcon,
   LogOut,
   Moon,
-  Sun,
   CircleDashed,
   Clapperboard,
   Sparkles,
@@ -34,18 +33,17 @@ function formatMsgTimeShort(time) {
 export default function LeftPanel({
   user,
   logout,
-  darkMode,
-  toggleTheme,
   conversations,
   activeConv,
   onSelectConv,
-  onStartChat,
   onlineUsers,
   typingUsers,
   onReloadConversations,
   token,
   view,
   onViewChange,
+  isMobile,
+  hideFooterNav,
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showMenu, setShowMenu] = useState(false);
@@ -120,7 +118,7 @@ export default function LeftPanel({
 
   const renderTopShell = () => (
     <>
-      <div className="px-4 pt-4 pb-3 border-b border-qc-border bg-qc-surface backdrop-blur-xl relative">
+      <div className={`px-4 border-b border-qc-border bg-qc-surface backdrop-blur-xl relative ${isMobile ? 'pt-3 pb-2' : 'pt-4 pb-3'}`}>
         <div className="flex items-start justify-between gap-3">
           <button onClick={() => onViewChange('settings')} className="flex items-center gap-3 text-left">
             <div className="w-12 h-12 rounded-2xl overflow-hidden bg-qc-accent-tertiary flex items-center justify-center shadow-glow">
@@ -151,9 +149,9 @@ export default function LeftPanel({
                 <button onClick={() => { onReloadConversations?.(); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-qc-text-primary hover:bg-qc-surface-hover flex items-center gap-2">
                   <Sparkles size={15} /> Refresh feed
                 </button>
-                <button onClick={() => { toggleTheme(); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-qc-text-primary hover:bg-qc-surface-hover flex items-center justify-between">
-                  <span className="flex items-center gap-2">{darkMode ? <Sun size={15} /> : <Moon size={15} />} Toggle theme</span>
-                  <span className="text-qc-text-tertiary text-xs">{darkMode ? 'Light' : 'Dark'}</span>
+                <button onClick={() => setShowMenu(false)} className="w-full text-left px-4 py-2 text-sm text-qc-text-primary hover:bg-qc-surface-hover flex items-center justify-between">
+                  <span className="flex items-center gap-2"><Moon size={15} /> Dark mode locked</span>
+                  <span className="text-qc-text-tertiary text-xs">On</span>
                 </button>
                 <button onClick={() => { logout(); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-qc-surface-hover flex items-center gap-2">
                   <LogOut size={15} /> Log out
@@ -163,12 +161,12 @@ export default function LeftPanel({
           </div>
         </div>
 
-        <div className="mt-4 rounded-[24px] border border-qc-border bg-[linear-gradient(135deg,rgba(255,107,61,0.95),rgba(79,124,255,0.92))] text-white p-4 shadow-glow">
+        <div className={`mt-3 rounded-[24px] border border-qc-border bg-[linear-gradient(135deg,rgba(255,107,61,0.95),rgba(79,124,255,0.92))] text-white shadow-glow ${isMobile ? 'p-3' : 'p-4'}`}>
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] uppercase tracking-[0.24em] text-white/70">Daily streak</p>
               <h3 className="font-heading text-xl leading-none mt-1">Social cockpit</h3>
-              <p className="text-xs text-white/80 mt-2 max-w-[18rem]">Chats pinned rakho, baaki stories aur spotlight ab main stage par open hote hain.</p>
+              <p className="text-xs text-white/80 mt-2 max-w-[18rem]">{isMobile ? 'Chats, stories aur spotlight ke beech fast switch.' : 'Chats pinned rakho, baaki stories aur spotlight ab main stage par open hote hain.'}</p>
             </div>
             <div className="rounded-2xl bg-white/15 px-3 py-2 text-right min-w-[78px]">
               <p className="text-[11px] uppercase tracking-[0.24em] text-white/70">Unread</p>
@@ -176,7 +174,7 @@ export default function LeftPanel({
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className={`mt-3 grid gap-2 ${isMobile ? 'grid-cols-2' : 'grid-cols-3'}`}>
             <div className="rounded-2xl bg-white/12 px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.22em] text-white/65">Online</p>
               <p className="text-base font-semibold">{onlineDirectConversations}</p>
@@ -185,7 +183,7 @@ export default function LeftPanel({
               <p className="text-[10px] uppercase tracking-[0.22em] text-white/65">Squads</p>
               <p className="text-base font-semibold">{groupCount}</p>
             </div>
-            <div className="rounded-2xl bg-white/12 px-3 py-2">
+            <div className={`rounded-2xl bg-white/12 px-3 py-2 ${isMobile ? 'col-span-2' : ''}`}>
               <p className="text-[10px] uppercase tracking-[0.22em] text-white/65">Profile</p>
               <p className="text-base font-semibold truncate">{user?.role || 'user'}</p>
             </div>
@@ -415,7 +413,7 @@ export default function LeftPanel({
 
       {view === 'newChat' && renderNewChat()}
 
-      <div className="grid grid-cols-5 gap-1 p-2 border-t border-qc-border bg-qc-surface backdrop-blur-xl">
+      {!hideFooterNav && <div className="grid grid-cols-5 gap-1 p-2 border-t border-qc-border bg-qc-surface backdrop-blur-xl">
         {navItems.map(item => {
           const Icon = item.icon;
           const isActive = view === item.id;
@@ -434,7 +432,7 @@ export default function LeftPanel({
             </button>
           );
         })}
-      </div>
+      </div>}
     </div>
   );
 }

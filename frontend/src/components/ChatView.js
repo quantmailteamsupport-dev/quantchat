@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { format, isToday, isYesterday } from 'date-fns';
 import {
   Send,
@@ -26,7 +26,7 @@ import {
 import axios from 'axios';
 import { API } from '../lib/api';
 
-const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '🎉', '💯'];
+const EMOJIS = ['\u{1F44D}', '\u2764\uFE0F', '\u{1F602}', '\u{1F62E}', '\u{1F622}', '\u{1F525}', '\u{1F389}', '\u{1F4AF}', '\u{1F64F}', '\u{1F440}', '\u2728', '\u{1F91D}'];
 const DISAPPEARING_OPTIONS = [
   { label: 'Off', minutes: 0 },
   { label: '5 min', minutes: 5 },
@@ -58,6 +58,16 @@ function formatExpiry(time) {
   }
 }
 
+function buildConversationSubtitle({ isGroup, conversation, isOnline, isTyping }) {
+  if (isTyping) return 'typing...';
+  const streakText = conversation.streak_count ? ` • ${conversation.streak_count} day streak` : '';
+  if (isGroup) {
+    const names = (conversation.participants || []).map((participant) => participant.name).join(', ');
+    return `${names}${streakText}`;
+  }
+  return `${isOnline ? 'online now' : 'offline'}${streakText}`;
+}
+
 function MessageBubble({
   msg,
   isMine,
@@ -71,6 +81,7 @@ function MessageBubble({
   participants,
   repliedMsg,
   isPinned,
+  isMobile,
 }) {
   const [showMenu, setShowMenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -78,7 +89,7 @@ function MessageBubble({
   const menuRef = useRef(null);
   const reactions = msg.reactions || {};
   const reactionList = Object.entries(reactions);
-  const senderName = !isMine ? (participants?.find(p => p.user_id === msg.sender_id)?.name || '') : '';
+  const senderName = !isMine ? (participants?.find((participant) => participant.user_id === msg.sender_id)?.name || '') : '';
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -100,31 +111,51 @@ function MessageBubble({
 
   const renderContent = () => {
     if (msg.type === 'image') {
-      return <img src={msg.content} alt="Attachment" className="max-w-xs md:max-w-sm h-auto rounded-2xl mt-1 cursor-pointer" />;
+      return (
+        <img
+          src={msg.content}
+          alt="Attachment"
+          className="max-w-[220px] sm:max-w-xs md:max-w-sm h-auto rounded-2xl mt-1 cursor-pointer"
+        />
+      );
     }
 
     if (msg.type === 'audio') {
       return (
-        <div className="mt-1 flex items-center gap-2 bg-black/5 rounded-full p-1 pr-3">
-          <audio controls src={msg.content} className="h-10 w-[200px]" />
+        <div className="mt-1 flex items-center gap-2 bg-black/10 rounded-full p-1 pr-3">
+          <audio controls src={msg.content} className={`${isMobile ? 'w-[180px]' : 'w-[220px]'} h-10`} />
         </div>
       );
     }
 
-    return <p className="text-[14.2px] whitespace-pre-wrap break-words leading-snug">{msg.content}</p>;
+    return <p className={`${isMobile ? 'text-[15px]' : 'text-[14.2px]'} whitespace-pre-wrap break-words leading-snug`}>{msg.content}</p>;
   };
 
   return (
     <div id={`msg-${msg.id}`} className={`flex ${isMine ? 'justify-end' : 'justify-start'} w-full mb-2 group relative`} onMouseLeave={() => setShowMenu(false)}>
-      <div className={`max-w-[88%] sm:max-w-[68%] px-3 py-2 rounded-[20px] shadow-sm relative flex flex-col transition-all ${isPinned ? 'ring-2 ring-qc-accent-primary ring-offset-2' : ''} ${isMine ? 'bg-qc-bubble-mine rounded-tr-md text-[#111B21]' : 'bg-qc-bubble-other rounded-tl-md text-[#111B21]'}`}>
-        <div className={`absolute top-1 right-1 p-1 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity z-10 ${isMine ? 'bg-gradient-to-l from-qc-bubble-mine to-transparent' : 'bg-gradient-to-l from-qc-bubble-other to-transparent'}`} onClick={() => setShowMenu(value => !value)}>
-          <svg viewBox="0 0 18 18" width="18" height="18" className="text-gray-500"><path fill="currentColor" d="M3.3 4.6 9 10.3l5.7-5.7 1.6 1.6L9 13.4 1.7 6.2l1.6-1.6z" /></svg>
+      <div
+        className={`max-w-[92%] sm:max-w-[72%] px-3 py-2 rounded-[22px] shadow-sm relative flex flex-col transition-all ${
+          isPinned ? 'ring-2 ring-qc-accent-primary ring-offset-2 ring-offset-qc-bg' : ''
+        } ${isMine ? 'bg-qc-bubble-mine rounded-tr-md text-[#111B21]' : 'bg-qc-bubble-other rounded-tl-md text-[#111B21]'}`}
+      >
+        <div
+          className={`absolute top-1 right-1 p-1 cursor-pointer ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity z-10 ${
+            isMine ? 'bg-gradient-to-l from-qc-bubble-mine to-transparent' : 'bg-gradient-to-l from-qc-bubble-other to-transparent'
+          }`}
+          onClick={() => setShowMenu((value) => !value)}
+        >
+          <svg viewBox="0 0 18 18" width="18" height="18" className="text-gray-500">
+            <path fill="currentColor" d="M3.3 4.6 9 10.3l5.7-5.7 1.6 1.6L9 13.4 1.7 6.2l1.6-1.6z" />
+          </svg>
         </div>
 
         {showMenu && !isEditing && (
-          <div ref={menuRef} className="absolute top-8 right-2 w-52 bg-qc-surface shadow-lg rounded-2xl py-2 z-50 text-qc-text-primary text-sm border border-qc-border animate-fadeIn origin-top-right">
+          <div
+            ref={menuRef}
+            className={`absolute top-8 ${isMobile ? 'right-0 w-48' : 'right-2 w-52'} bg-qc-surface shadow-lg rounded-2xl py-2 z-50 text-qc-text-primary text-sm border border-qc-border animate-fadeIn origin-top-right`}
+          >
             <div className="flex flex-wrap justify-around px-2 py-2 border-b border-qc-border gap-2">
-              {EMOJIS.map(emoji => (
+              {EMOJIS.slice(0, 8).map((emoji) => (
                 <button key={emoji} onClick={() => { onReact(msg.id, emoji); setShowMenu(false); }} className="hover:scale-125 transition-transform text-lg">
                   {emoji}
                 </button>
@@ -135,8 +166,16 @@ function MessageBubble({
             <button onClick={() => { onPin(isPinned ? null : msg.id); setShowMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-qc-surface-hover flex justify-between items-center">
               {isPinned ? 'Unpin' : 'Pin'} <Pin size={14} />
             </button>
-            {isMine && msg.type === 'text' && <button onClick={() => { setIsEditing(true); setShowMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-qc-surface-hover">Edit</button>}
-            {isMine && <button onClick={() => { onDelete(msg.id); setShowMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-qc-surface-hover text-red-500">Delete message</button>}
+            {isMine && msg.type === 'text' && (
+              <button onClick={() => { setIsEditing(true); setShowMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-qc-surface-hover">
+                Edit
+              </button>
+            )}
+            {isMine && (
+              <button onClick={() => { onDelete(msg.id); setShowMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-qc-surface-hover text-red-500">
+                Delete message
+              </button>
+            )}
           </div>
         )}
 
@@ -145,14 +184,19 @@ function MessageBubble({
 
         {repliedMsg && (
           <div className="bg-black/5 border-l-4 border-qc-accent-primary rounded-xl p-2 mb-1 cursor-pointer hover:bg-black/10 transition-colors" onClick={() => document.getElementById(`msg-${repliedMsg.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>
-            <p className="text-[12px] font-medium text-qc-accent-secondary">{repliedMsg.sender_id === userId ? 'You' : (participants?.find(p => p.user_id === repliedMsg.sender_id)?.name || 'Unknown')}</p>
+            <p className="text-[12px] font-medium text-qc-accent-secondary">{repliedMsg.sender_id === userId ? 'You' : (participants?.find((participant) => participant.user_id === repliedMsg.sender_id)?.name || 'Unknown')}</p>
             <p className="text-[13px] text-gray-600 truncate">{repliedMsg.type === 'text' ? repliedMsg.content : (repliedMsg.type === 'image' ? 'Photo' : 'Audio')}</p>
           </div>
         )}
 
         {isEditing ? (
           <div className="flex flex-col gap-2 min-w-[200px]">
-            <textarea value={editContent} onChange={event => setEditContent(event.target.value)} className="w-full bg-white/60 border border-gray-300 rounded-xl p-2 text-[14.2px] resize-none focus:outline-none focus:ring-1 focus:ring-qc-accent-primary" rows={2} />
+            <textarea
+              value={editContent}
+              onChange={(event) => setEditContent(event.target.value)}
+              className="w-full bg-white/60 border border-gray-300 rounded-xl p-2 text-[14.2px] resize-none focus:outline-none focus:ring-1 focus:ring-qc-accent-primary"
+              rows={2}
+            />
             <div className="flex gap-2 justify-end">
               <button onClick={() => setIsEditing(false)} className="text-[12px] text-gray-600 hover:underline">Cancel</button>
               <button onClick={handleEditSubmit} className="text-[12px] text-qc-accent-secondary font-medium hover:underline">Save</button>
@@ -161,7 +205,7 @@ function MessageBubble({
         ) : (
           <div className="flex flex-col">
             {renderContent()}
-            <div className="flex items-center justify-end gap-1 mt-1 ml-4 self-end -mb-1">
+            <div className="flex items-center justify-end gap-1 mt-1 ml-4 self-end -mb-1 flex-wrap">
               {msg.expires_at && <span className="text-[11px] text-qc-accent-primary mr-1">Vanishes {formatExpiry(msg.expires_at)}</span>}
               {msg.is_edited && <span className="text-[11px] text-gray-500 italic mr-1">Edited</span>}
               <span className="text-[11px] text-gray-500">{formatMsgTime(msg.created_at)}</span>
@@ -172,7 +216,9 @@ function MessageBubble({
 
         {reactionList.length > 0 && !isEditing && (
           <div className="absolute -bottom-3 right-0 flex bg-white rounded-full px-1.5 shadow border border-gray-200 z-10">
-            {reactionList.map(([reactionUserId, emoji]) => <span key={reactionUserId} className="text-[12px]">{emoji}</span>)}
+            {reactionList.map(([reactionUserId, emoji]) => (
+              <span key={reactionUserId} className="text-[12px]">{emoji}</span>
+            ))}
           </div>
         )}
       </div>
@@ -218,12 +264,14 @@ export default function ChatArea({
   const fileInputRef = useRef(null);
 
   const isGroup = conversation.type === 'group';
-  const otherUser = isGroup ? null : (conversation.other_user || conversation.participants?.find(p => p.user_id !== userId));
+  const otherUser = isGroup ? null : (conversation.other_user || conversation.participants?.find((participant) => participant.user_id !== userId));
   const isOnline = otherUser ? onlineUsers.has(otherUser.user_id) : false;
   const isTyping = typingUsers[conversation.id] && typingUsers[conversation.id] !== userId;
-  const matchingMessages = searchTerm.trim()
-    ? messages.filter(message => (message.content || '').toLowerCase().includes(searchTerm.toLowerCase()))
-    : [];
+  const matchingMessages = useMemo(() => (
+    searchTerm.trim()
+      ? messages.filter((message) => (message.content || '').toLowerCase().includes(searchTerm.toLowerCase()))
+      : []
+  ), [messages, searchTerm]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -232,7 +280,7 @@ export default function ChatArea({
   useEffect(() => {
     let interval;
     if (isRecording) {
-      interval = setInterval(() => setRecordingTime(value => value + 1), 1000);
+      interval = setInterval(() => setRecordingTime((value) => value + 1), 1000);
     } else {
       setRecordingTime(0);
     }
@@ -382,7 +430,7 @@ export default function ChatArea({
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
       setIsRecording(false);
     }
   };
@@ -410,7 +458,7 @@ export default function ChatArea({
 
   let lastDate = null;
   const pinnedMessage = conversation.pinned_message_id
-    ? (messages.find(message => message.id === conversation.pinned_message_id) || conversation.pinned_message)
+    ? (messages.find((message) => message.id === conversation.pinned_message_id) || conversation.pinned_message)
     : conversation.pinned_message;
 
   return (
@@ -455,16 +503,16 @@ export default function ChatArea({
 
       {forwardMsgId && (
         <div className="absolute inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setForwardMsgId(null)}>
-          <div className="bg-qc-surface w-full max-w-sm rounded-2xl shadow-xl flex flex-col max-h-[80vh] overflow-hidden" onClick={event => event.stopPropagation()}>
+          <div className="bg-qc-surface w-full max-w-sm rounded-2xl shadow-xl flex flex-col max-h-[80vh] overflow-hidden" onClick={(event) => event.stopPropagation()}>
             <div className="p-4 border-b border-qc-border flex items-center justify-between bg-qc-surface-hover">
               <span className="font-medium text-qc-text-primary text-lg">Forward message to</span>
               <button onClick={() => setForwardMsgId(null)} className="text-qc-text-secondary hover:text-qc-text-primary"><X size={24} /></button>
             </div>
             <div className="flex-1 overflow-y-auto">
-              {(conversations || []).filter(conv => conv.id !== conversation.id).map(conv => {
+              {(conversations || []).filter((conv) => conv.id !== conversation.id).map((conv) => {
                 const isGroupConversation = conv.type === 'group';
-                const name = isGroupConversation ? conv.name : (conv.other_user?.name || conv.participants?.find(p => p.user_id !== userId)?.name || 'Unknown');
-                const avatar = isGroupConversation ? conv.avatar : (conv.other_user?.avatar || conv.participants?.find(p => p.user_id !== userId)?.avatar || '');
+                const name = isGroupConversation ? conv.name : (conv.other_user?.name || conv.participants?.find((participant) => participant.user_id !== userId)?.name || 'Unknown');
+                const avatar = isGroupConversation ? conv.avatar : (conv.other_user?.avatar || conv.participants?.find((participant) => participant.user_id !== userId)?.avatar || '');
                 return (
                   <button key={conv.id} onClick={() => handleForward(conv.id)} className="w-full flex items-center gap-3 p-3 hover:bg-qc-surface-hover transition-colors text-left border-b border-qc-border">
                     <div className="w-10 h-10 rounded-full bg-qc-surface-hover flex items-center justify-center overflow-hidden flex-shrink-0">
@@ -479,38 +527,38 @@ export default function ChatArea({
         </div>
       )}
 
-      <div className="h-16 px-4 bg-qc-surface-hover flex items-center gap-3 flex-shrink-0 shadow-sm relative z-20 border-b border-qc-border">
+      <div className={`px-3 md:px-4 bg-qc-surface-hover flex items-center gap-3 flex-shrink-0 shadow-sm relative z-20 border-b border-qc-border ${isMobile ? 'h-14' : 'h-16'}`}>
         {isMobile && (
-          <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 text-qc-text-secondary -ml-2">
-            <ArrowLeft size={24} />
+          <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 text-qc-text-secondary -ml-1">
+            <ArrowLeft size={22} />
           </button>
         )}
-        <div className="w-10 h-10 rounded-full overflow-hidden bg-qc-bg flex items-center justify-center flex-shrink-0 cursor-pointer">
+        <div className={`${isMobile ? 'w-9 h-9' : 'w-10 h-10'} rounded-full overflow-hidden bg-qc-bg flex items-center justify-center flex-shrink-0 cursor-pointer`}>
           {isGroup
             ? (conversation.avatar ? <img src={conversation.avatar} alt="" className="w-full h-full object-cover" /> : <Users size={24} className="text-qc-text-secondary" />)
             : (otherUser?.avatar ? <img src={otherUser.avatar} alt="" className="w-full h-full object-cover" /> : <User size={24} className="text-qc-text-secondary" />)}
         </div>
         <div className="flex-1 min-w-0 cursor-pointer">
-          <h3 className="text-base font-medium text-qc-text-primary truncate">{isGroup ? conversation.name : (otherUser?.name || 'Unknown')}</h3>
-          {isTyping ? (
-            <p className="text-[13px] text-qc-accent-primary font-medium">typing...</p>
-          ) : (
-            isGroup
-              ? <p className="text-[13px] text-qc-text-secondary truncate">{(conversation.participants || []).map(participant => participant.name).join(', ')}{conversation.streak_count ? ` • ${conversation.streak_count} day streak` : ''}</p>
-              : <p className="text-[13px] text-qc-text-secondary">{isOnline ? 'online now' : 'offline'}{conversation.streak_count ? ` • ${conversation.streak_count} day streak` : ''}</p>
-          )}
+          <h3 className={`${isMobile ? 'text-[15px]' : 'text-base'} font-medium text-qc-text-primary truncate`}>{isGroup ? conversation.name : (otherUser?.name || 'Unknown')}</h3>
+          <p className="text-[13px] text-qc-text-secondary truncate">{buildConversationSubtitle({ isGroup, conversation, isOnline, isTyping })}</p>
         </div>
 
-        <div className="flex items-center gap-2 text-qc-text-secondary relative">
-          <button onClick={() => setActiveCall({ type: 'video', status: 'ringing' })} className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5"><Video size={20} /></button>
-          <button onClick={() => setActiveCall({ type: 'audio', status: 'ringing' })} className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5"><Phone size={18} /></button>
-          <button onClick={() => setShowSearch(value => !value)} className={`w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5 ${showSearch ? 'text-qc-accent-primary' : ''}`}><Search size={20} /></button>
-          <button onClick={() => { setShowChatMenu(value => !value); setShowDisappearingMenu(false); }} className={`w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5 ${showChatMenu ? 'text-qc-accent-primary' : ''}`}><MoreVertical size={20} /></button>
+        <div className="flex items-center gap-1 md:gap-2 text-qc-text-secondary relative">
+          {!isMobile && <button onClick={() => setActiveCall({ type: 'video', status: 'ringing' })} className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5"><Video size={20} /></button>}
+          {!isMobile && <button onClick={() => setActiveCall({ type: 'audio', status: 'ringing' })} className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5"><Phone size={18} /></button>}
+          <button onClick={() => setShowSearch((value) => !value)} className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center hover:bg-black/5 ${showSearch ? 'text-qc-accent-primary' : ''}`}><Search size={18} /></button>
+          <button onClick={() => { setShowChatMenu((value) => !value); setShowDisappearingMenu(false); }} className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center hover:bg-black/5 ${showChatMenu ? 'text-qc-accent-primary' : ''}`}><MoreVertical size={18} /></button>
 
           {showChatMenu && (
-            <div className="absolute top-12 right-0 w-56 rounded-2xl border border-qc-border bg-qc-surface shadow-xl overflow-hidden z-30 animate-fadeIn">
+            <div className={`absolute top-12 right-0 rounded-2xl border border-qc-border bg-qc-surface shadow-xl overflow-hidden z-30 animate-fadeIn ${isMobile ? 'w-48' : 'w-56'}`}>
+              {isMobile && (
+                <>
+                  <button onClick={() => { setActiveCall({ type: 'audio', status: 'ringing' }); setShowChatMenu(false); }} className="w-full text-left px-4 py-3 text-sm hover:bg-qc-surface-hover">Start audio call</button>
+                  <button onClick={() => { setActiveCall({ type: 'video', status: 'ringing' }); setShowChatMenu(false); }} className="w-full text-left px-4 py-3 text-sm hover:bg-qc-surface-hover">Start video call</button>
+                </>
+              )}
               <button onClick={() => { setShowSearch(true); setShowChatMenu(false); }} className="w-full text-left px-4 py-3 text-sm hover:bg-qc-surface-hover">Search in conversation</button>
-              <button onClick={() => setShowDisappearingMenu(value => !value)} className="w-full text-left px-4 py-3 text-sm hover:bg-qc-surface-hover flex items-center justify-between">
+              <button onClick={() => setShowDisappearingMenu((value) => !value)} className="w-full text-left px-4 py-3 text-sm hover:bg-qc-surface-hover flex items-center justify-between">
                 <span>Disappearing messages</span>
                 <span className="text-qc-text-tertiary text-xs">{formatDisappearingLabel(conversation.disappearing_minutes)}</span>
               </button>
@@ -520,8 +568,8 @@ export default function ChatArea({
           )}
 
           {showDisappearingMenu && (
-            <div className="absolute top-12 right-60 w-40 rounded-2xl border border-qc-border bg-qc-surface shadow-xl overflow-hidden z-30 animate-fadeIn">
-              {DISAPPEARING_OPTIONS.map(option => (
+            <div className={`absolute top-12 rounded-2xl border border-qc-border bg-qc-surface shadow-xl overflow-hidden z-30 animate-fadeIn ${isMobile ? 'right-0 w-44' : 'right-60 w-40'}`}>
+              {DISAPPEARING_OPTIONS.map((option) => (
                 <button
                   key={option.minutes}
                   onClick={() => handleSetDisappearing(option.minutes)}
@@ -536,12 +584,12 @@ export default function ChatArea({
       </div>
 
       {showSearch && (
-        <div className="bg-qc-surface px-4 py-3 border-b border-qc-border flex items-center gap-3 relative z-20">
-          <div className="flex-1 rounded-2xl bg-qc-surface-hover border border-qc-border px-3 py-2 flex items-center gap-2">
+        <div className={`bg-qc-surface px-3 md:px-4 py-3 border-b border-qc-border flex items-center gap-3 relative z-20 ${isMobile ? 'flex-wrap' : ''}`}>
+          <div className="flex-1 rounded-2xl bg-qc-surface-hover border border-qc-border px-3 py-2 flex items-center gap-2 min-w-0">
             <Search size={16} className="text-qc-text-secondary" />
             <input
               value={searchTerm}
-              onChange={event => {
+              onChange={(event) => {
                 setSearchTerm(event.target.value);
                 setSearchCursor(0);
               }}
@@ -551,9 +599,9 @@ export default function ChatArea({
           </div>
           {matchingMessages.length > 0 && (
             <div className="flex items-center gap-2 text-xs text-qc-text-secondary">
-              <button onClick={() => setSearchCursor(value => Math.max(value - 1, 0))} className="px-2 py-1 rounded-full bg-qc-surface-hover border border-qc-border">Prev</button>
+              <button onClick={() => setSearchCursor((value) => Math.max(value - 1, 0))} className="px-2 py-1 rounded-full bg-qc-surface-hover border border-qc-border">Prev</button>
               <span>{Math.min(searchCursor + 1, matchingMessages.length)}/{matchingMessages.length}</span>
-              <button onClick={() => setSearchCursor(value => Math.min(value + 1, matchingMessages.length - 1))} className="px-2 py-1 rounded-full bg-qc-surface-hover border border-qc-border">Next</button>
+              <button onClick={() => setSearchCursor((value) => Math.min(value + 1, matchingMessages.length - 1))} className="px-2 py-1 rounded-full bg-qc-surface-hover border border-qc-border">Next</button>
             </div>
           )}
           <button onClick={() => { setShowSearch(false); setSearchTerm(''); setSearchCursor(0); }} className="text-qc-text-secondary hover:text-qc-text-primary">
@@ -563,7 +611,7 @@ export default function ChatArea({
       )}
 
       {(conversation.disappearing_minutes > 0 || conversation.streak_count > 0) && (
-        <div className="bg-qc-surface px-4 py-2 border-b border-qc-border flex items-center justify-between text-xs text-qc-text-secondary relative z-10">
+        <div className={`bg-qc-surface px-4 py-2 border-b border-qc-border text-xs text-qc-text-secondary relative z-10 ${isMobile ? 'flex flex-col items-start gap-1' : 'flex items-center justify-between'}`}>
           <span>{conversation.disappearing_minutes > 0 ? `Snaps vanish after ${formatDisappearingLabel(conversation.disappearing_minutes)}` : 'Disappear timer off'}</span>
           {conversation.streak_count > 0 && <span className="text-qc-accent-primary font-medium">🔥 {conversation.streak_count} day streak</span>}
         </div>
@@ -580,18 +628,18 @@ export default function ChatArea({
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-[5%] md:px-[10%] space-y-1 relative z-10">
+      <div className={`flex-1 overflow-y-auto py-4 space-y-1 relative z-10 ${isMobile ? 'px-3' : 'px-4 sm:px-[5%] md:px-[10%]'}`}>
         {messages.length === 0 ? (
           <div className="flex justify-center mt-10">
             <div className="bg-[#FFEECD] text-[#54656F] text-[12.5px] px-4 py-2 rounded-lg shadow-sm text-center max-w-sm">
               <span className="block mb-1">Messages and calls are end-to-end encrypted. No one outside of this chat, not even QuantChat, can read or listen to them.</span>
             </div>
           </div>
-        ) : messages.map(message => {
+        ) : messages.map((message) => {
           const msgDate = new Date(message.created_at).toDateString();
           const showDate = msgDate !== lastDate;
           lastDate = msgDate;
-          const repliedMsg = message.reply_to ? messages.find(current => current.id === message.reply_to) : null;
+          const repliedMsg = message.reply_to ? messages.find((current) => current.id === message.reply_to) : null;
 
           return (
             <React.Fragment key={message.id}>
@@ -615,6 +663,7 @@ export default function ChatArea({
                 participants={conversation.participants}
                 repliedMsg={repliedMsg}
                 isPinned={conversation.pinned_message_id === message.id}
+                isMobile={isMobile}
               />
             </React.Fragment>
           );
@@ -625,40 +674,25 @@ export default function ChatArea({
       {replyToMsg && (
         <div className="bg-qc-surface-hover px-4 py-2 flex items-center justify-between border-l-4 border-qc-accent-primary relative z-20 shadow-sm border-t border-qc-border">
           <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-medium text-qc-accent-secondary">{replyToMsg.sender_id === userId ? 'You' : (conversation.participants?.find(participant => participant.user_id === replyToMsg.sender_id)?.name || 'Unknown')}</p>
+            <p className="text-[13px] font-medium text-qc-accent-secondary">{replyToMsg.sender_id === userId ? 'You' : (conversation.participants?.find((participant) => participant.user_id === replyToMsg.sender_id)?.name || 'Unknown')}</p>
             <p className="text-[13px] text-qc-text-secondary truncate">{replyToMsg.type === 'text' ? replyToMsg.content : (replyToMsg.type === 'image' ? 'Photo' : 'Audio')}</p>
           </div>
           <button onClick={() => setReplyToMsg(null)} className="text-qc-text-secondary hover:text-qc-text-primary p-2"><X size={20} /></button>
         </div>
       )}
 
-      <div className="bg-qc-surface-hover px-4 py-2.5 flex items-end gap-2 flex-shrink-0 relative z-20 border-t border-qc-border">
+      <div className={`bg-qc-surface-hover px-3 md:px-4 py-2.5 flex items-end gap-2 flex-shrink-0 relative z-20 border-t border-qc-border ${isMobile ? 'pb-[calc(0.7rem+env(safe-area-inset-bottom))]' : ''}`}>
         <input type="file" accept="image/*,.pdf,.txt,.doc,.docx" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
 
         <div className="relative">
-          <button onClick={() => { setShowEmojiPicker(value => !value); setShowAttachMenu(false); }} className={`p-2 rounded-full ${showEmojiPicker ? 'text-qc-accent-primary' : 'text-qc-text-secondary hover:text-qc-text-primary'}`}><Smile size={24} /></button>
-          {showEmojiPicker && (
-            <div className="absolute bottom-12 left-0 rounded-2xl border border-qc-border bg-qc-surface shadow-xl p-3 grid grid-cols-4 gap-2 animate-fadeIn">
-              {EMOJIS.map(emoji => (
-                <button key={emoji} onClick={() => setInput(current => `${current}${emoji}`)} className="w-10 h-10 rounded-xl hover:bg-qc-surface-hover text-xl">
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          )}
+          <button onClick={() => { setShowEmojiPicker((value) => !value); setShowAttachMenu(false); }} className={`p-2 rounded-full ${showEmojiPicker ? 'text-qc-accent-primary' : 'text-qc-text-secondary hover:text-qc-text-primary'}`}><Smile size={24} /></button>
         </div>
 
         <div className="relative">
-          <button onClick={() => { setShowAttachMenu(value => !value); setShowEmojiPicker(false); }} className={`p-2 rounded-full ${showAttachMenu ? 'text-qc-accent-primary' : 'text-qc-text-secondary hover:text-qc-text-primary'}`}><Paperclip size={24} /></button>
-          {showAttachMenu && (
-            <div className="absolute bottom-12 left-0 rounded-2xl border border-qc-border bg-qc-surface shadow-xl p-2 w-44 animate-fadeIn">
-              <button onClick={() => fileInputRef.current?.click()} className="w-full text-left px-3 py-2 rounded-xl hover:bg-qc-surface-hover text-sm">Attach photo</button>
-              <button onClick={handleQuickNote} className="w-full text-left px-3 py-2 rounded-xl hover:bg-qc-surface-hover text-sm">Drop quick note</button>
-            </div>
-          )}
+          <button onClick={() => { setShowAttachMenu((value) => !value); setShowEmojiPicker(false); }} className={`p-2 rounded-full ${showAttachMenu ? 'text-qc-accent-primary' : 'text-qc-text-secondary hover:text-qc-text-primary'}`}><Paperclip size={24} /></button>
         </div>
 
-        <div className="flex-1 bg-qc-surface rounded-2xl flex items-center min-h-[40px] px-2 shadow-sm border border-qc-border">
+        <div className={`flex-1 bg-qc-surface rounded-2xl flex items-center px-2 shadow-sm border border-qc-border ${isMobile ? 'min-h-[46px]' : 'min-h-[40px]'}`}>
           {isRecording ? (
             <div className="flex-1 flex items-center gap-3 px-2 text-[#FF3333] animate-pulse font-medium text-[15px]">
               <Mic size={20} className="fill-current" /> Recording {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
@@ -669,9 +703,9 @@ export default function ChatArea({
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder="Type a message"
-              className="flex-1 bg-transparent text-qc-text-primary text-[15px] px-2 py-2.5 resize-none max-h-[100px] focus:outline-none overflow-y-auto"
+              className={`flex-1 bg-transparent text-qc-text-primary px-2 py-2.5 resize-none max-h-[120px] focus:outline-none overflow-y-auto ${isMobile ? 'text-base' : 'text-[15px]'}`}
               rows={1}
-              style={{ minHeight: '40px' }}
+              style={{ minHeight: isMobile ? '46px' : '40px' }}
             />
           )}
         </div>
@@ -682,6 +716,23 @@ export default function ChatArea({
           <button onClick={stopRecording} className="p-2.5 bg-[#FF3333] text-white rounded-full hover:bg-red-600 transition-colors"><Square size={20} className="fill-current" /></button>
         ) : (
           <button onClick={startRecording} className="p-2.5 text-qc-text-secondary hover:text-qc-text-primary rounded-full"><Mic size={24} /></button>
+        )}
+
+        {showEmojiPicker && (
+          <div className={`${isMobile ? 'fixed inset-x-3 bottom-24' : 'absolute bottom-14 left-4'} rounded-2xl border border-qc-border bg-qc-surface shadow-xl p-3 grid grid-cols-4 gap-2 animate-fadeIn z-40`}>
+            {EMOJIS.map((emoji) => (
+              <button key={emoji} onClick={() => setInput((current) => `${current}${emoji}`)} className="h-11 rounded-xl hover:bg-qc-surface-hover text-2xl">
+                {emoji}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {showAttachMenu && (
+          <div className={`${isMobile ? 'fixed inset-x-3 bottom-24' : 'absolute bottom-14 left-14 w-48'} rounded-2xl border border-qc-border bg-qc-surface shadow-xl p-2 animate-fadeIn z-40`}>
+            <button onClick={() => fileInputRef.current?.click()} className="w-full text-left px-3 py-3 rounded-xl hover:bg-qc-surface-hover text-sm">Attach photo</button>
+            <button onClick={handleQuickNote} className="w-full text-left px-3 py-3 rounded-xl hover:bg-qc-surface-hover text-sm">Drop quick note</button>
+          </div>
         )}
       </div>
     </div>

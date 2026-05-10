@@ -8,7 +8,16 @@ import StoriesPanel from './Stories';
 import ReelsPanel from './Reels';
 import GroupsPanel from './Groups';
 import SettingsPanel from './Settings';
+import { MessageSquare, CircleDashed, Clapperboard, Users, Settings as SettingsIcon } from 'lucide-react';
 import { API } from '../lib/api';
+
+const MOBILE_NAV_ITEMS = [
+  { id: 'chats', label: 'Chats', icon: MessageSquare },
+  { id: 'stories', label: 'Stories', icon: CircleDashed },
+  { id: 'reels', label: 'Spotlight', icon: Clapperboard },
+  { id: 'groups', label: 'Groups', icon: Users },
+  { id: 'settings', label: 'You', icon: SettingsIcon },
+];
 
 export default function ChatApp() {
   const { user, token, logout, darkMode, toggleTheme } = useAuth();
@@ -275,7 +284,7 @@ export default function ChatApp() {
   };
 
   return (
-    <div data-testid="chat-app" className="h-screen w-screen bg-[#D1D7DB] dark:bg-[#0A1014] flex items-center justify-center overflow-hidden xl:py-4 xl:px-4">
+    <div data-testid="chat-app" className="h-screen w-screen bg-[#0A1014] flex items-center justify-center overflow-hidden xl:py-4 xl:px-4">
       <div className="flex h-full w-full xl:max-w-[1600px] xl:h-[95vh] bg-qc-surface xl:shadow-lg xl:rounded-xl overflow-hidden relative">
         <div className={`w-full md:w-[400px] flex-shrink-0 border-r border-qc-border bg-qc-surface flex flex-col ${isMobileView && showChat ? 'hidden' : 'flex'}`}>
           <LeftPanel
@@ -294,12 +303,38 @@ export default function ChatApp() {
             view={activeSection}
             onViewChange={selectSection}
             isMobile={isMobileView}
+            hideFooterNav={isMobileView}
           />
         </div>
 
-        <div className={`flex-1 flex flex-col bg-qc-bg ${isMobileView && !showChat ? 'hidden' : 'flex'}`}>
+        <div className={`flex-1 flex flex-col bg-qc-bg ${isMobileView && !showChat ? 'hidden' : 'flex'} ${isMobileView ? 'pb-[88px]' : ''}`}>
           {renderMainContent()}
         </div>
+
+        {isMobileView && (
+          <div className="absolute inset-x-0 bottom-0 z-40 border-t border-qc-border bg-[rgba(9,17,31,0.94)] backdrop-blur-xl px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+            <div className="grid grid-cols-5 gap-1">
+              {MOBILE_NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeSection === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => selectSection(item.id)}
+                    className={`rounded-2xl px-2 py-2 flex flex-col items-center justify-center gap-1 transition-all ${
+                      isActive
+                        ? 'bg-qc-accent-tertiary text-qc-accent-primary'
+                        : 'text-qc-text-secondary hover:bg-white/5'
+                    }`}
+                  >
+                    <Icon size={18} />
+                    <span className="text-[10px] leading-none">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

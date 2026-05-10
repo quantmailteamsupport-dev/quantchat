@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import axios from 'axios';
-import { User, Mail, Edit3, Save, Shield, Moon, Sun, BellRing, PlayCircle, Radio } from 'lucide-react';
+import { User, Mail, Edit3, Save, Shield, Moon, BellRing, PlayCircle, Radio } from 'lucide-react';
 import { API } from '../lib/api';
 import { useAuth } from '../App';
 
@@ -32,7 +32,7 @@ function PreferenceRow({ icon: Icon, title, description, enabled, onToggle }) {
 }
 
 export default function Settings() {
-  const { user, setUser, darkMode, toggleTheme } = useAuth();
+  const { user, setUser } = useAuth();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [bio, setBio] = useState(user?.bio || '');
@@ -45,10 +45,10 @@ export default function Settings() {
   const token = localStorage.getItem('qc_token');
 
   const stats = useMemo(() => ([
-    { label: 'Theme', value: darkMode ? 'Dark' : 'Light' },
+    { label: 'Theme', value: 'Dark' },
     { label: 'Profile mode', value: editing ? 'Editing' : 'Viewing' },
     { label: 'Story flow', value: preferences.storyAutoadvance ? 'Auto' : 'Manual' },
-  ]), [darkMode, editing, preferences.storyAutoadvance]);
+  ]), [editing, preferences.storyAutoadvance]);
 
   const broadcastPreferences = (nextPreferences) => {
     localStorage.setItem('qc_pref_autoplay_reels', String(nextPreferences.autoplayReels));
@@ -78,11 +78,11 @@ export default function Settings() {
 
   return (
     <div data-testid="settings-panel" className="flex flex-col h-full bg-qc-bg">
-      <div className="px-5 py-4 border-b border-qc-border bg-qc-surface">
+      <div className="px-4 py-4 sm:px-5 border-b border-qc-border bg-qc-surface">
         <p className="text-[10px] uppercase tracking-[0.24em] text-qc-text-tertiary">Profile cockpit</p>
         <h2 data-testid="settings-title" className="font-heading text-2xl text-qc-text-primary mt-1">You</h2>
 
-        <div className="grid grid-cols-3 gap-3 mt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
           {stats.map((stat) => (
             <div key={stat.label} className="rounded-2xl border border-qc-border bg-qc-surface-hover px-4 py-3">
               <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">{stat.label}</p>
@@ -92,7 +92,7 @@ export default function Settings() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
+      <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-5 space-y-6 pb-[calc(env(safe-area-inset-bottom)+6.5rem)] md:pb-6">
         <section className="rounded-[30px] border border-qc-border bg-qc-surface p-5 shadow-sm">
           <div className="flex items-center justify-between gap-4 mb-5">
             <div>
@@ -177,11 +177,11 @@ export default function Settings() {
           </div>
 
           <PreferenceRow
-            icon={darkMode ? Sun : Moon}
-            title={darkMode ? 'Use light theme' : 'Use dark theme'}
-            description="Switch the app shell without leaving the current conversation."
-            enabled={darkMode}
-            onToggle={toggleTheme}
+            icon={Moon}
+            title="Dark shell locked"
+            description="Mobile aur web dono par ab app dark mode me hi rahega."
+            enabled
+            onToggle={() => {}}
           />
           <PreferenceRow
             icon={PlayCircle}

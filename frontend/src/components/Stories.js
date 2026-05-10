@@ -191,7 +191,7 @@ export default function Stories({ userId }) {
 
   return (
     <div data-testid="stories-view" className="flex flex-col h-full bg-qc-bg relative overflow-hidden">
-      <div className="px-5 py-4 border-b border-qc-border bg-qc-surface">
+      <div className="px-4 py-4 sm:px-5 border-b border-qc-border bg-qc-surface">
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-[10px] uppercase tracking-[0.28em] text-qc-text-tertiary">Story deck</p>
@@ -204,14 +204,14 @@ export default function Stories({ userId }) {
           <button
             data-testid="open-story-composer"
             onClick={() => setShowComposer(true)}
-            className="h-11 px-4 rounded-2xl bg-qc-accent-primary text-white hover:bg-qc-accent-secondary transition-colors flex items-center gap-2 shadow-glow"
+            className="h-11 px-3 sm:px-4 rounded-2xl bg-qc-accent-primary text-white hover:bg-qc-accent-secondary transition-colors flex items-center gap-2 shadow-glow whitespace-nowrap"
           >
             <Plus size={16} />
             <span className="text-sm font-medium">Post story</span>
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 mt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
           <div className="rounded-2xl border border-qc-border bg-qc-surface-hover px-4 py-3">
             <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Live updates</p>
             <p className="text-xl font-semibold text-qc-text-primary mt-1">{timelineStories.length}</p>
@@ -278,7 +278,7 @@ export default function Stories({ userId }) {
         />
       )}
 
-      <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
+      <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-5 space-y-6 pb-[calc(env(safe-area-inset-bottom)+6.5rem)] md:pb-8">
         <section className="rounded-[28px] border border-qc-border bg-qc-surface p-4 shadow-sm">
           <div className="flex items-center justify-between gap-4 mb-4">
             <div>

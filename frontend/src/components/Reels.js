@@ -102,7 +102,7 @@ export default function Reels({ userId }) {
     <div data-testid="reels-panel" className="flex flex-col h-full bg-[linear-gradient(180deg,#09111f_0%,#13203a_100%)] relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,107,61,0.18),transparent_28%),radial-gradient(circle_at_top_left,rgba(79,124,255,0.18),transparent_32%)] pointer-events-none" />
 
-      <div className="relative z-10 px-5 py-4 border-b border-white/10">
+      <div className="relative z-10 px-4 py-4 sm:px-5 border-b border-white/10">
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-[10px] uppercase tracking-[0.24em] text-white/55">Spotlight feed</p>
@@ -115,14 +115,14 @@ export default function Reels({ userId }) {
           <button
             data-testid="create-reel-btn"
             onClick={() => setShowCreate((value) => !value)}
-            className="h-11 px-4 rounded-2xl bg-white/10 hover:bg-white/16 border border-white/10 text-white transition-colors flex items-center gap-2"
+            className="h-11 px-3 sm:px-4 rounded-2xl bg-white/10 hover:bg-white/16 border border-white/10 text-white transition-colors flex items-center gap-2 whitespace-nowrap"
           >
             <Plus size={16} />
             <span className="text-sm">New reel</span>
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 mt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
             <p className="text-[10px] uppercase tracking-[0.22em] text-white/50">Feed size</p>
             <p className="text-xl font-semibold text-white mt-1">{reels.length}</p>
@@ -139,7 +139,7 @@ export default function Reels({ userId }) {
       </div>
 
       {showCreate && (
-        <div className="absolute top-28 right-5 left-5 md:left-auto md:w-[420px] z-20 p-5 rounded-[28px] bg-[#0e1930] border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.34)] space-y-4">
+        <div className="absolute inset-x-4 bottom-24 md:top-28 md:right-5 md:left-auto md:bottom-auto md:w-[420px] z-20 p-5 rounded-[28px] bg-[#0e1930] border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.34)] space-y-4">
           <div className="flex justify-between items-center">
             <span className="font-heading text-lg text-white">Create Reel</span>
             <button onClick={() => setShowCreate(false)} className="text-white/75 hover:text-white">
@@ -170,7 +170,7 @@ export default function Reels({ userId }) {
         </div>
       )}
 
-      <div className="relative z-10 flex-1 overflow-hidden px-5 py-5">
+      <div className="relative z-10 flex-1 overflow-hidden px-4 py-5 sm:px-5 pb-[calc(env(safe-area-inset-bottom)+6.5rem)] md:pb-6">
         {reels.length === 0 ? (
           <div className="h-full rounded-[32px] border border-white/10 bg-white/5 flex flex-col items-center justify-center text-center px-6">
             <Video size={34} className="text-white/40 mb-3" />

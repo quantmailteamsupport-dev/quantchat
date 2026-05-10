@@ -40,25 +40,25 @@ export default function LoginPage() {
   };
 
   return (
-    <div data-testid="login-page" className="min-h-screen bg-qc-bg flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-8">
-        <div className="mx-auto w-16 h-16 bg-qc-accent-primary rounded-full flex items-center justify-center mb-4">
+    <div data-testid="login-page" className="min-h-screen bg-qc-bg flex flex-col justify-center px-4 py-8 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-6">
+        <div className="mx-auto w-16 h-16 bg-qc-accent-primary rounded-[22px] flex items-center justify-center mb-4 shadow-glow">
           <span className="text-white text-3xl font-bold">Q</span>
         </div>
         <h2 className="text-3xl font-bold text-qc-text-primary">QuantChat</h2>
-        <p className="mt-2 text-qc-text-secondary">Sign in to your account</p>
+        <p className="mt-2 text-qc-text-secondary">Dark-mode messaging, stories aur spotlight ek hi shell me.</p>
       </div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-qc-surface py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-qc-border">
+        <div className="bg-qc-surface py-7 px-4 shadow-glow rounded-[28px] sm:px-8 border border-qc-border">
           {error && (
-            <div data-testid="login-error" className="mb-4 bg-red-50 border-l-4 border-red-400 p-4">
+            <div data-testid="login-error" className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
               <div className="flex">
                 <div className="flex-shrink-0">
-                  <AlertCircle className="h-5 w-5 text-red-400" />
+                  <AlertCircle className="h-5 w-5 text-red-300" />
                 </div>
                 <div className="ml-3">
-                  <p className="text-sm text-red-700">{error}</p>
+                  <p className="text-sm text-red-100">{error}</p>
                 </div>
               </div>
             </div>
@@ -74,7 +74,7 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-qc-border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-qc-accent-primary focus:border-qc-accent-primary sm:text-sm bg-qc-bg text-qc-text-primary"
+                  className="appearance-none block w-full px-4 py-3 border border-qc-border rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-qc-accent-primary focus:border-qc-accent-primary text-sm bg-qc-bg text-qc-text-primary"
                 />
               </div>
             </div>
@@ -88,7 +88,7 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-qc-border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-qc-accent-primary focus:border-qc-accent-primary sm:text-sm bg-qc-bg text-qc-text-primary pr-10"
+                  className="appearance-none block w-full px-4 py-3 border border-qc-border rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-qc-accent-primary focus:border-qc-accent-primary text-sm bg-qc-bg text-qc-text-primary pr-10"
                 />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-qc-text-secondary">
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -101,7 +101,7 @@ export default function LoginPage() {
                 data-testid="login-submit-button"
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-qc-accent-primary hover:bg-qc-accent-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-qc-accent-primary disabled:opacity-50"
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-2xl shadow-glow text-sm font-medium text-white bg-qc-accent-primary hover:bg-qc-accent-secondary focus:outline-none disabled:opacity-50"
               >
                 {loading ? 'Signing in...' : 'Sign in'}
               </button>
@@ -125,7 +125,7 @@ export default function LoginPage() {
             </div>
             
             <div className="mt-4 text-center">
-              <p className="text-xs text-qc-text-secondary bg-qc-bg p-2 rounded">DEMO: arjun@quantchat.com / Demo@1234</p>
+              <p className="text-xs text-qc-text-secondary bg-qc-bg p-2 rounded-2xl">DEMO: arjun@quantchat.com / Demo@1234</p>
             </div>
           </div>
         </div>

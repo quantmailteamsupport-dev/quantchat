@@ -7,6 +7,8 @@ function resolveApiBase() {
 
   if (typeof window !== 'undefined') {
     const pageOrigin = trimTrailingSlash(window.location.origin);
+    const protocol = window.location.protocol;
+    const isNativeShell = !['http:', 'https:'].includes(protocol) || window.location.hostname === 'localhost';
 
     if (!configured) {
       return pageOrigin;
@@ -16,11 +18,11 @@ function resolveApiBase() {
       const parsed = new URL(configured, pageOrigin);
       const pathname = parsed.pathname === '/' ? '' : parsed.pathname.replace(/\/$/, '');
 
-      if (parsed.origin !== pageOrigin) {
+      if (parsed.origin !== pageOrigin && !isNativeShell) {
         return pageOrigin;
       }
 
-      if (window.location.protocol === 'https:' && parsed.protocol === 'http:') {
+      if (protocol === 'https:' && parsed.protocol === 'http:' && !isNativeShell) {
         return pageOrigin;
       }
 
