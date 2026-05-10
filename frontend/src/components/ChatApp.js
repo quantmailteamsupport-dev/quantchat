@@ -109,6 +109,12 @@ export default function ChatApp() {
     socket.on('message_unpinned', () => {
       loadConversations();
     });
+    socket.on('conversation_settings_updated', (data) => {
+      setConversations(prev => prev.map(conv => conv.id === data.conversation_id ? { ...conv, disappearing_minutes: data.disappearing_minutes } : conv));
+      if (activeConv?.id === data.conversation_id) {
+        setActiveConv(current => current ? { ...current, disappearing_minutes: data.disappearing_minutes } : current);
+      }
+    });
     socket.on('user_online', (data) => setOnlineUsers(prev => new Set([...prev, data.user_id])));
     socket.on('user_offline', (data) => setOnlineUsers(prev => {
       const next = new Set(prev);
@@ -223,6 +229,7 @@ export default function ChatApp() {
               onReloadMessages={loadMessages}
               onReloadConversations={loadConversations}
               isMobile={isMobileView}
+              onConversationUpdate={setActiveConv}
             />
           ) : (
             <div className="hidden md:flex flex-col items-center justify-center h-full text-center bg-qc-bg chat-bg-pattern border-l border-qc-border">

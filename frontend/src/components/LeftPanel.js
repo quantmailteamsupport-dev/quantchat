@@ -272,7 +272,10 @@ export default function LeftPanel({
 
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center gap-3 mb-1">
-                    <span className="font-medium text-qc-text-primary text-[15px] truncate">{name}</span>
+                    <div className="min-w-0 flex items-center gap-2">
+                      <span className="font-medium text-qc-text-primary text-[15px] truncate">{name}</span>
+                      {conv.streak_count > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-qc-accent-tertiary text-qc-accent-primary font-medium whitespace-nowrap">🔥 {conv.streak_count}</span>}
+                    </div>
                     <span className={`text-xs whitespace-nowrap ${conv.unread_count > 0 ? 'text-qc-accent-primary font-medium' : 'text-qc-text-secondary'}`}>
                       {formatMsgTimeShort(conv.last_message_time)}
                     </span>
@@ -283,9 +286,14 @@ export default function LeftPanel({
                       {isTyping ? (
                         <span className="text-qc-accent-primary font-medium italic text-[13px]">typing...</span>
                       ) : (
-                        <span className="text-[13px] text-qc-text-secondary truncate block">
-                          {conv.last_message || (isGroup ? 'Group ready for activity' : 'Say hi to kick things off')}
-                        </span>
+                        <div className="min-w-0">
+                          <span className="text-[13px] text-qc-text-secondary truncate block">
+                            {conv.last_message || (isGroup ? 'Group ready for activity' : 'Say hi to kick things off')}
+                          </span>
+                          {conv.disappearing_minutes > 0 && (
+                            <span className="text-[10px] text-qc-text-tertiary">Vanish mode: {conv.disappearing_minutes < 60 ? `${conv.disappearing_minutes}m` : conv.disappearing_minutes < 1440 ? `${Math.round(conv.disappearing_minutes / 60)}h` : `${Math.round(conv.disappearing_minutes / 1440)}d`}</span>
+                          )}
+                        </div>
                       )}
                     </div>
 

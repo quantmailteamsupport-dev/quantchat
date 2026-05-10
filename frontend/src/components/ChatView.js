@@ -27,12 +27,34 @@ import axios from 'axios';
 import { API } from '../lib/api';
 
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '🎉', '💯'];
+const DISAPPEARING_OPTIONS = [
+  { label: 'Off', minutes: 0 },
+  { label: '5 min', minutes: 5 },
+  { label: '1 hour', minutes: 60 },
+  { label: '24 hours', minutes: 24 * 60 },
+];
 
 function formatMsgTime(time) {
   try {
     return format(new Date(time), 'HH:mm');
   } catch {
     return '';
+  }
+}
+
+function formatDisappearingLabel(minutes) {
+  if (!minutes) return 'Off';
+  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 24 * 60) return `${Math.round(minutes / 60)}h`;
+  return `${Math.round(minutes / (24 * 60))}d`;
+}
+
+function formatExpiry(time) {
+  if (!time) return null;
+  try {
+    return format(new Date(time), 'HH:mm');
+  } catch {
+    return null;
   }
 }
 
@@ -140,6 +162,7 @@ function MessageBubble({
           <div className="flex flex-col">
             {renderContent()}
             <div className="flex items-center justify-end gap-1 mt-1 ml-4 self-end -mb-1">
+              {msg.expires_at && <span className="text-[11px] text-qc-accent-primary mr-1">Vanishes {formatExpiry(msg.expires_at)}</span>}
               {msg.is_edited && <span className="text-[11px] text-gray-500 italic mr-1">Edited</span>}
               <span className="text-[11px] text-gray-500">{formatMsgTime(msg.created_at)}</span>
               {isMine && (msg.status === 'read' ? <CheckCheck size={14} className="text-[#53bdeb]" /> : <Check size={14} className="text-gray-500" />)}
@@ -172,6 +195,7 @@ export default function ChatArea({
   onReloadMessages,
   onReloadConversations,
   isMobile,
+  onConversationUpdate,
 }) {
   const [input, setInput] = useState('');
   const [forwardMsgId, setForwardMsgId] = useState(null);
@@ -182,6 +206,7 @@ export default function ChatArea({
   const [searchTerm, setSearchTerm] = useState('');
   const [searchCursor, setSearchCursor] = useState(0);
   const [showChatMenu, setShowChatMenu] = useState(false);
+  const [showDisappearingMenu, setShowDisappearingMenu] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -278,13 +303,24 @@ export default function ChatArea({
     } catch {}
   };
 
+  const handleSetDisappearing = async (minutes) => {
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const { data } = await axios.post(`${API}/api/conversations/${conversation.id}/disappearing`, { minutes }, { headers });
+      onConversationUpdate?.(data.conversation);
+      onReloadConversations?.();
+      setShowDisappearingMenu(false);
+      setShowChatMenu(false);
+    } catch {}
+  };
+
   const processFile = (file) => {
     const reader = new FileReader();
     reader.onload = (event) => {
       if (file.type.startsWith('image/')) {
         onSend(event.target.result, 'image', replyToMsg?.id);
       } else {
-        onSend(`📎 Shared file: ${file.name}`, 'text', replyToMsg?.id);
+        onSend(`Shared file: ${file.name}`, 'text', replyToMsg?.id);
       }
       setReplyToMsg(null);
       setShowAttachMenu(false);
@@ -354,7 +390,7 @@ export default function ChatArea({
   const handleQuickNote = () => {
     const note = window.prompt('Drop a quick note');
     if (note?.trim()) {
-      onSend(`📝 ${note.trim()}`, 'text', replyToMsg?.id);
+      onSend(`Snap note: ${note.trim()}`, 'text', replyToMsg?.id);
       setReplyToMsg(null);
       setShowAttachMenu(false);
     }
@@ -456,10 +492,12 @@ export default function ChatArea({
         </div>
         <div className="flex-1 min-w-0 cursor-pointer">
           <h3 className="text-base font-medium text-qc-text-primary truncate">{isGroup ? conversation.name : (otherUser?.name || 'Unknown')}</h3>
-          {isTyping ? <p className="text-[13px] text-qc-accent-primary font-medium">typing...</p> : (
+          {isTyping ? (
+            <p className="text-[13px] text-qc-accent-primary font-medium">typing...</p>
+          ) : (
             isGroup
-              ? <p className="text-[13px] text-qc-text-secondary truncate">{(conversation.participants || []).map(participant => participant.name).join(', ')}</p>
-              : <p className="text-[13px] text-qc-text-secondary">{isOnline ? 'online now' : 'offline'}</p>
+              ? <p className="text-[13px] text-qc-text-secondary truncate">{(conversation.participants || []).map(participant => participant.name).join(', ')}{conversation.streak_count ? ` • ${conversation.streak_count} day streak` : ''}</p>
+              : <p className="text-[13px] text-qc-text-secondary">{isOnline ? 'online now' : 'offline'}{conversation.streak_count ? ` • ${conversation.streak_count} day streak` : ''}</p>
           )}
         </div>
 
@@ -467,13 +505,31 @@ export default function ChatArea({
           <button onClick={() => setActiveCall({ type: 'video', status: 'ringing' })} className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5"><Video size={20} /></button>
           <button onClick={() => setActiveCall({ type: 'audio', status: 'ringing' })} className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5"><Phone size={18} /></button>
           <button onClick={() => setShowSearch(value => !value)} className={`w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5 ${showSearch ? 'text-qc-accent-primary' : ''}`}><Search size={20} /></button>
-          <button onClick={() => setShowChatMenu(value => !value)} className={`w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5 ${showChatMenu ? 'text-qc-accent-primary' : ''}`}><MoreVertical size={20} /></button>
+          <button onClick={() => { setShowChatMenu(value => !value); setShowDisappearingMenu(false); }} className={`w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5 ${showChatMenu ? 'text-qc-accent-primary' : ''}`}><MoreVertical size={20} /></button>
 
           {showChatMenu && (
-            <div className="absolute top-12 right-0 w-52 rounded-2xl border border-qc-border bg-qc-surface shadow-xl overflow-hidden z-30 animate-fadeIn">
+            <div className="absolute top-12 right-0 w-56 rounded-2xl border border-qc-border bg-qc-surface shadow-xl overflow-hidden z-30 animate-fadeIn">
               <button onClick={() => { setShowSearch(true); setShowChatMenu(false); }} className="w-full text-left px-4 py-3 text-sm hover:bg-qc-surface-hover">Search in conversation</button>
+              <button onClick={() => setShowDisappearingMenu(value => !value)} className="w-full text-left px-4 py-3 text-sm hover:bg-qc-surface-hover flex items-center justify-between">
+                <span>Disappearing messages</span>
+                <span className="text-qc-text-tertiary text-xs">{formatDisappearingLabel(conversation.disappearing_minutes)}</span>
+              </button>
               <button onClick={() => { onReloadMessages?.(conversation.id); setShowChatMenu(false); }} className="w-full text-left px-4 py-3 text-sm hover:bg-qc-surface-hover">Reload messages</button>
               <button onClick={handleClearChat} className="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-qc-surface-hover">Clear chat</button>
+            </div>
+          )}
+
+          {showDisappearingMenu && (
+            <div className="absolute top-12 right-60 w-40 rounded-2xl border border-qc-border bg-qc-surface shadow-xl overflow-hidden z-30 animate-fadeIn">
+              {DISAPPEARING_OPTIONS.map(option => (
+                <button
+                  key={option.minutes}
+                  onClick={() => handleSetDisappearing(option.minutes)}
+                  className={`w-full text-left px-4 py-3 text-sm hover:bg-qc-surface-hover ${conversation.disappearing_minutes === option.minutes ? 'text-qc-accent-primary font-medium' : ''}`}
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
           )}
         </div>
@@ -503,6 +559,13 @@ export default function ChatArea({
           <button onClick={() => { setShowSearch(false); setSearchTerm(''); setSearchCursor(0); }} className="text-qc-text-secondary hover:text-qc-text-primary">
             <X size={18} />
           </button>
+        </div>
+      )}
+
+      {(conversation.disappearing_minutes > 0 || conversation.streak_count > 0) && (
+        <div className="bg-qc-surface px-4 py-2 border-b border-qc-border flex items-center justify-between text-xs text-qc-text-secondary relative z-10">
+          <span>{conversation.disappearing_minutes > 0 ? `Snaps vanish after ${formatDisappearingLabel(conversation.disappearing_minutes)}` : 'Disappear timer off'}</span>
+          {conversation.streak_count > 0 && <span className="text-qc-accent-primary font-medium">🔥 {conversation.streak_count} day streak</span>}
         </div>
       )}
 

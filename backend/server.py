@@ -84,6 +84,7 @@ def serialize_message(msg: dict) -> dict:
         "reply_to": str(msg.get("reply_to", "")) if msg.get("reply_to") else None,
         "reply_to_content": msg.get("reply_to_content"),
         "created_at": msg.get("created_at", "").isoformat() if isinstance(msg.get("created_at"), datetime) else str(msg.get("created_at", "")),
+        "expires_at": msg.get("expires_at", "").isoformat() if isinstance(msg.get("expires_at"), datetime) else (str(msg.get("expires_at", "")) if msg.get("expires_at") else None),
     }
 
 def serialize_conversation(conv: dict, current_user_id: str = None) -> dict:
@@ -112,6 +113,9 @@ def serialize_conversation(conv: dict, current_user_id: str = None) -> dict:
         "is_channel": conv.get("is_channel", False),
         "admins": conv.get("admins", []),
         "pinned_message": pinned_message,
+        "disappearing_minutes": conv.get("disappearing_minutes", 0),
+        "streak_count": conv.get("streak_count", 0),
+        "streak_best": conv.get("streak_best", conv.get("streak_count", 0)),
     }
 
 def parse_object_id(value: str, field_name: str) -> ObjectId:
@@ -166,6 +170,49 @@ async def refresh_conversation_state(conv_id: str) -> dict:
     await db.conversations.update_one({"_id": conv_oid}, {"$set": updates})
     conv.update(updates)
     return conv
+
+async def purge_expired_messages(conv_id: Optional[str] = None) -> None:
+    now = datetime.now(timezone.utc)
+    query = {"expires_at": {"$lte": now}}
+    if conv_id:
+        query["conversation_id"] = conv_id
+
+    expired = await db.messages.find(query).to_list(200)
+    if not expired:
+        return
+
+    expired_ids = [msg["_id"] for msg in expired]
+    affected_conversations = sorted({msg["conversation_id"] for msg in expired})
+    await db.messages.delete_many({"_id": {"$in": expired_ids}})
+    for affected_conv_id in affected_conversations:
+        await refresh_conversation_state(affected_conv_id)
+
+def compute_streak_day_key(moment: datetime) -> str:
+    return moment.astimezone(timezone.utc).date().isoformat()
+
+def next_streak_value(previous_day_key: Optional[str], current_day_key: str, current_streak: int) -> int:
+    if not previous_day_key:
+        return 1
+    previous_day = datetime.fromisoformat(previous_day_key).date()
+    current_day = datetime.fromisoformat(current_day_key).date()
+    delta_days = (current_day - previous_day).days
+    if delta_days <= 0:
+        return max(current_streak, 1)
+    if delta_days == 1:
+        return max(current_streak, 1) + 1
+    return 1
+
+async def update_conversation_streak(conv: dict, event_time: datetime) -> None:
+    current_day_key = compute_streak_day_key(event_time)
+    next_streak = next_streak_value(conv.get("streak_last_day"), current_day_key, conv.get("streak_count", 0))
+    best_streak = max(conv.get("streak_best", 0), next_streak)
+    await db.conversations.update_one(
+        {"_id": conv["_id"]},
+        {"$set": {"streak_last_day": current_day_key, "streak_count": next_streak, "streak_best": best_streak}}
+    )
+    conv["streak_last_day"] = current_day_key
+    conv["streak_count"] = next_streak
+    conv["streak_best"] = best_streak
 
 async def get_current_user(request: Request) -> dict:
     token = request.cookies.get("access_token")
@@ -234,12 +281,16 @@ class ReelBody(BaseModel):
 class CommentBody(BaseModel):
     text: str
 
+class DisappearingMessagesBody(BaseModel):
+    minutes: int = 0
+
 # --- Startup ---
 @fastapi_app.on_event("startup")
 async def startup():
     await db.users.create_index("email", unique=True)
     await db.login_attempts.create_index("identifier")
     await db.messages.create_index("conversation_id")
+    await db.messages.create_index("expires_at", expireAfterSeconds=0)
     await db.conversations.create_index("participant_ids")
     await db.stories.create_index("created_at", expireAfterSeconds=86400)
     await db.reels.create_index("created_at")
@@ -426,6 +477,7 @@ async def update_profile(body: UpdateProfileBody, request: Request):
 async def get_conversations(request: Request):
     user = await get_current_user(request)
     uid = str(user["_id"])
+    await purge_expired_messages()
     convs = await db.conversations.find({"participant_ids": uid}).sort("last_message_time", -1).to_list(50)
     return {"conversations": [serialize_conversation(c, uid) for c in convs]}
 
@@ -495,6 +547,7 @@ async def get_messages(conv_id: str, request: Request, limit: int = 50, before: 
     user = await get_current_user(request)
     uid = str(user["_id"])
     await get_conversation_for_user(conv_id, uid)
+    await purge_expired_messages(conv_id)
     query = {"conversation_id": conv_id}
     if before:
         query["_id"] = {"$lt": parse_object_id(before, "before")}
@@ -519,6 +572,7 @@ async def send_message(conv_id: str, body: MessageBody, request: Request):
         if replied_msg:
             reply_to_content = replied_msg.get("content")
 
+    now = datetime.now(timezone.utc)
     msg = {
         "conversation_id": conv_id,
         "sender_id": uid,
@@ -527,10 +581,13 @@ async def send_message(conv_id: str, body: MessageBody, request: Request):
         "status": "sent",
         "reply_to": body.reply_to,
         "reply_to_content": reply_to_content,
-        "created_at": datetime.now(timezone.utc),
+        "created_at": now,
     }
+    if conv.get("disappearing_minutes", 0) > 0:
+        msg["expires_at"] = now + timedelta(minutes=conv["disappearing_minutes"])
     result = await db.messages.insert_one(msg)
     msg["_id"] = result.inserted_id
+    await update_conversation_streak(conv, now)
     # Update conversation
     unread_inc = {f"unread_counts.{pid}": 1 for pid in conv["participant_ids"] if pid != uid}
     await db.conversations.update_one(
@@ -634,6 +691,25 @@ async def pin_chat_message(conv_id: str, body: PinMessageBody, request: Request)
         }, room=f"user_{pid}")
         
     return {"message": "Pinned message updated", "pinned_message_id": pinned_message_id, "pinned_message": pinned_message}
+
+@fastapi_app.post("/api/conversations/{conv_id}/disappearing")
+async def set_disappearing_messages(conv_id: str, body: DisappearingMessagesBody, request: Request):
+    user = await get_current_user(request)
+    uid = str(user["_id"])
+    conv = await get_conversation_for_user(conv_id, uid)
+    minutes = max(0, min(body.minutes, 7 * 24 * 60))
+    await db.conversations.update_one(
+        {"_id": parse_object_id(conv_id, "conversation_id")},
+        {"$set": {"disappearing_minutes": minutes}}
+    )
+    conv["disappearing_minutes"] = minutes
+    for pid in conv["participant_ids"]:
+        await sio.emit(
+            "conversation_settings_updated",
+            {"conversation_id": conv_id, "disappearing_minutes": minutes},
+            room=f"user_{pid}"
+        )
+    return {"conversation": serialize_conversation(conv, uid)}
 
 @fastapi_app.post("/api/conversations/{conv_id}/leave")
 async def leave_group(conv_id: str, request: Request):
@@ -810,6 +886,7 @@ async def forward_message(msg_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Message not found")
     await get_conversation_for_user(orig["conversation_id"], uid)
     conv = await get_conversation_for_user(target_conv_id, uid)
+    now = datetime.now(timezone.utc)
     fwd_msg = {
         "conversation_id": target_conv_id,
         "sender_id": uid,
@@ -817,12 +894,15 @@ async def forward_message(msg_id: str, request: Request):
         "type": orig.get("type", "text"),
         "status": "sent",
         "forwarded": True,
-        "created_at": datetime.now(timezone.utc),
+        "created_at": now,
     }
+    if conv.get("disappearing_minutes", 0) > 0:
+        fwd_msg["expires_at"] = now + timedelta(minutes=conv["disappearing_minutes"])
     result = await db.messages.insert_one(fwd_msg)
     fwd_msg["_id"] = result.inserted_id
     serialized = serialize_message(fwd_msg)
     serialized["forwarded"] = True
+    await update_conversation_streak(conv, now)
     unread_inc = {f"unread_counts.{pid}": 1 for pid in conv["participant_ids"] if pid != uid}
     await db.conversations.update_one({"_id": parse_object_id(target_conv_id, "conversation_id")}, {"$set": {"last_message": orig["content"], "last_message_time": fwd_msg["created_at"]}, "$inc": unread_inc})
     for pid in conv["participant_ids"]:
