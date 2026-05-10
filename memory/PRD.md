@@ -43,3 +43,12 @@ Deeply check karo kaisa bana hai app apk build kar ke do server pe check karo au
 1. Wire real Firebase config and enable true SMS OTP
 2. Add direct captured media composer for story/feed/reel with captions
 3. Expand channels, admin tools, and messaging controls further
+
+
+## Deployment Status
+- AWS instance reachable on SSH/network, but uploaded PEM keys are being rejected by the server (`Permission denied (publickey)`).
+- Deployment automation prepared locally:
+  - /app/deploy/aws_quantchat_deploy.sh
+  - /app/deploy/quantchat-backend.service
+  - /app/deploy/quantchat-nginx.conf
+- As soon as valid SSH access is available, server deployment can proceed immediately using the prepared script.
