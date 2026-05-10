@@ -1,115 +1,125 @@
 {
-  "project_name": "Full-Stack Chat Application",
-  "theme": "Light Mode Base (with Dark Mode toggle)",
-  "archetype": "Archetype 3 (Pastel & Soft) infused with Neo-Brutalist contrast",
-  "design_philosophy": "E1 Anti-AI Designer Protocol: Fusion of brutalist raw honesty with neobrutalist playfulness. Rejects generic chat UI for high-contrast, thick-outlined pastel aesthetics.",
+  "project_info": {
+    "name": "QuantChat",
+    "type": "hybrid_fullstack",
+    "theme": "dark",
+    "archetype": "Archetype 4 (Swiss & High-Contrast) adapted with Archetype 5 (Jewel & Luxury) influences",
+    "vibe": "Snapchat-style modern dark, premium minimal clean, stealthy, fluid"
+  },
+  "color_palette": {
+    "background": {
+      "main": "#000000",
+      "surface": "#0F0F13",
+      "surface_elevated": "#1A1A24"
+    },
+    "text": {
+      "primary": "#FFFFFF",
+      "secondary": "#A1A1AA",
+      "muted": "#52525B"
+    },
+    "accents": {
+      "primary": "#E2E8F0",
+      "brand": "#00E5FF",
+      "ai_glow": "#9D4CDD",
+      "warning": "#FF3B30",
+      "success": "#34C759"
+    },
+    "rules": [
+      "No generic full-screen gradients. Rely on matte black backgrounds.",
+      "Use 1px borders with very low opacity (e.g., border-white/10) to define sections instead of heavy cards.",
+      "The AI accent (purple/neon) must only be used as a glow, drop-shadow, or gradient-text, never as a flat block background."
+    ]
+  },
   "typography": {
     "headings": {
-      "font_family": "Cabinet Grotesk, sans-serif",
-      "weights": ["font-black", "font-bold"],
-      "tracking": "tracking-tighter",
-      "usage": "Use for App Name, Empty State Titles, and Sidebar Headers. Prohibited: Inter."
+      "family": "Outfit, system-ui, sans-serif",
+      "weights": ["500", "700"],
+      "usage": "H1/H2 for primary screen titles (Chats, Spotlight, AI Assistant)."
     },
     "body": {
-      "font_family": "IBM Plex Mono, monospace",
-      "weights": ["font-normal", "font-medium"],
-      "tracking": "tracking-normal",
-      "usage": "Use for chat bubbles, input fields, timestamps, and general text to give a structured, raw terminal feel."
+      "family": "Manrope, system-ui, sans-serif",
+      "weights": ["400", "500", "600"],
+      "usage": "Chat bubbles, names, timestamps, settings labels."
     },
-    "scale": {
-      "h1": "text-4xl sm:text-5xl lg:text-6xl",
-      "h2": "text-2xl sm:text-3xl lg:text-4xl",
-      "h3": "text-xl sm:text-2xl",
-      "body": "text-base sm:text-sm",
-      "labels": "text-xs tracking-[0.2em] uppercase"
+    "sizing": {
+      "h1": "text-4xl tracking-tight",
+      "h2": "text-2xl tracking-tight",
+      "h3": "text-xl font-medium",
+      "body": "text-base",
+      "small": "text-sm text-secondary",
+      "tiny": "text-xs tracking-[0.05em] uppercase text-muted"
     }
   },
-  "colors": {
-    "light_mode": {
-      "background": "#FDFBF7", 
-      "surface": "#FFFFFF",
-      "text_primary": "#0A0A0A",
-      "text_secondary": "#4A4A4A",
-      "border": "#0A0A0A",
-      "accent_primary": "#A7C7E7", 
-      "accent_secondary": "#B2D8D8", 
-      "accent_tertiary": "#FFB6C1" 
-    },
-    "dark_mode": {
-      "background": "#050505",
-      "surface": "#121212",
-      "text_primary": "#FDFBF7",
-      "text_secondary": "#A0A0A0",
-      "border": "#FDFBF7",
-      "accent_primary": "#5A7D9C",
-      "accent_secondary": "#2A4D4D",
-      "accent_tertiary": "#9C5A6C"
-    },
-    "rules": "Never use pure #000000 or #808080. Hard black borders (2px to 4px) are mandatory for neo-brutalist feel. Use pastel fills with stark contrast."
-  },
-  "spacing_and_layout": {
-    "grid_system": "The 'Control Room' Grid layout modified for Chat. 12-column base.",
-    "sidebar": "col-span-1 md:col-span-3 lg:col-span-3 border-r-2 border-black",
-    "main_chat": "col-span-1 md:col-span-9 lg:col-span-6 border-r-2 border-black",
-    "details_panel": "hidden lg:block lg:col-span-3",
-    "spacing_scale": "Generous Spacing: p-4 for chat bubbles, p-6 for containers. Grid gaps should be tight (gap-0) to emphasize borders.",
-    "radius": "rounded-none or max rounded-md (4px) for a harsh, boxy feel, contrasting with the soft colors."
-  },
-  "surfaces_and_borders": {
-    "chat_bubbles": "2px solid black border, pastel fill, offset shadow (e.g. shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]) for Neo-Brutalist tactility.",
-    "input_bar": "Fixed at bottom, oversized input field with monospace font. Send button is a thick-bordered square or circle.",
-    "hover_states": "-translate-y-1 with increased offset shadow. Always explicitly set text color."
-  },
-  "components_strategy": {
-    "forms_and_inputs": "Use Shadcn customized heavily. Strip rounded corners, add 2px black border, solid color focus rings (ring-2 ring-black).",
-    "buttons": "Neo-brutalist buttons: bg-pastel text-black border-2 border-black shadow-[4px_4px_0px_#0A0A0A] active:shadow-none active:translate-x-[4px] active:translate-y-[4px].",
-    "reactions": "Popovers must have harsh borders and no blur (solid background) to maintain the brutalist identity.",
-    "stories_status": "Top of sidebar. Avatars in squares instead of circles, with 2px solid pastel borders indicating unseen status."
-  },
-  "motion": {
-    "philosophy": "Micro-interactions that feel mechanical and snappy.",
-    "hover": "Instant or very fast (100ms) border/shadow transitions.",
-    "page_transitions": "Slide-in with zero bounce.",
-    "accessibility": "Respect prefers-reduced-motion."
-  },
-  "media": {
-    "avatars": [
+  "layout_and_spacing": {
+    "general": "Mobile-first approach. For desktop viewports, wrap the main app container in `max-w-md mx-auto h-screen relative overflow-hidden bg-black shadow-2xl md:border md:border-white/10` to simulate a phone screen.",
+    "containers": "Generous padding inside settings/modals (p-6). Chat/Feed lists use tighter vertical spacing (py-3) but retain side padding (px-4).",
+    "surfaces": [
       {
-        "url": "https://images.unsplash.com/photo-1747710016871-a603dda0e414?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwxfHxkaXZlcnNlJTIwcG9ydHJhaXQlMjBoZWFkc2hvdHxlbnwwfHx8fDE3NzgzNTkzNDF8MA&ixlib=rb-4.1.0&q=85",
-        "category": "User Avatar 1",
-        "description": "Curly hair woman"
+        "type": "Glass Bottom Nav",
+        "classes": "fixed bottom-0 w-full max-w-md bg-black/70 backdrop-blur-2xl border-t border-white/10 pb-safe pt-3 px-6 flex justify-between items-center z-50"
       },
       {
-        "url": "https://images.unsplash.com/photo-1769335537598-a35d635baeeb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHw0fHxkaXZlcnNlJTIwcG9ydHJhaXQlMjBoZWFkc2hvdHxlbnwwfHx8fDE3NzgzNTkzNDF8MA&ixlib=rb-4.1.0&q=85",
-        "category": "User Avatar 2",
-        "description": "Young boy"
+        "type": "Chat Bubble (Sent)",
+        "classes": "bg-white text-black rounded-2xl rounded-br-sm px-4 py-2.5 max-w-[80%] shadow-sm"
       },
       {
-        "url": "https://images.unsplash.com/photo-1747710016904-2b93d97ffb72?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwyfHxkaXZlcnNlJTIwcG9ydHJhaXQlMjBoZWFkc2hvdHxlbnwwfHx8fDE3NzgzNTkzNDF8MA&ixlib=rb-4.1.0&q=85",
-        "category": "User Avatar 3",
-        "description": "Smiling woman"
+        "type": "Chat Bubble (Received)",
+        "classes": "bg-[#1A1A24] text-white rounded-2xl rounded-bl-sm px-4 py-2.5 max-w-[80%] border border-white/5 shadow-sm"
       },
       {
-        "url": "https://images.unsplash.com/photo-1618593706014-06782cd3bb3b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwzfHxkaXZlcnNlJTIwcG9ydHJhaXQlMjBoZWFkc2hvdHxlbnwwfHx8fDE3NzgzNTkzNDF8MA&ixlib=rb-4.1.0&q=85",
-        "category": "User Avatar 4",
-        "description": "Man in collared shirt"
-      }
-    ],
-    "backgrounds": [
-      {
-        "url": "https://images.unsplash.com/photo-1761798981573-a972f5cef7f5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTN8MHwxfHNlYXJjaHwxfHxtaW5pbWFsaXN0JTIwYWJzdHJhY3QlMjBwYXN0ZWwlMjBiYWNrZ3JvdW5kfGVufDB8fHx8MTc3ODM1OTM3M3ww&ixlib=rb-4.1.0&q=85",
-        "category": "Chat Background Texture",
-        "description": "Abstract colorful gradient swirl for empty states or chat thread bg"
+        "type": "AI Assistant Modal/Panel",
+        "classes": "bg-[#0A0A0F]/90 backdrop-blur-3xl border border-white/10 rounded-t-3xl shadow-[0_-8px_32px_rgba(157,76,221,0.15)] p-6"
       }
     ]
   },
+  "interactions_and_motion": {
+    "buttons": "Use Framer Motion `whileTap={{ scale: 0.97 }}` for tactile response.",
+    "page_transitions": "Slide up for modals/stories (`y: '100%' -> y: 0`), cross-fade for bottom tab switches.",
+    "list_items": "Staggered fade-in/slide-up for chat lists.",
+    "ai_orb": "Continuous slow pulse using Framer Motion (`scale: [1, 1.05, 1], boxShadow: '0px 0px 20px rgba(157,76,221,0.5)'`)."
+  },
+  "components": {
+    "auth": "One-click 'Login as Demo User' primary button. Minimalist, centered logo. High-contrast white button on black background, full width rounded-full.",
+    "inbox_list": "Left: 48px circular Avatar. Center: Name (`font-medium`) + Message Preview (`text-secondary truncate`). Right: Time (`text-xs text-muted`) + Unread Dot (`w-2 h-2 rounded-full bg-brand`).",
+    "stories_feed": "Horizontal scroll (`overflow-x-auto snap-x hide-scrollbar`). 72px circular avatars with 2px gradient borders (brand to transparent) for unread stories. Inner border to separate image from gradient.",
+    "reels_spotlight": "Full height (`h-[100dvh]`). `snap-y snap-mandatory`. Absolute positioned text overlays on video/image with `drop-shadow-md` for text legibility. Action buttons stacked vertically on the right.",
+    "settings_profile": "Sectioned lists with `border-b border-white/5` between items. Use `lucide-react` icons on the left, `chevron-right` on the right. High contrast toggle switches.",
+    "ai_assistant": "Floating Action Button (FAB) or dedicated center nav tab. Opens a conversational sheet. AI text should appear with a slight typewriter reveal effect."
+  },
+  "icons": {
+    "library": "lucide-react",
+    "style": "Use `strokeWidth={1.5}` for a sharper, premium look. Default to size 24."
+  },
+  "media": {
+    "rules": "Never use placeholder URLs (like via.placeholder.com). Use the provided Unsplash image URLs below.",
+    "assets": [
+      {
+        "category": "avatars",
+        "description": "User profile pictures for chat lists and story rings",
+        "urls": [
+          "https://images.unsplash.com/photo-1579825318929-7ad3cb82613c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTJ8MHwxfHNlYXJjaHwyfHxwcm9maWxlJTIwcG9ydHJhaXQlMjBsaWdodGluZ3xlbnwwfHx8YmxhY2t8MTc3ODQyNTEyMnww&ixlib=rb-4.1.0&q=85",
+          "https://images.unsplash.com/photo-1718606446645-d7169dd0789e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTJ8MHwxfHNlYXJjaHwzfHxwcm9maWxlJTIwcG9ydHJhaXQlMjBsaWdodGluZ3xlbnwwfHx8YmxhY2t8MTc3ODQyNTEyMnww&ixlib=rb-4.1.0&q=85"
+        ]
+      },
+      {
+        "category": "backgrounds",
+        "description": "Dark textures for AI backgrounds, Spotlight/Reel placeholders, or login screen",
+        "urls": [
+          "https://images.unsplash.com/photo-1653104877761-181b3977808e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzV8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGRhcmslMjB0ZXh0dXJlJTIwYmFja2dyb3VuZHxlbnwwfHx8YmxhY2t8MTc3ODQyNTEyMnww&ixlib=rb-4.1.0&q=85",
+          "https://images.unsplash.com/photo-1581084349663-7ab88c58d362?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzV8MHwxfHNlYXJjaHwzfHxhYnN0cmFjdCUyMGRhcmslMjB0ZXh0dXJlJTIwYmFja2dyb3VuZHxlbnwwfHx8YmxhY2t8MTc3ODQyNTEyMnww&ixlib=rb-4.1.0&q=85"
+        ]
+      }
+    ]
+  },
+  "testing": {
+    "attributes": "All interactive elements MUST have `data-testid`. Examples: `data-testid='login-demo-btn'`, `data-testid='nav-chat'`, `data-testid='chat-item-0'`, `data-testid='ai-fab-btn'`."
+  },
   "instructions_to_main_agent": [
-    "DO NOT use Inter or generic default templates. Implement Cabinet Grotesk for headings and IBM Plex Mono for chat text/body.",
-    "Implement the UI strictly with Neo-Brutalist aesthetics: 2px black borders on containers, hard shadows (e.g., shadow-[4px_4px_0px_#000]), and pastel backgrounds.",
-    "Ensure dark mode is supported. Flip borders and shadows to #FDFBF7 when in dark mode, maintaining the harsh contrast.",
-    "For the requested 'all features' (reactions, read receipts, voice notes), build them as distinct brutalist elements (e.g. square reaction pills with outlines).",
-    "All interactive elements MUST have data-testid attributes for testing.",
-    "Use Phosphor Icons or Iconoir to match the bold line-art aesthetic.",
-    "Never use placeholder URLs for images; only use the provided media URLs."
+    "Read this file fully. Use .js/.jsx syntax only (NO TypeScript).",
+    "Build a mobile-first app structure. Use `max-w-md mx-auto relative h-[100dvh] bg-black overflow-hidden` for the root app container to ensure it looks like a phone on desktop monitors.",
+    "Implement Shadcn UI components but heavily customize the classes to match the 'surfaces' configuration. Strip away default white borders and light mode backgrounds.",
+    "Ensure bottom tab navigation has a glassmorphic effect (`backdrop-blur-2xl bg-black/70`).",
+    "Integrate the AI agent workflow (mocked if no backend) utilizing the 'ai_assistant' layout guidelines.",
+    "For AWS EC2 deployment guidance, write a markdown file `deployment-guide.md` with instructions on hosting a mobile web app via Nginx/Node."
   ]
 }

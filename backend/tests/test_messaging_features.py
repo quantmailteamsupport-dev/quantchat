@@ -6,7 +6,7 @@ import requests
 import os
 import time
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://interface-upgrade-37.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://app-check-deploy-1.preview.emergentagent.com').rstrip('/')
 
 DEMO_USER_EMAIL = "arjun@quantchat.com"
 DEMO_USER_PASSWORD = "Demo@1234"

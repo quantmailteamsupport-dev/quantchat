@@ -3,7 +3,7 @@ import sys
 from datetime import datetime
 
 class QuantChatAPITester:
-    def __init__(self, base_url="https://interface-upgrade-37.preview.emergentagent.com"):
+    def __init__(self, base_url="https://app-check-deploy-1.preview.emergentagent.com"):
         self.base_url = base_url
         self.token = None
         self.user_id = None
