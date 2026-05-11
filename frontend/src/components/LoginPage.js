@@ -178,7 +178,7 @@ export default function LoginPage() {
           </header>
 
           <div className="grid lg:grid-cols-[minmax(0,430px)_minmax(0,1fr)]">
-            <section className="border-b lg:border-b-0 lg:border-r border-white/10 px-5 py-6 sm:px-8 sm:py-8">
+            <section className="border-b lg:border-b-0 lg:border-r border-white/10 px-5 py-6 sm:px-8 sm:py-8 premium-surface">
               <div className="inline-flex items-center gap-2 rounded-full border border-[#ffe56a]/20 bg-[#ffe56a]/10 px-3 py-1.5 text-[11px] uppercase tracking-[0.24em] text-[#ffe56a]">
                 <Sparkles size={13} />
                 Snapchat-style dark lane
@@ -195,6 +195,19 @@ export default function LoginPage() {
                 {['Mobile-first shell', 'Instant demo login', 'AI workflows'].map((item) => (
                   <div key={item} className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] text-white/56">
                     {item}
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-5 grid grid-cols-3 gap-3">
+                {[
+                  { label: 'Live shell', value: 'Cross-device' },
+                  { label: 'Access', value: 'Demo ready' },
+                  { label: 'Style', value: 'Dark premium' },
+                ].map((metric) => (
+                  <div key={metric.label} className="rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3 animate-floatBob">
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-white/40">{metric.label}</p>
+                    <p className="mt-2 text-sm font-semibold text-white">{metric.value}</p>
                   </div>
                 ))}
               </div>
@@ -250,7 +263,7 @@ export default function LoginPage() {
                   data-testid="login-submit-button"
                   type="submit"
                   disabled={loading}
-                  className="w-full rounded-full bg-[#1d9bf0] px-5 py-3.5 text-base font-semibold text-white shadow-[0_18px_38px_rgba(29,155,240,0.28)] transition hover:bg-[#38a9f4] disabled:opacity-50"
+                  className="w-full rounded-full bg-[linear-gradient(135deg,#1d9bf0,#4f8cff,#7c3aed)] px-5 py-3.5 text-base font-semibold text-white shadow-[0_18px_38px_rgba(79,140,255,0.32)] transition hover:scale-[1.01] hover:brightness-110 disabled:opacity-50"
                 >
                   {loading ? 'Signing in...' : 'Log In'}
                 </button>
@@ -260,7 +273,7 @@ export default function LoginPage() {
                   data-testid="login-demo-btn"
                   onClick={handleDemoLogin}
                   disabled={demoLoading}
-                  className="w-full rounded-full border border-white/10 bg-white text-[#05070c] px-5 py-3.5 text-base font-semibold transition hover:bg-white/90 disabled:opacity-50"
+                  className="w-full rounded-full border border-white/10 bg-white text-[#05070c] px-5 py-3.5 text-base font-semibold transition hover:scale-[1.01] hover:bg-white/90 disabled:opacity-50"
                 >
                   {demoLoading ? 'Opening demo...' : 'Login as Demo User'}
                 </button>
@@ -284,7 +297,7 @@ export default function LoginPage() {
               </div>
             </section>
 
-            <section className="px-5 py-6 sm:px-8 sm:py-8">
+            <section className="px-5 py-6 sm:px-8 sm:py-8 bg-[radial-gradient(circle_at_top,rgba(79,140,255,0.08),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0))]">
               <div className="grid gap-4 xl:grid-cols-[1.05fr_1fr]">
                 <div className="rounded-[30px] overflow-hidden border border-white/10 bg-[linear-gradient(140deg,#141c2f,#1e293b_55%,#0f172a)] min-h-[280px] p-6 flex flex-col justify-between">
                   <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/18 px-3 py-1.5 text-[11px] uppercase tracking-[0.22em] text-white/70">

@@ -19,7 +19,8 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "cap:sync": "npx cap sync android",
-    "android:debug": "cd android && gradlew.bat assembleDebug"
+    "android:debug": "cd android && gradlew.bat assembleDebug",
+    "android:debug:latest": "set REACT_APP_BACKEND_URL=http://52.66.196.236&& set REACT_APP_NATIVE_BACKEND_URL=http://52.66.196.236&& react-scripts build && npx cap sync android && cd android && gradlew.bat assembleDebug"
   },
   "browserslist": {
     "production": [
