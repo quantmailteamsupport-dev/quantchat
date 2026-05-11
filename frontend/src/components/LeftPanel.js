@@ -217,7 +217,7 @@ export default function LeftPanel({
 
   const renderTopShell = () => (
     <>
-      <div ref={menuRef} className={`sticky top-0 z-20 px-4 border-b border-qc-border bg-qc-surface/95 backdrop-blur-xl relative ${isMobile ? 'pt-3 pb-2' : 'pt-4 pb-3'}`}>
+      <div ref={menuRef} className={`${isMobile ? 'relative' : 'sticky top-0 z-20'} premium-divider px-4 border-b border-qc-border bg-qc-surface/95 backdrop-blur-xl relative ${isMobile ? 'pt-3 pb-2' : 'pt-4 pb-3'}`}>
         {isMobile ? (
           <>
             <div className="flex items-center justify-between gap-3">
@@ -516,7 +516,7 @@ export default function LeftPanel({
   );
 
   const renderChats = () => (
-    <div className="flex flex-col h-full overflow-y-auto">
+    <div className="safe-scroll-shell flex min-h-0 flex-col">
       {renderTopShell()}
       {view !== 'chats' && showPreviewHints && (
         <div className="px-4 py-3 border-b border-qc-border bg-qc-accent-tertiary/40">
@@ -542,7 +542,7 @@ export default function LeftPanel({
           </div>
         </div>
       )}
-      <div className="bg-qc-surface">
+      <div className="bg-qc-surface pb-[calc(env(safe-area-inset-bottom)+5.6rem)] md:pb-0">
         {priorityConversations.length > 0 && (
           <div className="px-4 pt-4">
             <div className="rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(16,23,36,0.96),rgba(10,15,25,0.96))] p-3 shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
@@ -669,7 +669,7 @@ export default function LeftPanel({
                     onSelectConv(conv);
                   }
                 }}
-                className={`w-full flex items-center gap-3 ${isMobile ? 'px-4 py-3' : 'px-4 py-3.5'} hover:bg-qc-surface-hover transition-colors text-left border-b border-qc-border/80 relative cursor-pointer ${
+                className={`w-full flex items-center gap-3 ${isMobile ? 'px-4 py-3' : 'px-4 py-3.5'} hover:bg-qc-surface-hover transition-colors text-left border-b border-qc-border/80 relative cursor-pointer premium-divider ${
                   activeConv?.id === conv.id ? (isMobile ? 'bg-[#21374c]' : 'bg-qc-accent-tertiary') : ''
                 }`}
               >

@@ -220,6 +220,25 @@ export default function ChatApp() {
     warmFeed('/api/reels', 'qc_cache_reels');
   }, [token]);
 
+  useEffect(() => {
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverscroll = document.body.style.overscrollBehavior;
+    const previousHtmlOverscroll = document.documentElement.style.overscrollBehavior;
+
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'none';
+    document.documentElement.style.overscrollBehavior = 'none';
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overscrollBehavior = previousBodyOverscroll;
+      document.documentElement.style.overscrollBehavior = previousHtmlOverscroll;
+    };
+  }, []);
+
   const sendMessage = async (content, type = 'text', replyTo = null) => {
     if (!activeConv || (!content.trim() && type === 'text')) return;
 
@@ -361,15 +380,15 @@ export default function ChatApp() {
   return (
     <div
       data-testid="chat-app"
-      className="w-screen bg-[radial-gradient(circle_at_top,rgba(0,229,255,0.08),transparent_24%),linear-gradient(180deg,#020409,#05070c_55%,#020409)] flex items-center justify-center overflow-hidden px-0 md:px-5 md:py-5"
+      className="w-screen bg-[radial-gradient(circle_at_top_left,rgba(79,140,255,0.14),transparent_24%),radial-gradient(circle_at_78%_10%,rgba(255,229,106,0.13),transparent_16%),radial-gradient(circle_at_50%_100%,rgba(255,111,181,0.08),transparent_18%),radial-gradient(circle_at_bottom,rgba(157,76,221,0.1),transparent_20%),linear-gradient(180deg,#020409,#05070c_55%,#020409)] flex items-center justify-center overflow-hidden px-0 md:px-5 md:py-5"
       style={{
         height: appHeight,
         minHeight: '100svh',
         '--mobile-nav-height': isKeyboardOpen ? '0px' : '74px',
       }}
     >
-      <div className="flex h-full w-full md:max-w-[1460px] md:h-[94vh] bg-[rgba(8,10,15,0.92)] md:border md:border-white/10 md:rounded-[34px] overflow-hidden relative shadow-[0_28px_90px_rgba(0,0,0,0.42)] backdrop-blur-2xl">
-        <div className={`w-full md:w-[400px] flex-shrink-0 border-r border-qc-border bg-qc-surface flex flex-col ${isMobileView && showChat ? 'hidden' : 'flex'}`}>
+      <div className="flex h-full min-h-0 w-full md:max-w-[1460px] md:h-[94vh] bg-[linear-gradient(180deg,rgba(8,10,15,0.95),rgba(10,13,19,0.92))] md:border md:border-white/10 md:rounded-[34px] overflow-hidden relative shadow-[0_28px_90px_rgba(0,0,0,0.42)] backdrop-blur-2xl animate-surfaceGlow">
+        <div className={`w-full md:w-[400px] min-h-0 flex-shrink-0 border-r border-qc-border bg-qc-surface flex flex-col ${isMobileView && showChat ? 'hidden' : 'flex'}`}>
           <LeftPanel
             user={user}
             logout={logout}
@@ -389,7 +408,7 @@ export default function ChatApp() {
           />
         </div>
 
-        <div className={`flex-1 flex flex-col bg-qc-bg ${isMobileView && !showChat ? 'hidden' : 'flex'} ${isMobileView && !isKeyboardOpen ? 'pb-[var(--mobile-nav-height)]' : ''}`}>
+        <div className={`flex-1 min-h-0 flex flex-col bg-qc-bg ${isMobileView && !showChat ? 'hidden' : 'flex'} ${isMobileView && !isKeyboardOpen ? 'pb-[var(--mobile-nav-height)]' : ''}`}>
           {renderMainContent()}
         </div>
 

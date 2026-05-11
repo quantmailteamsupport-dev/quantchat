@@ -17,10 +17,13 @@
   --accent-primary: #00e5ff;
   --accent-secondary: #9d4cdd;
   --accent-tertiary: rgba(255, 255, 255, 0.06);
+  --accent-gold: #ffe56a;
+  --accent-cobalt: #4f8cff;
+  --accent-rose: #ff6fb5;
   --chat-bg: #05070c;
   --bubble-mine: #ffffff;
   --bubble-other: #1a1a24;
-  --shell-gradient: linear-gradient(180deg, #000000 0%, #040509 100%);
+  --shell-gradient: radial-gradient(circle at top left, rgba(79, 140, 255, 0.12), transparent 24%), radial-gradient(circle at 82% 12%, rgba(255, 229, 106, 0.14), transparent 18%), linear-gradient(180deg, #000000 0%, #040509 100%);
 }
 
 .dark {
@@ -36,10 +39,13 @@
   --accent-primary: #00e5ff;
   --accent-secondary: #9d4cdd;
   --accent-tertiary: rgba(255, 255, 255, 0.06);
+  --accent-gold: #ffe56a;
+  --accent-cobalt: #4f8cff;
+  --accent-rose: #ff6fb5;
   --chat-bg: #05070c;
   --bubble-mine: #ffffff;
   --bubble-other: #1a1a24;
-  --shell-gradient: linear-gradient(180deg, #000000 0%, #040509 100%);
+  --shell-gradient: radial-gradient(circle at top left, rgba(79, 140, 255, 0.12), transparent 24%), radial-gradient(circle at 82% 12%, rgba(255, 229, 106, 0.14), transparent 18%), linear-gradient(180deg, #000000 0%, #040509 100%);
 }
 
 * {
@@ -57,11 +63,19 @@ html, body, #root {
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
   scroll-behavior: smooth;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
 }
 
 body {
   background-image: var(--shell-gradient);
   background-attachment: fixed;
+}
+
+@media (max-width: 767px) {
+  body {
+    background-attachment: scroll;
+  }
 }
 
 .font-heading {
@@ -175,6 +189,18 @@ a:focus-visible {
   to { opacity: 1; transform: translateX(0); }
 }
 
+@keyframes surfaceGlow {
+  0% { box-shadow: 0 0 0 rgba(79, 140, 255, 0), 0 0 0 rgba(255, 229, 106, 0); }
+  50% { box-shadow: 0 0 0 rgba(79, 140, 255, 0), 0 14px 36px rgba(255, 229, 106, 0.08); }
+  100% { box-shadow: 0 0 0 rgba(79, 140, 255, 0), 0 0 0 rgba(255, 229, 106, 0); }
+}
+
+@keyframes floatBob {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+  100% { transform: translateY(0); }
+}
+
 .animate-slideUp {
   animation: slideUp 0.2s ease-out;
 }
@@ -187,8 +213,45 @@ a:focus-visible {
   animation: slideIn 0.18s ease-out;
 }
 
+.animate-surfaceGlow {
+  animation: surfaceGlow 4.8s ease-in-out infinite;
+}
+
+.animate-floatBob {
+  animation: floatBob 3.4s ease-in-out infinite;
+}
+
 .assistant-orb {
   animation: orbPulse 3.4s ease-in-out infinite;
+}
+
+.safe-scroll-shell {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.premium-surface {
+  background:
+    radial-gradient(circle at top left, rgba(79, 140, 255, 0.12), transparent 22%),
+    radial-gradient(circle at 88% 0%, rgba(255, 229, 106, 0.12), transparent 18%),
+    linear-gradient(180deg, rgba(11, 14, 20, 0.96), rgba(7, 9, 14, 0.96));
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.premium-divider {
+  position: relative;
+}
+
+.premium-divider::after {
+  content: "";
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(79, 140, 255, 0), rgba(79, 140, 255, 0.28), rgba(255, 229, 106, 0.26), rgba(79, 140, 255, 0));
 }
 
 .hide-scrollbar {

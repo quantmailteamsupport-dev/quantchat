@@ -65,8 +65,8 @@ export default function FeedPanel({ token, onOpenCamera }) {
   const storyRail = stories.slice(0, 10);
 
   return (
-    <div data-testid="feed-panel" className="h-full overflow-y-auto bg-[#050608] text-white">
-      <div className="sticky top-0 z-20 border-b border-white/8 bg-[rgba(5,6,8,0.92)] backdrop-blur-2xl">
+    <div data-testid="feed-panel" className="safe-scroll-shell h-full bg-[#050608] text-white">
+      <div className="premium-divider md:sticky md:top-0 md:z-20 border-b border-white/8 bg-[rgba(5,6,8,0.92)] backdrop-blur-2xl">
         <div className="mx-auto max-w-[860px] px-4 pt-4 pb-3">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -105,7 +105,7 @@ export default function FeedPanel({ token, onOpenCamera }) {
         </div>
       </div>
 
-      <div className="mx-auto max-w-[860px] px-4 pb-[calc(env(safe-area-inset-bottom)+6rem)]">
+      <div className="mx-auto max-w-[860px] px-4 pb-[calc(env(safe-area-inset-bottom)+7rem)] md:pb-8">
         {mode === 'channels' ? (
           <div className="py-4"><ChannelHub token={token} /></div>
         ) : mode === 'map' ? (
@@ -156,7 +156,7 @@ export default function FeedPanel({ token, onOpenCamera }) {
             </section>
 
             {composerOpen && (
-              <section className="rounded-[34px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-5 shadow-[0_24px_60px_rgba(0,0,0,0.25)]">
+              <section className="premium-surface rounded-[34px] border p-5 shadow-[0_24px_60px_rgba(0,0,0,0.25)]">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-[10px] uppercase tracking-[0.24em] text-white/42">Create post</div>

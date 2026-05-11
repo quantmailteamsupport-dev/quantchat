@@ -241,8 +241,8 @@ export default function Stories({ userId, onStartConversation }) {
   }, [otherStoryGroups, storyLane]);
 
   return (
-    <div data-testid="stories-view" className="flex flex-col h-full bg-qc-bg relative overflow-y-auto">
-      <div className="px-4 py-4 sm:px-5 border-b border-qc-border bg-[linear-gradient(180deg,rgba(10,14,24,0.98),rgba(9,14,23,0.94))]">
+    <div data-testid="stories-view" className="safe-scroll-shell flex min-h-0 flex-col bg-qc-bg relative">
+      <div className="premium-divider md:sticky md:top-0 md:z-20 px-4 py-4 sm:px-5 border-b border-qc-border bg-[linear-gradient(180deg,rgba(10,14,24,0.98),rgba(9,14,23,0.94))]">
         <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-[10px] uppercase tracking-[0.28em] text-[#ffe56a]/70">Story deck</p>
@@ -405,7 +405,7 @@ export default function Stories({ userId, onStartConversation }) {
         />
       )}
 
-      <div className="px-4 py-5 sm:px-5 space-y-6 pb-[calc(env(safe-area-inset-bottom)+6.5rem)] md:pb-8">
+      <div className="px-4 py-5 sm:px-5 space-y-6 pb-[calc(env(safe-area-inset-bottom)+7rem)] md:pb-8">
         <section className="rounded-[28px] border border-qc-border bg-qc-surface p-4 shadow-sm">
           <div className="flex items-center justify-between gap-4 mb-4">
             <div>
