@@ -69,6 +69,7 @@ export default function LeftPanel({
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showMenu, setShowMenu] = useState(false);
+  const [rowMenuId, setRowMenuId] = useState(null);
   const [chatFilter, setChatFilter] = useState('all');
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -82,6 +83,7 @@ export default function LeftPanel({
     function handleClickOutside(event) {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setShowMenu(false);
+        setRowMenuId(null);
       }
     }
 
@@ -160,12 +162,14 @@ export default function LeftPanel({
     { id: 'direct', label: 'DMs', count: directCount },
     { id: 'groups', label: 'Groups', count: groupCount },
     { id: 'unread', label: 'Unread', count: totalUnread },
+    { id: 'pinned', label: 'Pinned', count: conversations.filter((conv) => conv.is_starred).length },
   ];
 
   const filteredConversations = conversations.filter(conv => {
     if (chatFilter === 'unread' && !conv.unread_count) return false;
     if (chatFilter === 'groups' && conv.type !== 'group') return false;
     if (chatFilter === 'direct' && conv.type !== 'direct') return false;
+    if (chatFilter === 'pinned' && !conv.is_starred) return false;
 
     if (!searchQuery) return true;
 
@@ -192,6 +196,24 @@ export default function LeftPanel({
     { id: 'ai', label: 'AI', icon: Sparkles },
     { id: 'profile', label: 'Profile', icon: SettingsIcon },
   ];
+
+  const toggleConversationStar = async (conv) => {
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.post(`${API}/api/conversations/${conv.id}/star`, {}, { headers });
+      await onReloadConversations?.();
+      if (activeConv?.id === conv.id) {
+        onSelectConv?.({ ...conv, is_starred: !conv.is_starred });
+      }
+    } catch {}
+    setRowMenuId(null);
+  };
+
+  const dropQuickDraft = (conv) => {
+    localStorage.setItem(`qc_draft_${conv.id}`, 'Quick catch-up: ');
+    onSelectConv(conv);
+    setRowMenuId(null);
+  };
 
   const renderTopShell = () => (
     <>
@@ -473,6 +495,7 @@ export default function LeftPanel({
             { id: 'unread', label: 'Unread' },
             { id: 'direct', label: 'Direct' },
             { id: 'groups', label: 'Groups' },
+            { id: 'pinned', label: 'Pinned' },
           ].map(filter => (
             <button
               data-testid={`leftpanel-filter-${filter.id}`}
@@ -634,11 +657,19 @@ export default function LeftPanel({
             const isTyping = typingUsers[conv.id] && typingUsers[conv.id] !== user?.id;
 
             return (
-              <button
+              <div
                 data-testid={`chat-item-${conv.id}`}
                 key={conv.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onSelectConv(conv)}
-                className={`w-full flex items-center gap-3 ${isMobile ? 'px-4 py-3' : 'px-4 py-3.5'} hover:bg-qc-surface-hover transition-colors text-left border-b border-qc-border/80 ${
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onSelectConv(conv);
+                  }
+                }}
+                className={`w-full flex items-center gap-3 ${isMobile ? 'px-4 py-3' : 'px-4 py-3.5'} hover:bg-qc-surface-hover transition-colors text-left border-b border-qc-border/80 relative cursor-pointer ${
                   activeConv?.id === conv.id ? (isMobile ? 'bg-[#21374c]' : 'bg-qc-accent-tertiary') : ''
                 }`}
               >
@@ -699,7 +730,36 @@ export default function LeftPanel({
                     </div>
                   </div>
                 </div>
-              </button>
+                <div className="absolute right-3 top-3">
+                  <button
+                    data-testid={`chat-row-menu-${conv.id}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setRowMenuId((current) => current === conv.id ? null : conv.id);
+                    }}
+                    className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${rowMenuId === conv.id ? 'bg-white/10 text-qc-text-primary' : 'text-qc-text-secondary hover:bg-white/6'}`}
+                  >
+                    <MoreVertical size={16} />
+                  </button>
+
+                  {rowMenuId === conv.id && (
+                    <div
+                      className="absolute right-0 top-9 z-30 w-44 overflow-hidden rounded-2xl border border-qc-border bg-qc-surface shadow-xl"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <button onClick={() => onSelectConv(conv)} className="w-full px-4 py-3 text-left text-sm text-qc-text-primary hover:bg-qc-surface-hover">
+                        Open lane
+                      </button>
+                      <button onClick={() => dropQuickDraft(conv)} className="w-full px-4 py-3 text-left text-sm text-qc-text-primary hover:bg-qc-surface-hover">
+                        Drop quick draft
+                      </button>
+                      <button onClick={() => toggleConversationStar(conv)} className="w-full px-4 py-3 text-left text-sm text-qc-text-primary hover:bg-qc-surface-hover">
+                        {conv.is_starred ? 'Unpin lane' : 'Pin lane'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             );
           })
         )}
