@@ -152,6 +152,8 @@ if (isProductionRuntime && !process.env.NEXTAUTH_SECRET) {
   );
 }
 
+import { prisma } from "@repo/database";
+
 export const authOptions: NextAuthOptions = {
   // In production the check above guarantees NEXTAUTH_SECRET is defined.
   // Development uses a per-process random fallback so builds can complete
@@ -201,10 +203,17 @@ export const authOptions: NextAuthOptions = {
             normalizedEmail?.split("@")[0] ||
             validation.userId;
 
+          // Sync user to local database if not exists
+          const user = await prisma.user.upsert({
+            where: { id: validation.userId },
+            update: { email: normalizedEmail ?? validation.email ?? undefined, name: displayName },
+            create: { id: validation.userId, email: normalizedEmail ?? validation.email ?? "no-email@quantchat.local", name: displayName },
+          });
+
           return {
-            id: validation.userId,
-            email: normalizedEmail ?? undefined,
-            name: displayName,
+            id: user.id,
+            email: user.email,
+            name: user.name,
             accessToken: quantmailToken,
             refreshToken:
               typeof credentials?.quantmailRefreshToken === "string" &&
@@ -224,11 +233,9 @@ export const authOptions: NextAuthOptions = {
         // hashed password. The demo below accepts any well-formed email so
         // the UI remains functional during local development without a
         // database connection.
-        // TODO: Replace with `prisma.user.findUnique` + `bcrypt.compare`
-        //       before deploying to production.
+        // TODO: Implement Argon2/Bcrypt password verification if traditional
+        //       passwords are ever re-introduced. For now, we prefer WebAuthn.
         if (process.env.NODE_ENV === "production") {
-          // Credentials auth is intentionally disabled until a secure
-          // password-verification flow is implemented.
           return null;
         }
 
@@ -254,6 +261,18 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         (session.user as typeof session.user & { id: string }).id =
           token.id as string;
+          
+        // Fetch fresh data from DB to ensure session reflects DB state (e.g. name changes)
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { name: true, image: true, email: true }
+        });
+        
+        if (dbUser) {
+          session.user.name = dbUser.name;
+          session.user.email = dbUser.email;
+          session.user.image = dbUser.image;
+        }
       }
       session.accessToken =
         typeof token.accessToken === "string" ? token.accessToken : undefined;

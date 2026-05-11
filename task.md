@@ -11,7 +11,11 @@ Rule: list each task once at its current highest confirmed status.
 
 ## PRODUCTION LAUNCH BLOCKERS (2026-05-07)
 
-### 🔴 CRITICAL BLOCKERS - MUST FIX FIRST (Week 1-2)
+### 🟢 COMPLETED TASKS
+- [x] **Repo Connection**: Initialize and sync with `github.com/quantchat-yy/quantchat.git`
+- [x] **Server Sync**: `git clone` the repository on the production Azure VM (`20.249.208.224`)
+- [x] **Server Runtime**: Upgrade Node.js to v22.22.2 and install `pnpm` globally
+- [ ] **BLOCKER-STORAGE**: Production server (`20.249.208.224`) disk full (100% used). Cleanup in progress.
 - `BLOCKER-AUTH`: Replace hardcoded user IDs with real OAuth2/JWT authentication
   - Files: `Nexus/apps/web/app/chat/page.tsx` (line 18 - hardcoded userId)
   - Owner: BackendAgent

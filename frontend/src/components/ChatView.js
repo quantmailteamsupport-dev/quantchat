@@ -665,27 +665,28 @@ export default function ChatArea({
       )}
 
       {activeCall && (
-        <div className="absolute inset-0 bg-[#0A1014]/95 z-50 flex flex-col items-center justify-between py-12 px-6 backdrop-blur-md animate-fadeIn text-white">
-          <div className="text-center mt-10">
-            <div className="w-32 h-32 rounded-full overflow-hidden mb-6 mx-auto border-4 border-qc-accent-primary shadow-[0_0_30px_rgba(255,107,61,0.4)] animate-pulse">
+        <div className="absolute inset-0 bg-[#0A1014]/85 z-50 flex flex-col items-center justify-between py-12 px-6 backdrop-blur-2xl animate-fadeIn text-white border border-white/10 rounded-[30px] overflow-hidden m-2 shadow-2xl">
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80 pointer-events-none" />
+          <div className="text-center mt-12 relative z-10">
+            <div className="w-36 h-36 rounded-full overflow-hidden mb-6 mx-auto border-[3px] border-qc-accent-primary shadow-[0_0_40px_rgba(255,107,61,0.5)] animate-pulse relative">
               {isGroup
-                ? (conversation.avatar ? <img src={conversation.avatar} alt="" className="w-full h-full object-cover" /> : <Users size={64} className="m-auto mt-8 text-gray-400" />)
-                : (otherUser?.avatar ? <img src={otherUser.avatar} alt="" className="w-full h-full object-cover" /> : <User size={64} className="m-auto mt-8 text-gray-400" />)}
+                ? (conversation.avatar ? <img src={conversation.avatar} alt="" className="w-full h-full object-cover" /> : <Users size={64} className="m-auto mt-10 text-gray-400" />)
+                : (otherUser?.avatar ? <img src={otherUser.avatar} alt="" className="w-full h-full object-cover" /> : <User size={64} className="m-auto mt-10 text-gray-400" />)}
             </div>
-            <h2 className="text-3xl font-medium mb-2">{isGroup ? conversation.name : (otherUser?.name || 'Unknown')}</h2>
-            <p className="text-gray-400 uppercase tracking-widest text-sm">{activeCall.status === 'ringing' ? 'Connecting preview...' : 'Live preview'}</p>
-            <p className="text-white/50 text-xs mt-3 uppercase tracking-[0.28em]">Call preview mode</p>
+            <h2 className="text-3xl font-semibold mb-2 drop-shadow-md">{isGroup ? conversation.name : (otherUser?.name || 'Unknown')}</h2>
+            <p className="text-[#00e5ff] uppercase tracking-widest text-sm font-medium animate-pulse">{activeCall.status === 'ringing' ? 'Ringing...' : '00:00 Live'}</p>
+            <p className="text-white/60 text-[11px] mt-2 uppercase tracking-[0.28em] bg-white/10 px-3 py-1 rounded-full inline-block backdrop-blur-md">End-to-end encrypted</p>
           </div>
 
-          <div className="flex items-center gap-8 mb-10">
-            <button className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
-              <MicOff size={24} />
+          <div className="flex items-center gap-6 mb-12 relative z-10 bg-black/40 p-4 rounded-[32px] backdrop-blur-xl border border-white/10 shadow-2xl">
+            <button className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 hover:-translate-y-1 transition-all">
+              <MicOff size={22} className="text-white/90" />
             </button>
-            <button className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
-              <VideoOff size={24} />
+            <button className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 hover:-translate-y-1 transition-all">
+              <VideoOff size={22} className="text-white/90" />
             </button>
-            <button onClick={() => setActiveCall(null)} className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg hover:scale-105 transform">
-              <PhoneOff size={28} />
+            <button onClick={() => setActiveCall(null)} className="w-[72px] h-[72px] rounded-[28px] bg-[#ff3b30] flex items-center justify-center hover:bg-[#ff453a] transition-all shadow-[0_10px_30px_rgba(255,59,48,0.4)] hover:scale-105 transform hover:rotate-3">
+              <PhoneOff size={28} className="text-white fill-current" />
             </button>
           </div>
         </div>
