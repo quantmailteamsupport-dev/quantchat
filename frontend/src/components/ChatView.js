@@ -825,12 +825,13 @@ export default function ChatArea({
       <div
         ref={messagesContainerRef}
         onScroll={handleMessagesScroll}
-        className={`flex-1 overflow-y-auto py-4 space-y-1 relative z-10 ${isMobile ? 'px-3' : 'px-4 sm:px-[5%] md:px-[10%]'}`}
+        className={`flex-1 overflow-y-auto py-4 space-y-1 relative z-10 ${isMobile ? 'px-3 pb-6' : 'px-4 sm:px-[5%] md:px-[10%]'}`}
       >
         {messages.length === 0 ? (
           <div className="flex justify-center mt-10">
-            <div className="bg-[#FFEECD] text-[#54656F] text-[12.5px] px-4 py-2 rounded-lg shadow-sm text-center max-w-sm">
-              <span className="block mb-1">Messages and calls are end-to-end encrypted. No one outside of this chat, not even QuantChat, can read or listen to them.</span>
+            <div className="rounded-[24px] border border-qc-border bg-qc-surface px-5 py-4 shadow-sm text-center max-w-sm">
+              <span className="block mb-1 text-sm text-qc-text-primary font-medium">Start this lane</span>
+              <span className="block text-[12.5px] text-qc-text-secondary">Messages and calls are end-to-end encrypted. No one outside this chat, not even QuantChat, can read or listen to them.</span>
             </div>
           </div>
         ) : messages.map((message) => {
@@ -971,7 +972,7 @@ export default function ChatArea({
         <input type="file" accept=".pdf,.txt,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip" className="hidden" ref={fileInputRef} onChange={(event) => handleFileChange(event, 'file')} />
 
         {!input.trim() && !isRecording && !showEmojiPicker && !showAttachMenu && !pendingAttachment && (
-          <div className={`${isMobile ? 'fixed inset-x-3 bottom-[calc(var(--mobile-nav-height)+5.05rem)]' : 'absolute bottom-16 left-4 right-4'} z-30 flex gap-2 overflow-x-auto hide-scrollbar pointer-events-auto`}>
+          <div className={`${isMobile ? 'absolute left-3 right-3 bottom-[calc(100%+0.55rem)]' : 'absolute bottom-16 left-4 right-4'} z-30 flex gap-2 overflow-x-auto hide-scrollbar pointer-events-auto`}>
             {QUICK_REPLIES.map((reply) => (
               <button
                 key={reply}
@@ -1029,7 +1030,7 @@ export default function ChatArea({
         )}
 
         {showEmojiPicker && (
-          <div className={`${isMobile ? 'fixed inset-x-3 bottom-[calc(var(--mobile-nav-height)+4.75rem)]' : 'absolute bottom-14 left-4'} rounded-2xl border border-qc-border bg-qc-surface shadow-xl p-3 grid grid-cols-4 gap-2 animate-fadeIn z-40`}>
+          <div className={`${isMobile ? 'absolute inset-x-3 bottom-[calc(100%+0.55rem)]' : 'absolute bottom-14 left-4'} rounded-2xl border border-qc-border bg-qc-surface shadow-xl p-3 grid grid-cols-4 gap-2 animate-fadeIn z-40`}>
             {EMOJIS.map((emoji) => (
               <button key={emoji} onClick={() => setInput((current) => `${current}${emoji}`)} className="h-11 rounded-xl hover:bg-qc-surface-hover text-2xl">
                 {emoji}
@@ -1039,7 +1040,7 @@ export default function ChatArea({
         )}
 
         {showAttachMenu && (
-          <div className={`${isMobile ? 'fixed inset-x-3 bottom-[calc(var(--mobile-nav-height)+4.75rem)]' : 'absolute bottom-14 left-14 w-56'} rounded-2xl border border-qc-border bg-qc-surface shadow-xl p-2 animate-fadeIn z-40`}>
+          <div className={`${isMobile ? 'absolute inset-x-3 bottom-[calc(100%+0.55rem)]' : 'absolute bottom-14 left-14 w-56'} rounded-2xl border border-qc-border bg-qc-surface shadow-xl p-2 animate-fadeIn z-40`}>
             <button onClick={() => imageInputRef.current?.click()} className="w-full text-left px-3 py-3 rounded-xl hover:bg-qc-surface-hover text-sm flex items-center gap-3"><ImageIcon size={17} /> Attach photo</button>
             <button onClick={() => fileInputRef.current?.click()} className="w-full text-left px-3 py-3 rounded-xl hover:bg-qc-surface-hover text-sm flex items-center gap-3"><FileText size={17} /> Attach file</button>
             <button onClick={handleQuickNote} className="w-full text-left px-3 py-3 rounded-xl hover:bg-qc-surface-hover text-sm flex items-center gap-3"><Zap size={17} /> Drop quick note</button>

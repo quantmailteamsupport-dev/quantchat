@@ -243,7 +243,7 @@ export default function Stories({ userId, onStartConversation }) {
   return (
     <div data-testid="stories-view" className="flex flex-col h-full bg-qc-bg relative overflow-y-auto">
       <div className="px-4 py-4 sm:px-5 border-b border-qc-border bg-[linear-gradient(180deg,rgba(10,14,24,0.98),rgba(9,14,23,0.94))]">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-[10px] uppercase tracking-[0.28em] text-[#ffe56a]/70">Story deck</p>
             <div className="flex items-center gap-2 mt-1">
@@ -255,7 +255,7 @@ export default function Stories({ userId, onStartConversation }) {
           <button
             data-testid="open-story-composer"
             onClick={() => setShowComposer(true)}
-            className="h-11 px-3 sm:px-4 rounded-2xl bg-qc-accent-primary text-white hover:bg-qc-accent-secondary transition-colors flex items-center gap-2 shadow-glow whitespace-nowrap"
+            className="h-11 px-3 sm:px-4 rounded-2xl bg-qc-accent-primary text-white hover:bg-qc-accent-secondary transition-colors flex items-center justify-center gap-2 shadow-glow whitespace-nowrap"
           >
             <Plus size={16} />
             <span className="text-sm font-medium">Post story</span>
@@ -308,16 +308,16 @@ export default function Stories({ userId, onStartConversation }) {
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
-          <div className="rounded-2xl border border-white/10 bg-white/6 px-4 py-3">
+        <div className="flex gap-3 mt-4 overflow-x-auto hide-scrollbar sm:grid sm:grid-cols-3">
+          <div className="shrink-0 min-w-[160px] rounded-2xl border border-white/10 bg-white/6 px-4 py-3 sm:min-w-0">
             <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Live updates</p>
             <p className="text-xl font-semibold text-qc-text-primary mt-1">{timelineStories.length}</p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/6 px-4 py-3">
+          <div className="shrink-0 min-w-[160px] rounded-2xl border border-white/10 bg-white/6 px-4 py-3 sm:min-w-0">
             <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Creators</p>
             <p className="text-xl font-semibold text-qc-text-primary mt-1">{storyGroups.length}</p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/6 px-4 py-3">
+          <div className="shrink-0 min-w-[160px] rounded-2xl border border-white/10 bg-white/6 px-4 py-3 sm:min-w-0">
             <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Viewer mode</p>
             <p className="text-sm font-semibold text-qc-text-primary mt-2">{autoAdvance ? 'Auto advance on' : 'Manual advance'}</p>
           </div>

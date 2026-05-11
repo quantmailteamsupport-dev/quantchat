@@ -85,7 +85,7 @@ export default function Groups({ onSelectConv }) {
   return (
     <div data-testid="groups-panel" className="flex flex-col h-full bg-qc-bg relative overflow-y-auto">
       <div className="px-4 py-4 sm:px-5 border-b border-qc-border bg-qc-surface">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-[10px] uppercase tracking-[0.24em] text-qc-text-tertiary">Squad control</p>
             <div className="flex items-center gap-2 mt-1">
@@ -97,23 +97,23 @@ export default function Groups({ onSelectConv }) {
           <button
             data-testid="create-group-btn"
             onClick={openCreate}
-            className="h-11 px-3 sm:px-4 rounded-2xl bg-qc-accent-primary text-white hover:bg-qc-accent-secondary transition-colors flex items-center gap-2 shadow-glow whitespace-nowrap"
+            className="h-11 px-3 sm:px-4 rounded-2xl bg-qc-accent-primary text-white hover:bg-qc-accent-secondary transition-colors flex items-center justify-center gap-2 shadow-glow whitespace-nowrap"
           >
             <Plus size={16} />
             <span className="text-sm font-medium">New group</span>
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
-          <div className="rounded-2xl border border-qc-border bg-qc-surface-hover px-4 py-3">
+        <div className="mt-4 flex gap-3 overflow-x-auto hide-scrollbar sm:grid sm:grid-cols-3">
+          <div className="shrink-0 min-w-[160px] rounded-2xl border border-qc-border bg-qc-surface-hover px-4 py-3 sm:min-w-0">
             <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Active groups</p>
             <p className="text-xl font-semibold text-qc-text-primary mt-1">{groups.length}</p>
           </div>
-          <div className="rounded-2xl border border-qc-border bg-qc-surface-hover px-4 py-3">
+          <div className="shrink-0 min-w-[160px] rounded-2xl border border-qc-border bg-qc-surface-hover px-4 py-3 sm:min-w-0">
             <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Selected members</p>
             <p className="text-xl font-semibold text-qc-text-primary mt-1">{selectedUsers.length}</p>
           </div>
-          <div className="rounded-2xl border border-qc-border bg-qc-surface-hover px-4 py-3">
+          <div className="shrink-0 min-w-[160px] rounded-2xl border border-qc-border bg-qc-surface-hover px-4 py-3 sm:min-w-0">
             <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Mode</p>
             <p className="text-sm font-semibold text-qc-text-primary mt-2">Fast squad setup</p>
           </div>

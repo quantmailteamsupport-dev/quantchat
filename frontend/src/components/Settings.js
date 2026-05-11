@@ -82,9 +82,9 @@ export default function Settings() {
         <p className="text-[10px] uppercase tracking-[0.24em] text-qc-text-tertiary">Profile cockpit</p>
         <h2 data-testid="settings-title" className="font-heading text-2xl text-qc-text-primary mt-1">You</h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+        <div className="mt-4 flex gap-3 overflow-x-auto hide-scrollbar sm:grid sm:grid-cols-3">
           {stats.map((stat) => (
-            <div key={stat.label} className="rounded-2xl border border-qc-border bg-qc-surface-hover px-4 py-3">
+            <div key={stat.label} className="shrink-0 min-w-[160px] rounded-2xl border border-qc-border bg-qc-surface-hover px-4 py-3 sm:min-w-0">
               <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">{stat.label}</p>
               <p className="text-sm font-semibold text-qc-text-primary mt-2">{stat.value}</p>
             </div>
@@ -94,7 +94,7 @@ export default function Settings() {
 
       <div className="px-4 py-5 sm:px-5 space-y-6 pb-[calc(env(safe-area-inset-bottom)+6.5rem)] md:pb-6">
         <section className="rounded-[30px] border border-qc-border bg-qc-surface p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-4 mb-5">
+          <div className="flex flex-col items-stretch gap-4 mb-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Identity</p>
               <h3 className="text-lg font-semibold text-qc-text-primary mt-1">Profile and bio</h3>
@@ -102,7 +102,7 @@ export default function Settings() {
             <button
               data-testid="edit-profile-btn"
               onClick={() => (editing ? handleSave() : setEditing(true))}
-              className="h-11 px-4 rounded-2xl border border-qc-border bg-qc-surface-hover text-qc-text-primary hover:bg-qc-accent-tertiary transition-colors flex items-center gap-2"
+              className="h-11 px-4 rounded-2xl border border-qc-border bg-qc-surface-hover text-qc-text-primary hover:bg-qc-accent-tertiary transition-colors flex items-center justify-center gap-2"
             >
               {editing ? <Save size={16} /> : <Edit3 size={16} />}
               <span className="text-sm font-medium">{editing ? 'Save' : 'Edit'}</span>
