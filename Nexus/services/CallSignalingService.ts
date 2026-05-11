@@ -23,7 +23,7 @@ export class CallSignalingService {
   private connections: Map<string, SocketConnection> = new Map();
   private userSockets: Map<string, string> = new Map(); // userId -> socketId
 
-  constructor(private callService: typeof WebRTCCallService) {
+  constructor(private callService: WebRTCCallService) {
     this.setupCallServiceListeners();
   }
 
@@ -113,8 +113,11 @@ export class CallSignalingService {
     message: SignalingMessage
   ): Promise<void> {
     const { to, data } = message;
-    const callType = data?.type || 'voice';
-    
+
+    // Validate call type strictly against allowed values
+    const rawType = data?.type;
+    const callType: 'voice' | 'video' = rawType === 'video' ? 'video' : 'voice';
+
     // Get receiver's socket
     const receiverSocketId = this.userSockets.get(to);
     if (!receiverSocketId) {
@@ -132,6 +135,14 @@ export class CallSignalingService {
       connection.socketId,
       receiverSocketId
     );
+
+    // Re-verify receiver is still connected after the async initiateCall
+    if (!this.userSockets.has(to)) {
+      await this.callService.endCall(callId).catch(() => undefined);
+      this.callService.cleanup(callId);
+      this.sendError(connection.socketId, 'User disconnected before call could start');
+      return;
+    }
 
     // Notify receiver
     this.sendToUser(to, {
@@ -284,19 +295,19 @@ export class CallSignalingService {
    */
   private setupCallServiceListeners(): void {
     this.callService.on('call:initiated', (call) => {
-      console.log('Call initiated:', call.callId);
+      try { console.log('Call initiated:', call?.callId); } catch { /* ignore */ }
     });
 
     this.callService.on('call:accepted', (call) => {
-      console.log('Call accepted:', call.callId);
+      try { console.log('Call accepted:', call?.callId); } catch { /* ignore */ }
     });
 
     this.callService.on('call:rejected', (call) => {
-      console.log('Call rejected:', call.callId);
+      try { console.log('Call rejected:', call?.callId); } catch { /* ignore */ }
     });
 
     this.callService.on('call:ended', (call) => {
-      console.log('Call ended:', call.callId);
+      try { console.log('Call ended:', call?.callId); } catch { /* ignore */ }
     });
   }
 

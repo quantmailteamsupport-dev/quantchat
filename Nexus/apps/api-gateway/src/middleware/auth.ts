@@ -21,14 +21,9 @@ function readBearerToken(req: Request): string | null {
   return token || null;
 }
 
-async function verifyWithSharedKernel(token: string): Promise<ZeroTrustUser | null> {
-  void token;
-  return null;
-}
-
 function verifyWithJwtSecret(token: string): ZeroTrustUser | null {
   const secret = process.env.JWT_SECRET;
-  if (!secret) return null;
+  if (!secret) throw new Error("JWT_SECRET is required for authentication");
   try {
     const decoded = jwt.verify(token, secret) as jwt.JwtPayload;
     const sub = typeof decoded.sub === "string" ? decoded.sub.trim() : "";
@@ -87,36 +82,36 @@ export function issueQuantChatAccessToken(payload: ZeroTrustUser): { accessToken
 /**
  * Express middleware – verifies Zero-Trust identity and attaches user to request.
  */
-export async function requireBiometricAuth(
+export function requireBiometricAuth(
   req: Request,
   res: Response,
   next: NextFunction
-): Promise<void> {
+): void {
   const token = readBearerToken(req);
   if (!token) {
     res.status(401).json({ error: "Missing bearer token" });
     return;
   }
 
-  const sharedKernelUser = await verifyWithSharedKernel(token);
-  const fallbackUser = sharedKernelUser ?? verifyWithJwtSecret(token);
-  if (!fallbackUser?.sub) {
-    res.status(401).json({ error: "Invalid token" });
-    return;
+  try {
+    const user = verifyWithJwtSecret(token);
+    if (!user?.sub) {
+      res.status(401).json({ error: "Invalid token" });
+      return;
+    }
+    req.user = user;
+    req.authSessionId = user.sessionId;
+    next();
+  } catch {
+    res.status(500).json({ error: "Authentication service unavailable" });
   }
-
-  req.user = fallbackUser;
-  req.authSessionId = fallbackUser.sessionId;
-  next();
 }
 
 /**
  * Synchronous-looking wrapper for verifyAccessToken (now async).
  * Used by Socket.io handlers.
  */
-export async function verifyBiometricToken(token: string) {
-  const fromSharedKernel = await verifyWithSharedKernel(token);
-  if (fromSharedKernel?.sub) return fromSharedKernel;
+export function verifyBiometricToken(token: string) {
   return verifyWithJwtSecret(token);
 }
 

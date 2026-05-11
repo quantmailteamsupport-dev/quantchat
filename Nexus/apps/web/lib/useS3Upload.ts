@@ -27,13 +27,29 @@ export function useS3Upload() {
     setError(null);
 
     try {
+      // Guard against oversized files before hitting the server
+      const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
+      if (file.size > MAX_FILE_SIZE) {
+        throw new Error("File too large. Maximum allowed size is 100 MB.");
+      }
+
+      // Read CSRF token from the meta tag injected by Next.js
+      const csrfMeta = typeof document !== "undefined"
+        ? document.querySelector('meta[name="csrf-token"]')
+        : null;
+      const csrfToken = csrfMeta?.getAttribute("content") ?? "";
+
       // 1. Get presigned URL from API Gateway
       const response = await fetch("/api/chat/media/presign", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
+        },
         body: JSON.stringify({
           fileName: file.name,
           fileType: file.type,
+          fileSize: file.size,
         }),
       });
 
@@ -68,6 +84,17 @@ export function useS3Upload() {
       });
 
       await uploadPromise;
+
+      // Notify gateway that upload is complete so file status is updated
+      try {
+        await fetch(`/api/media/${encodeURIComponent(fileKey)}/complete`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileSize: file.size }),
+        });
+      } catch {
+        // Non-fatal: status update failure doesn't block the upload result
+      }
 
       setIsUploading(false);
       return { fileKey, downloadUrl };

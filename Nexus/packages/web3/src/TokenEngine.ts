@@ -4,8 +4,18 @@
  * Rewards users for building AR environments, training their Twins, and migrating friends.
  */
 
+function resolveContractAddress(): string {
+  const addr = process.env.NEXUS_CONTRACT_ADDRESS?.trim();
+  if (!addr || addr.startsWith("0xNEXUS")) {
+    throw new Error("NEXUS_CONTRACT_ADDRESS environment variable is required");
+  }
+  return addr;
+}
+
 export class SocialCapitalTokenEngine {
-  private static readonly CONTRACT_ADDRESS = "0xNEXUS_STAAS_TOKEN_CONTRACT";
+  private static get CONTRACT_ADDRESS(): string {
+    return resolveContractAddress();
+  }
 
   /**
    * Distributes tokens when a user successfully convinces an external group (WhatsApp/Telegram) to migrate.
