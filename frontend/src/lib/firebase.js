@@ -28,9 +28,22 @@ export function getFirebaseAuth() {
 export function buildRecaptcha(containerId) {
   const auth = getFirebaseAuth();
   if (!auth || typeof window === 'undefined') return null;
+  clearRecaptcha(containerId);
+  window.quantchatRecaptcha = new RecaptchaVerifier(auth, containerId, {
+    size: 'normal',
+    theme: 'dark',
+  });
+  return window.quantchatRecaptcha;
+}
+
+export function clearRecaptcha(containerId) {
+  if (typeof window === 'undefined') return;
   if (window.quantchatRecaptcha) {
     try { window.quantchatRecaptcha.clear(); } catch {}
+    window.quantchatRecaptcha = null;
   }
-  window.quantchatRecaptcha = new RecaptchaVerifier(auth, containerId, { size: 'invisible' });
-  return window.quantchatRecaptcha;
+  if (containerId) {
+    const node = document.getElementById(containerId);
+    if (node) node.innerHTML = '';
+  }
 }

@@ -1,146 +1,114 @@
 {
-  "project_name": "QuantChat",
   "theme": "dark",
-  "archetype": "Archetype 4 (Swiss & High-Contrast) infused with Archetype 5 (Jewel & Luxury)",
-  "rationale": "A 'Super App' combining social, AI, and messaging requires a premium, immersive environment. Dark mode with stark contrast reduces eye strain during heavy usage, makes media (Reels/Feed) pop, and allows the 'Futuristic 3D / AI' elements to glow naturally without looking like a tacky gaming app.",
-  "typography": {
-    "heading_font": "Outfit",
-    "body_font": "Manrope",
-    "mono_font": "JetBrains Mono",
-    "scale": {
-      "h1": "text-4xl sm:text-5xl font-black tracking-tighter",
-      "h2": "text-2xl sm:text-3xl font-bold tracking-tight",
-      "h3": "text-xl font-semibold",
-      "body": "text-base font-medium leading-relaxed",
-      "small": "text-sm text-zinc-400",
-      "overline": "text-xs font-bold uppercase tracking-[0.2em] text-zinc-500"
-    }
-  },
+  "archetype": "Archetype 4 (Swiss & High-Contrast) - Dark Mode Variant",
+  "reasoning": "A futuristic 'Quant' ecosystem implies precision, math, and high-performance engineering. We bypass generic neon clichés and instead use a stark, high-contrast Swiss dark mode. Pure layered blacks, ultra-crisp typography, and stark white or electric blue accents ensure a highly polished, elite mobile-first experience.",
   "colors": {
-    "background": {
-      "default": "#050505",
-      "surface": "#121212",
-      "glass": "rgba(20, 20, 20, 0.6)"
+    "background": "#050505",
+    "surface": "#121212",
+    "surface_elevated": "#1E1E1E",
+    "text_primary": "#F8F9FA",
+    "text_secondary": "#A1A1AA",
+    "accent_primary": "#2563EB", 
+    "accent_secondary": "#FACC15",
+    "danger": "#FF3B30",
+    "border": "#27272A",
+    "glass_bg": "rgba(24, 24, 27, 0.65)",
+    "glass_border": "rgba(255, 255, 255, 0.1)"
+  },
+  "typography": {
+    "headings": {
+      "font": "Outfit",
+      "weight": "font-light to font-medium",
+      "tracking": "tracking-tight"
     },
-    "text": {
-      "primary": "#FFFFFF",
-      "secondary": "#A1A1AA",
-      "muted": "#52525B"
+    "body": {
+      "font": "Manrope",
+      "weight": "font-normal",
+      "tracking": "tracking-normal"
     },
-    "brand": {
-      "primary": "#00E5FF",
-      "primary_hover": "#00B8CC",
-      "accent": "#8B5CF6",
-      "gradient": "bg-gradient-to-tr from-[#00E5FF] to-[#8B5CF6]",
-      "story_ring_unread": "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600",
-      "story_ring_read": "bg-zinc-800"
-    },
-    "utility": {
-      "border": "rgba(255, 255, 255, 0.08)",
-      "border_focus": "rgba(0, 229, 255, 0.5)",
-      "error": "#FF3B30",
-      "success": "#34C759"
+    "mono": {
+      "font": "JetBrains Mono",
+      "weight": "font-normal",
+      "tracking": "tracking-tighter"
     }
   },
   "layout_and_spacing": {
-    "grid_system": "Mobile-first standard, max-w-md mx-auto for primary viewports, scaling to a side-by-side bento layout on desktop if applicable.",
-    "spacing_scale": "Use generous padding for touch targets: p-4 for list items, p-6 for cards. gap-4 for standard lists.",
-    "border_radius": {
-      "small": "rounded-md",
-      "default": "rounded-xl",
-      "large": "rounded-2xl",
-      "full": "rounded-full"
-    }
+    "philosophy": "Mobile-first, edge-to-edge content for feeds and reels. Strict structural grids for profile. Generous spacing in the AI workspace.",
+    "container_max_width": "max-w-md mx-auto relative h-[100dvh] overflow-hidden bg-[#050505] shadow-2xl border-x border-border/20 md:rounded-3xl md:h-[90vh] md:my-8",
+    "feed_spacing": "gap-8 py-4",
+    "bento_spacing": "gap-2 sm:gap-4 p-4"
   },
-  "component_guidelines": {
-    "bottom_navigation": {
-      "style": "Glassmorphic floating bar at the bottom of the screen. backdrop-blur-xl bg-black/60 border-t border-white/10.",
-      "items": ["Chats", "Feed", "Reels", "AI", "Profile"],
-      "active_state": "Text and icon highlighted in brand.primary, slight scale-up animation."
+  "components": {
+    "navigation": {
+      "style": "Bottom tab bar for mobile. Glassmorphism backdrop-blur-xl bg-[#050505]/80 border-t border-white/5. Fixed to bottom. Safe area padding.",
+      "icons": "lucide-react, 24px, 1px stroke for active, 0.5px for inactive"
     },
-    "chats_super_tab": {
-      "layout": "Vertical stack. Top sticky header -> Story Circles (horizontal scroll) -> Chat List (vertical scroll).",
-      "stories": "Compact. h-16 w-16 or h-14 w-14 circles, 2px padding inside the gradient ring to background. Avoid massive logos.",
-      "chat_list": "Merge 1-on-1 chats and groups. Groups should show stacked/overlapping avatars.",
-      "floating_actions": "Include a subtle camera icon (Snapchat lens entry) and Map icon top right or as a floating action button."
+    "feed": {
+      "structure": "Edge-to-edge images/videos. No horizontal padding on media. Header (Avatar + Username + 'More' icon) with p-4. Action bar (Like, Comment, Share) below media with p-4. Typography uses Manrope text-sm for captions.",
+      "microinteractions": "Double tap to like (soft scale animation + heart icon overlay). Soft glow on action buttons."
     },
-    "feed_tab": {
-      "style": "Clean scrolling feed. Edge-to-edge images/media, sleek interaction buttons (heart, comment, share) underneath, minimalist captions."
+    "spotlight_reels": {
+      "structure": "100vh container, snap-y snap-mandatory scroll. Each reel takes h-[100dvh] w-full. Absolute positioned UI elements.",
+      "ui_overlay": "Right-side vertical action stack (Like, Comment, Share, Audio track). Bottom-left for User info and caption. Top gradient overlay for safe area.",
+      "gestures": "Swipe up/down to next reel. Tap to pause/play."
     },
-    "reels_tab": {
-      "style": "Immersive, full-screen vertical swipe. Minimal UI overlay to let the video shine. Side-aligned action buttons."
+    "quant_ai": {
+      "trigger": "Floating draggable widget (Framer Motion drag). Uses Neumorphic/Glass button style with a glowing border (tracing beam effect).",
+      "workspace": "Expands into a sleek chat interface. Terminal-inspired retro-futurism (black bg, stark white/blue text). Markdown support, floating input bar at the bottom with backdrop-blur."
     },
-    "ai_tab": {
-      "style": "Multi-bot workspace. Top horizontal selector for active bot (Emergent, GPT, Claude). Full height chat interface. Use subtle background mesh gradients for the AI personality.",
-      "input_bar": "Sleek, rounded-full or rounded-2xl glass input field with integrated attachment icon."
+    "profile": {
+      "structure": "Bento grid layout. Top: Avatar (large, subtle outer glow ring for 'active story'), Stats (Posts, Followers, Following) in a horizontal flex. Bio in JetBrains Mono text-xs for a 'Quant' hacker vibe.",
+      "bento_cards": "Grid-cols-3 for post thumbnails. Gap-1. No borders on thumbnails to simulate a tight gallery."
     },
-    "profile_tab": {
-      "layout": "Header with avatar/stats -> Tab list (Posts, API Keys, Settings).",
-      "api_manager": "List of LLM providers. Include input fields for API keys (OpenAI, Gemini, Claude, Ollama, DeepSeek). Blurred/hidden state for keys by default."
-    },
-    "buttons": {
-      "primary": "bg-[#00E5FF] text-black font-semibold rounded-xl px-6 py-3 hover:bg-[#00B8CC] transition-colors",
-      "secondary": "bg-white/10 text-white rounded-xl px-6 py-3 hover:bg-white/20 transition-colors",
-      "ghost": "hover:bg-white/5 text-zinc-400 hover:text-white transition-colors"
-    },
-    "cards": {
-      "default": "bg-[#121212] border border-white/5 rounded-2xl p-6 shadow-xl"
+    "channels_broadcast": {
+      "structure": "List view. Avatar + Title + Last message. Unread indicator as a glowing electric blue dot. Swipe left on row to reveal 'Mute/Leave' actions."
     }
   },
   "motion_and_interactions": {
-    "hover": "Subtle brightness increase and -translate-y-[1px] for cards.",
-    "active": "Scale down slightly (scale-95) for button presses.",
-    "page_transition": "Fade in and slight slide up (10px) on route change.",
-    "story_open": "Scale up from the circle origin."
+    "page_transitions": "Framer Motion. Initial opacity 0, y 10. Animate to opacity 1, y 0. Exit opacity 0, y -10.",
+    "button_hover": "scale-[0.98] transition-transform duration-200",
+    "glass_blur": "backdrop-blur-2xl backdrop-saturate-150"
   },
-  "media": {
-    "image_urls": {
-      "logo_3d_futuristic": {
-        "url": "https://images.unsplash.com/photo-1770031079085-0ac797e07fe5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwyfHxmdXR1cmlzdGljJTIwM2QlMjBuZW9uJTIwbG9nbyUyMHNoYXBlfGVufDB8fHx8MTc3ODQyNjk0Mnww&ixlib=rb-4.1.0&q=85",
-        "category": "Brand",
-        "description": "3D metallic neon shape representing the QuantChat futuristic logo"
+  "assets": {
+    "icons_library": "lucide-react",
+    "image_urls": [
+      {
+        "url": "https://images.unsplash.com/photo-1757705760133-b39c479dc236?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHwzfHxjeWJlcnB1bmslMjBuZW9uJTIwY2l0eSUyMGxpZmVzdHlsZXxlbnwwfHx8fDE3Nzg0MzU3NjV8MA&ixlib=rb-4.1.0&q=85",
+        "category": "feed_placeholder",
+        "description": "Cyberpunk neon city lifestyle for feed posts"
       },
-      "avatar_ai_bot": {
-        "url": "https://images.unsplash.com/photo-1677212004257-103cfa6b59d0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTJ8MHwxfHNlYXJjaHwyfHxhaSUyMGFydGlmaWNpYWwlMjBpbnRlbGxpZ2VuY2UlMjByb2JvdCUyMG5lb24lMjBhdmF0YXJ8ZW58MHx8fHwxNzc4NDI2OTQyfDA&ixlib=rb-4.1.0&q=85",
-        "category": "AI Characters",
-        "description": "Glowing head representing the Emergent AI Bot avatar"
+      {
+        "url": "https://images.unsplash.com/photo-1757705759352-a387d4cb1154?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHwxfHxjeWJlcnB1bmslMjBuZW9uJTIwY2l0eSUyMGxpZmVzdHlsZXxlbnwwfHx8fDE3Nzg0MzU3NjV8MA&ixlib=rb-4.1.0&q=85",
+        "category": "spotlight_reel_placeholder",
+        "description": "Vertical immersive city shot for Reels"
       },
-      "avatar_user_1": {
-        "url": "https://images.unsplash.com/photo-1770657749245-490c4cb233e5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTF8MHwxfHNlYXJjaHwxfHxjaW5lbWF0aWMlMjBwb3J0cmFpdCUyMHBlcnNvbiUyMG5lb24lMjBsaWdodGluZ3xlbnwwfHx8fDE3Nzg0MjY5MzZ8MA&ixlib=rb-4.1.0&q=85",
-        "category": "Users",
-        "description": "Cinematic neon portrait for user avatar or story ring"
+      {
+        "url": "https://images.unsplash.com/photo-1689443111130-6e9c7dfd8f9e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA3MDB8MHwxfHNlYXJjaHwzfHxmdXR1cmlzdGljJTIwYWJzdHJhY3QlMjBhaSUyMHRlY2glMjBiYWNrZ3JvdW5kfGVufDB8fHx8MTc3ODQzNTc2NXww&ixlib=rb-4.1.0&q=85",
+        "category": "ai_workspace_background",
+        "description": "Futuristic abstract AI tech background"
       },
-      "avatar_user_2": {
-        "url": "https://images.unsplash.com/photo-1760805594914-3e4ebd3fe429?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTF8MHwxfHNlYXJjaHw0fHxjaW5lbWF0aWMlMjBwb3J0cmFpdCUyMHBlcnNvbiUyMG5lb24lMjBsaWdodGluZ3xlbnwwfHx8fDE3Nzg0MjY5MzZ8MA&ixlib=rb-4.1.0&q=85",
-        "category": "Users",
-        "description": "Cinematic neon portrait for user avatar or story ring"
+      {
+        "url": "https://images.pexels.com/photos/36064312/pexels-photo-36064312.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "profile_avatar",
+        "description": "Striking cyberpunk portrait for user profile"
       },
-      "reels_cover_1": {
-        "url": "https://images.unsplash.com/photo-1506318039632-e5626c0c1394?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAxODF8MHwxfHNlYXJjaHwzfHxzdHVubmluZyUyMHZlcnRpY2FsJTIwbGFuZHNjYXBlJTIwdmlkZW8lMjBjb3ZlcnxlbnwwfHx8fDE3Nzg0MjY5MzZ8MA&ixlib=rb-4.1.0&q=85",
-        "category": "Reels",
-        "description": "Stunning vertical landscape video cover for Reels tab"
-      },
-      "reels_cover_2": {
-        "url": "https://images.unsplash.com/photo-1646404464819-523c6fef3707?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAxODF8MHwxfHNlYXJjaHw0fHxzdHVubmluZyUyMHZlcnRpY2FsJTIwbGFuZHNjYXBlJTIwdmlkZW8lMjBjb3ZlcnxlbnwwfHx8fDE3Nzg0MjY5MzZ8MA&ixlib=rb-4.1.0&q=85",
-        "category": "Reels",
-        "description": "Lush green valley vertical cover for Reels tab"
+      {
+        "url": "https://images.pexels.com/photos/8107857/pexels-photo-8107857.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "feed_user_avatar",
+        "description": "Another cyberpunk portrait for feed user"
       }
-    }
-  },
-  "testing": {
-    "attributes": "ALL interactive elements MUST include `data-testid` attribute (e.g., data-testid='chat-tab-button', data-testid='story-circle-item')."
+    ]
   },
   "instructions_to_main_agent": [
-    "Install and use 'lucide-react' for all icons.",
-    "Implement Shadcn UI for dropdowns, tabs, and modals where required.",
-    "Use Framer Motion for smooth tab transitions and the bottom nav active state.",
-    "DO NOT use a fully transparent header over content; use a glassmorphism blur backdrop-blur-xl bg-[#050505]/80.",
-    "Build the application strictly matching the 'dark' theme setup. Set the Tailwind body background to #050505.",
-    "Combine the group and individual chat lists in the 'Chats' view, but keep 'Stories' horizontally scrolling at the top.",
-    "The API Key Manager in the Profile tab should have secure hidden inputs for each supported AI provider.",
-    "Structure the tabs carefully: 1) Chats, 2) Feed, 3) Reels, 4) AI, 5) Profile.",
-    "Add 'data-testid' to all buttons, links, and form elements.",
-    "Use '.js' files, not '.tsx' for the React components.",
-    "Place the 3D logo generated in the media section prominently but elegantly within the UI (e.g., top header of the chats tab or splash screen)."
+    "Build a mobile-first layout. Use max-w-md mx-auto to restrict the app to mobile width on desktop, centering it like an APK emulator.",
+    "Implement bottom tab navigation (Home/Feed, Search, Spotlight/Reels, Profile).",
+    "Feed must be an exact IG clone: Avatar/Name top, edge-to-edge image middle, Action bar + Captions bottom.",
+    "Spotlight must use standard CSS scroll snapping (snap-y snap-mandatory) on a 100dvh container. Overlay icons on the right side.",
+    "Quant AI must have a floating action button (draggable using framer-motion) available on all screens except when Spotlight or AI workspace is active.",
+    "The AI Workspace should look terminal-esque but highly polished (glassmorphism input).",
+    "Profile should use a bento grid for stats and a dense 3-column grid (gap-1) for posts.",
+    "Use JetBrains Mono for small data points/stats to enforce the 'Quant' brand.",
+    "Do NOT use purple or teal anywhere. Rely on stark white, deep black, electric blue (#2563EB), and warning yellow (#FACC15).",
+    "Add 'data-testid' to all interactive elements."
   ]
 }

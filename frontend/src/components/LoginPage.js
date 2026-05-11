@@ -5,7 +5,7 @@ import axios from 'axios';
 import { signInWithPhoneNumber } from 'firebase/auth';
 import { AlertCircle, Eye, EyeOff, MessagesSquare, Play, Sparkles, Search, Download, Phone, X } from 'lucide-react';
 import { API } from '../lib/api';
-import { buildRecaptcha, firebaseConfigured, getFirebaseAuth } from '../lib/firebase';
+import { buildRecaptcha, clearRecaptcha, firebaseConfigured, getFirebaseAuth } from '../lib/firebase';
 
 function formatError(detail) {
   if (detail == null) return 'System Error.';
@@ -51,6 +51,20 @@ export default function LoginPage() {
   const [phoneLoading, setPhoneLoading] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState(null);
   const firebaseReady = firebaseConfigured();
+  const recaptchaContainerId = 'firebase-phone-recaptcha';
+
+  const resetPhoneFlow = () => {
+    setOtpRequested(false);
+    setOtpCode('');
+    setOtpDebugCode('');
+    setConfirmationResult(null);
+    clearRecaptcha(recaptchaContainerId);
+  };
+
+  const closePhoneModal = () => {
+    resetPhoneFlow();
+    setPhoneOpen(false);
+  };
 
   if (user) {
     navigate('/', { replace: true });
@@ -91,7 +105,7 @@ export default function LoginPage() {
       if (firebaseReady && ['login', 'signup', 'recovery', 'link'].includes(phoneMode)) {
         const auth = getFirebaseAuth();
         if (!auth) throw new Error('Firebase auth not initialized');
-        const verifier = buildRecaptcha('firebase-phone-recaptcha');
+        const verifier = buildRecaptcha(recaptchaContainerId);
         const result = await signInWithPhoneNumber(auth, phoneNumber, verifier);
         setConfirmationResult(result);
         setOtpRequested(true);
@@ -203,7 +217,7 @@ export default function LoginPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="mt-2 block w-full rounded-[22px] border border-white/10 bg-white/6 px-4 py-3.5 text-sm text-white placeholder:text-white/28 focus:border-[#ffe56a]/55 focus:outline-none focus:ring-2 focus:ring-[#ffe56a]/18"
+                    className="auth-field mt-2 block w-full rounded-[22px] border px-4 py-3.5 text-sm focus:border-[#ffe56a]/55 focus:outline-none focus:ring-2 focus:ring-[#ffe56a]/18"
                   />
                 </div>
 
@@ -219,7 +233,7 @@ export default function LoginPage() {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="block w-full rounded-[22px] border border-white/10 bg-white/6 px-4 py-3.5 pr-12 text-sm text-white placeholder:text-white/28 focus:border-[#ffe56a]/55 focus:outline-none focus:ring-2 focus:ring-[#ffe56a]/18"
+                      className="auth-field block w-full rounded-[22px] border px-4 py-3.5 pr-12 text-sm focus:border-[#ffe56a]/55 focus:outline-none focus:ring-2 focus:ring-[#ffe56a]/18"
                     />
                     <button
                       data-testid="login-password-visibility-toggle"
@@ -328,14 +342,14 @@ export default function LoginPage() {
       </div>
 
       {phoneOpen && (
-        <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" onClick={() => setPhoneOpen(false)}>
+        <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" onClick={closePhoneModal}>
           <div data-testid="phone-auth-modal" className="w-full max-w-md rounded-[32px] border border-white/10 bg-[#0a101a] shadow-[0_24px_80px_rgba(0,0,0,0.45)] overflow-hidden" onClick={(event) => event.stopPropagation()}>
             <div className="px-5 py-4 border-b border-white/8 flex items-center justify-between">
               <div>
                 <p className="text-[10px] uppercase tracking-[0.22em] text-white/46">Phone auth</p>
                 <h3 className="text-xl font-semibold text-white mt-1">OTP flow</h3>
               </div>
-              <button type="button" data-testid="phone-auth-close" onClick={() => setPhoneOpen(false)} className="h-10 w-10 rounded-full border border-white/10 bg-white/5 text-white/76 flex items-center justify-center">
+              <button type="button" data-testid="phone-auth-close" onClick={closePhoneModal} className="h-10 w-10 rounded-full border border-white/10 bg-white/5 text-white/76 flex items-center justify-center">
                 <X size={16} />
               </button>
             </div>
@@ -343,25 +357,25 @@ export default function LoginPage() {
             <div className="p-5 space-y-4">
               <div className="flex gap-2 overflow-x-auto hide-scrollbar">
                 {['login', 'signup', 'recovery', 'link'].map((mode) => (
-                  <button key={mode} type="button" data-testid={`phone-mode-${mode}`} onClick={() => { setPhoneMode(mode); setOtpRequested(false); setOtpCode(''); }} className={`shrink-0 rounded-full px-4 py-2 text-sm border ${phoneMode === mode ? 'border-white bg-white text-black' : 'border-white/10 bg-white/5 text-white/76'}`}>
+                  <button key={mode} type="button" data-testid={`phone-mode-${mode}`} onClick={() => { setPhoneMode(mode); resetPhoneFlow(); }} className={`shrink-0 rounded-full px-4 py-2 text-sm border ${phoneMode === mode ? 'border-white bg-white text-black' : 'border-white/10 bg-white/5 text-white/76'}`}>
                     {mode}
                   </button>
                 ))}
               </div>
 
-              <input data-testid="phone-number-input" value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} placeholder="Phone number" className="w-full rounded-[20px] border border-white/10 bg-white/6 px-4 py-3 text-sm text-white placeholder:text-white/28" />
+              <input data-testid="phone-number-input" value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} placeholder="Phone number" className="auth-field w-full rounded-[20px] border px-4 py-3 text-sm" />
 
               {(phoneMode === 'signup' || phoneMode === 'link') && (
                 <div className="grid gap-3">
-                  {phoneMode === 'signup' && <input data-testid="phone-name-input" value={phoneName} onChange={(event) => setPhoneName(event.target.value)} placeholder="Full name" className="w-full rounded-[20px] border border-white/10 bg-white/6 px-4 py-3 text-sm text-white placeholder:text-white/28" />}
-                  <input data-testid="phone-email-input" value={phoneEmail} onChange={(event) => setPhoneEmail(event.target.value)} placeholder="Email" className="w-full rounded-[20px] border border-white/10 bg-white/6 px-4 py-3 text-sm text-white placeholder:text-white/28" />
-                  <input data-testid="phone-password-input" type="password" value={phonePassword} onChange={(event) => setPhonePassword(event.target.value)} placeholder="Password" className="w-full rounded-[20px] border border-white/10 bg-white/6 px-4 py-3 text-sm text-white placeholder:text-white/28" />
+                  {phoneMode === 'signup' && <input data-testid="phone-name-input" value={phoneName} onChange={(event) => setPhoneName(event.target.value)} placeholder="Full name" className="auth-field w-full rounded-[20px] border px-4 py-3 text-sm" />}
+                  <input data-testid="phone-email-input" value={phoneEmail} onChange={(event) => setPhoneEmail(event.target.value)} placeholder="Email" className="auth-field w-full rounded-[20px] border px-4 py-3 text-sm" />
+                  <input data-testid="phone-password-input" type="password" value={phonePassword} onChange={(event) => setPhonePassword(event.target.value)} placeholder="Password" className="auth-field w-full rounded-[20px] border px-4 py-3 text-sm" />
                 </div>
               )}
 
               {otpRequested && (
                 <>
-                  <input data-testid="phone-otp-input" value={otpCode} onChange={(event) => setOtpCode(event.target.value)} placeholder="Enter OTP code" className="w-full rounded-[20px] border border-white/10 bg-white/6 px-4 py-3 text-sm text-white placeholder:text-white/28" />
+                  <input data-testid="phone-otp-input" value={otpCode} onChange={(event) => setOtpCode(event.target.value)} placeholder="Enter OTP code" className="auth-field w-full rounded-[20px] border px-4 py-3 text-sm" />
                   <div data-testid="phone-debug-otp" className="rounded-[20px] border border-[#ffe56a]/18 bg-[#ffe56a]/10 px-4 py-3 text-sm text-[#ffe56a]">
                     {firebaseReady ? otpDebugCode || 'Firebase OTP sent to device' : `Demo OTP: ${otpDebugCode || 'Generated after request'}`}
                   </div>
@@ -372,7 +386,7 @@ export default function LoginPage() {
                 {firebaseReady ? 'Real Firebase phone auth is active. Backend token exchange is now wired.' : 'Firebase config missing, so demo backend OTP flow is being used.'}
               </div>
 
-              <div id="firebase-phone-recaptcha" data-testid="firebase-phone-recaptcha" />
+              {firebaseReady && <div id="firebase-phone-recaptcha" data-testid="firebase-phone-recaptcha" className="overflow-hidden rounded-[18px]" />}
 
               <div className="grid grid-cols-2 gap-3">
                 <button type="button" data-testid="phone-request-otp-button" onClick={requestPhoneOtp} disabled={phoneLoading || !phoneNumber} className="rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">

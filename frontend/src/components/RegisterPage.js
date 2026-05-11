@@ -127,7 +127,7 @@ export default function RegisterPage() {
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="mt-2 block w-full rounded-[22px] border border-white/10 bg-white/6 px-4 py-3.5 text-sm text-white placeholder:text-white/28 focus:border-[#ffe56a]/55 focus:outline-none focus:ring-2 focus:ring-[#ffe56a]/18"
+                    className="auth-field mt-2 block w-full rounded-[22px] border px-4 py-3.5 text-sm focus:border-[#ffe56a]/55 focus:outline-none focus:ring-2 focus:ring-[#ffe56a]/18"
                   />
                 </div>
 
@@ -139,7 +139,7 @@ export default function RegisterPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="mt-2 block w-full rounded-[22px] border border-white/10 bg-white/6 px-4 py-3.5 text-sm text-white placeholder:text-white/28 focus:border-[#ffe56a]/55 focus:outline-none focus:ring-2 focus:ring-[#ffe56a]/18"
+                    className="auth-field mt-2 block w-full rounded-[22px] border px-4 py-3.5 text-sm focus:border-[#ffe56a]/55 focus:outline-none focus:ring-2 focus:ring-[#ffe56a]/18"
                   />
                 </div>
 
@@ -156,7 +156,7 @@ export default function RegisterPage() {
                       minLength={6}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="block w-full rounded-[22px] border border-white/10 bg-white/6 px-4 py-3.5 pr-12 text-sm text-white placeholder:text-white/28 focus:border-[#ffe56a]/55 focus:outline-none focus:ring-2 focus:ring-[#ffe56a]/18"
+                      className="auth-field block w-full rounded-[22px] border px-4 py-3.5 pr-12 text-sm focus:border-[#ffe56a]/55 focus:outline-none focus:ring-2 focus:ring-[#ffe56a]/18"
                     />
                     <button
                       data-testid="register-password-visibility-toggle"

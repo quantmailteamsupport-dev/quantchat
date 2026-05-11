@@ -107,6 +107,36 @@ input, textarea, button {
   outline: none;
 }
 
+input, textarea, select {
+  color-scheme: dark;
+  caret-color: #ffffff;
+}
+
+.auth-field {
+  background: rgba(12, 18, 30, 0.96) !important;
+  color: #f8fafc !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.auth-field::placeholder {
+  color: rgba(226, 232, 240, 0.42) !important;
+}
+
+.auth-field:-webkit-autofill,
+.auth-field:-webkit-autofill:hover,
+.auth-field:-webkit-autofill:focus,
+.auth-field:-webkit-autofill:active {
+  -webkit-text-fill-color: #f8fafc !important;
+  box-shadow: 0 0 0 1000px rgba(12, 18, 30, 0.96) inset !important;
+  -webkit-box-shadow: 0 0 0 1000px rgba(12, 18, 30, 0.96) inset !important;
+  transition: background-color 9999s ease-out 0s;
+}
+
+.auth-field:-moz-autofill {
+  box-shadow: 0 0 0 1000px rgba(12, 18, 30, 0.96) inset !important;
+  color: #f8fafc !important;
+}
+
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
