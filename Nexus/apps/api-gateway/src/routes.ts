@@ -9,6 +9,8 @@ import {
   DISAPPEARING_MIN_SECS,
   normalizeTtlSecs,
 } from "./services/DisappearingMessages";
+import { openai } from "@ai-sdk/openai";
+import { generateText } from "ai";
 import {
   AttentionTokenService,
   InsufficientBalanceError,
@@ -523,9 +525,14 @@ router.post(
           .json({ error: "Ghost mode is not active for this user", ghostModeActive: false });
       }
 
-      // TODO: Replace with a real AI call (e.g. OpenAI GPT-4 with tone profile)
-      // The toneProfile JSON string can be passed as a system context to the LLM.
-      const draft = `Thanks for reaching out! I'll get back to you shortly. 🤖`;
+      // ─── Real AI Generation ─────────────────────────────────
+      const systemPrompt = twin.systemPrompt || "You are a digital twin of a human. Reply in their exact tone and style. Keep it brief and natural.";
+      
+      const { text: draft } = await generateText({
+        model: openai("gpt-4o"),
+        system: `${systemPrompt}\n\nUSER TONE PROFILE: ${twin.toneProfile || "Natural, professional, friendly."}`,
+        prompt: `The following message was received: "${_incomingMessage}". Generate a natural reply as if you were the user.`,
+      });
 
       await prisma.digitalTwin.update({
         where: { userId },

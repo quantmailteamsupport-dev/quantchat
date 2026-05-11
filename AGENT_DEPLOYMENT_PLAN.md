@@ -18,6 +18,8 @@
 │ ✅ TestingAgent        → QA, testing, verification         │
 │ ✅ DebugAgent          → Build errors, type checking       │
 │ ✅ GrowthAgent         → Analytics, monitoring, scaling    │
+│ ✅ GodotSyncAgent      → Low-latency WebRTC & Godot Sync   │
+│ ✅ DigitalTwinAgent    → AI Persona & Auto-Response        │
 └────────────────────────────────────────────────────────────┘
 ```
 
