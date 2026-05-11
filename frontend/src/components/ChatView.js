@@ -29,6 +29,8 @@ import {
   Download,
   Clock3,
   Star,
+  Grid3X3,
+  ImagePlus,
 } from 'lucide-react';
 import axios from 'axios';
 import { API } from '../lib/api';
@@ -325,6 +327,7 @@ export default function ChatArea({
   const [pendingAttachment, setPendingAttachment] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const [isScheduling, setIsScheduling] = useState(false);
+  const [showInfoSheet, setShowInfoSheet] = useState(false);
   const messagesContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
   const typingTimeout = useRef(null);
@@ -365,6 +368,7 @@ export default function ChatArea({
     setShowAttachMenu(false);
     setShowJumpToBottom(false);
     setPendingAttachment(null);
+    setShowInfoSheet(false);
   }, [draftKey]);
 
   useEffect(() => {
@@ -635,6 +639,17 @@ export default function ChatArea({
   const pinnedMessage = conversation.pinned_message_id
     ? (messages.find((message) => message.id === conversation.pinned_message_id) || conversation.pinned_message)
     : conversation.pinned_message;
+  const sharedMedia = messages.filter((message) => message.type === 'image').slice().reverse().slice(0, 8);
+  const sharedFiles = messages
+    .filter((message) => message.type === 'file')
+    .map((message) => ({ message, attachment: parseAttachmentPayload(message.content) }))
+    .filter((entry) => entry.attachment)
+    .slice()
+    .reverse()
+    .slice(0, 5);
+  const highlightedPeople = isGroup ? (conversation.participants || []).slice(0, 6) : [otherUser].filter(Boolean);
+  const draftCount = input.trim().length;
+  const inboundCount = messages.filter((message) => message.sender_id !== userId).length;
 
   return (
     <div data-testid="chat-view" className="flex flex-col h-full w-full relative bg-qc-bg overflow-hidden" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
@@ -702,27 +717,32 @@ export default function ChatArea({
         </div>
       )}
 
-      <div className={`px-3 md:px-4 bg-qc-surface-hover flex items-center gap-3 flex-shrink-0 shadow-sm relative z-20 border-b border-qc-border ${isMobile ? 'h-14' : 'h-16'}`}>
+      <div className={`sticky top-0 px-3 md:px-4 bg-qc-surface-hover/96 backdrop-blur-xl flex items-center gap-3 flex-shrink-0 shadow-sm relative z-20 border-b border-qc-border ${isMobile ? 'h-14' : 'h-16'}`}>
         {isMobile && (
           <button data-testid="chat-back-button" onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 text-qc-text-secondary -ml-1">
             <ArrowLeft size={22} />
           </button>
         )}
-        <div className={`${isMobile ? 'w-9 h-9' : 'w-10 h-10'} rounded-full overflow-hidden bg-qc-bg flex items-center justify-center flex-shrink-0 cursor-pointer`}>
+        <button
+          data-testid="chat-info-toggle-avatar"
+          onClick={() => setShowInfoSheet(true)}
+          className={`${isMobile ? 'w-9 h-9' : 'w-10 h-10'} rounded-full overflow-hidden bg-qc-bg flex items-center justify-center flex-shrink-0 cursor-pointer`}
+        >
           {isGroup
             ? (conversation.avatar ? <img src={conversation.avatar} alt="" className="w-full h-full object-cover" /> : <Users size={24} className="text-qc-text-secondary" />)
             : (otherUser?.avatar ? <img src={otherUser.avatar} alt="" className="w-full h-full object-cover" /> : <User size={24} className="text-qc-text-secondary" />)}
-        </div>
-        <div className="flex-1 min-w-0 cursor-pointer">
+        </button>
+        <button data-testid="chat-info-toggle" onClick={() => setShowInfoSheet(true)} className="flex-1 min-w-0 cursor-pointer text-left">
           <h3 className={`${isMobile ? 'text-[15px]' : 'text-base'} font-medium text-qc-text-primary truncate`}>{isGroup ? conversation.name : (otherUser?.name || 'Unknown')}</h3>
           <p className="text-[13px] text-qc-text-secondary truncate">{buildConversationSubtitle({ isGroup, conversation, isOnline, isTyping })}</p>
-        </div>
+        </button>
 
         <div className="flex items-center gap-1 md:gap-2 text-qc-text-secondary relative">
           {!isMobile && <button onClick={() => setActiveCall({ type: 'video', status: 'ringing' })} className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5"><Video size={20} /></button>}
           {!isMobile && <button onClick={() => setActiveCall({ type: 'audio', status: 'ringing' })} className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/5"><Phone size={18} /></button>}
           <button data-testid="chat-star-toggle" onClick={handleToggleStar} className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center hover:bg-black/5 ${conversation.is_starred ? 'text-[#ffe56a]' : ''}`}><Star size={18} className={conversation.is_starred ? 'fill-[#ffe56a]' : ''} /></button>
           <button data-testid="chat-search-toggle" onClick={() => setShowSearch((value) => !value)} className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center hover:bg-black/5 ${showSearch ? 'text-qc-accent-primary' : ''}`}><Search size={18} /></button>
+          {!isMobile && <button data-testid="chat-details-toggle-desktop" onClick={() => setShowInfoSheet(true)} className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center hover:bg-black/5 ${showInfoSheet ? 'text-qc-accent-primary' : ''}`}><Grid3X3 size={18} /></button>}
           <button data-testid="chat-menu-toggle" onClick={() => { setShowChatMenu((value) => !value); setShowDisappearingMenu(false); }} className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center hover:bg-black/5 ${showChatMenu ? 'text-qc-accent-primary' : ''}`}><MoreVertical size={18} /></button>
 
           {showChatMenu && (
@@ -760,7 +780,7 @@ export default function ChatArea({
       </div>
 
       {isMobile && (
-        <div className="px-3 py-2 border-b border-qc-border bg-qc-surface/92 backdrop-blur-md flex gap-2 overflow-x-auto hide-scrollbar relative z-20">
+        <div className="sticky top-14 px-3 py-2 border-b border-qc-border bg-qc-surface/92 backdrop-blur-md flex gap-2 overflow-x-auto hide-scrollbar relative z-20">
           <button data-testid="chat-mobile-search-toggle" onClick={() => setShowSearch((value) => !value)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs border ${showSearch ? 'bg-qc-accent-tertiary text-qc-accent-primary border-qc-border' : 'bg-qc-surface-hover text-qc-text-secondary border-qc-border'}`}>
             Search
           </button>
@@ -772,6 +792,9 @@ export default function ChatArea({
           </button>
           <button data-testid="chat-mobile-call-button" onClick={() => setActiveCall({ type: 'audio', status: 'ringing' })} className="shrink-0 rounded-full px-3 py-1.5 text-xs border border-qc-border bg-qc-surface-hover text-qc-text-secondary">
             Call
+          </button>
+          <button data-testid="chat-mobile-info-toggle" onClick={() => setShowInfoSheet(true)} className="shrink-0 rounded-full px-3 py-1.5 text-xs border border-qc-border bg-qc-surface-hover text-qc-text-secondary">
+            Details
           </button>
         </div>
       )}
@@ -917,6 +940,141 @@ export default function ChatArea({
         </div>
       )}
 
+      {showInfoSheet && (
+        <div className="absolute inset-0 z-40 bg-black/55 backdrop-blur-sm flex items-end md:items-stretch md:justify-end" onClick={() => setShowInfoSheet(false)}>
+          <div className="w-full md:max-w-[380px] h-[86%] md:h-full rounded-t-[30px] md:rounded-none md:border-l border-qc-border bg-qc-surface shadow-[0_-20px_70px_rgba(0,0,0,0.36)] overflow-hidden animate-slideUp md:animate-slideIn" onClick={(event) => event.stopPropagation()}>
+            <div className="sticky top-0 z-10 border-b border-qc-border bg-qc-surface/96 backdrop-blur-xl px-4 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-qc-text-tertiary">Lane details</p>
+                  <h3 className="mt-1 text-xl font-semibold text-qc-text-primary truncate">{isGroup ? conversation.name : (otherUser?.name || 'Unknown')}</h3>
+                  <p className="mt-1 text-sm text-qc-text-secondary">{isGroup ? `${conversation.participants?.length || 0} members` : isOnline ? 'online now' : 'last seen offline'}</p>
+                </div>
+                <button onClick={() => setShowInfoSheet(false)} className="w-10 h-10 rounded-full border border-qc-border text-qc-text-secondary hover:text-qc-text-primary">
+                  <X size={18} className="mx-auto" />
+                </button>
+              </div>
+            </div>
+
+            <div className="h-full overflow-y-auto px-4 py-4 space-y-4 pb-16">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-[22px] border border-qc-border bg-qc-surface-hover px-3 py-3">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Messages</p>
+                  <p className="mt-2 text-lg font-semibold text-qc-text-primary">{messages.length}</p>
+                </div>
+                <div className="rounded-[22px] border border-qc-border bg-qc-surface-hover px-3 py-3">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Replies</p>
+                  <p className="mt-2 text-lg font-semibold text-qc-text-primary">{inboundCount}</p>
+                </div>
+                <div className="rounded-[22px] border border-qc-border bg-qc-surface-hover px-3 py-3">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Media</p>
+                  <p className="mt-2 text-lg font-semibold text-qc-text-primary">{sharedMedia.length + sharedFiles.length}</p>
+                </div>
+              </div>
+
+              <div className="rounded-[24px] border border-qc-border bg-qc-surface-hover p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Conversation mode</p>
+                    <h4 className="mt-1 text-sm font-semibold text-qc-text-primary">Quick controls</h4>
+                  </div>
+                  {conversation.is_starred && (
+                    <span className="rounded-full bg-[#ffe56a]/18 px-2 py-1 text-[10px] text-[#ffe56a]">Pinned lane</span>
+                  )}
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button onClick={handleToggleStar} className="rounded-2xl border border-qc-border px-3 py-3 text-left text-sm text-qc-text-primary hover:bg-qc-surface">
+                    {conversation.is_starred ? 'Unpin lane' : 'Pin lane'}
+                  </button>
+                  <button onClick={() => handleSetDisappearing(conversation.disappearing_minutes ? 0 : 60)} className="rounded-2xl border border-qc-border px-3 py-3 text-left text-sm text-qc-text-primary hover:bg-qc-surface">
+                    {conversation.disappearing_minutes ? 'Disable vanish' : 'Enable vanish'}
+                  </button>
+                  <button onClick={() => { setShowQuickNote(true); setShowInfoSheet(false); }} className="rounded-2xl border border-qc-border px-3 py-3 text-left text-sm text-qc-text-primary hover:bg-qc-surface">
+                    Quick note
+                  </button>
+                  <button onClick={() => { jumpToLatest(); setShowInfoSheet(false); }} className="rounded-2xl border border-qc-border px-3 py-3 text-left text-sm text-qc-text-primary hover:bg-qc-surface">
+                    Jump latest
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-[24px] border border-qc-border bg-qc-surface-hover p-4">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">People</p>
+                  <h4 className="mt-1 text-sm font-semibold text-qc-text-primary">{isGroup ? 'Members' : 'Contact card'}</h4>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {highlightedPeople.map((participant, index) => (
+                    <div key={participant?.user_id || participant?.id || index} className="flex items-center gap-3 rounded-2xl border border-qc-border bg-qc-surface px-3 py-3">
+                      <div className="h-11 w-11 overflow-hidden rounded-2xl bg-qc-accent-tertiary flex items-center justify-center">
+                        {participant?.avatar ? <img src={participant.avatar} alt="" className="h-full w-full object-cover" /> : <User size={18} className="text-qc-text-secondary" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-qc-text-primary">{participant?.name || 'Unknown'}</p>
+                        <p className="text-xs text-qc-text-secondary truncate">{participant?.user_id === userId ? 'You' : 'Reachable now'}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-[24px] border border-qc-border bg-qc-surface-hover p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Shared media</p>
+                    <h4 className="mt-1 text-sm font-semibold text-qc-text-primary">Recent drops</h4>
+                  </div>
+                  <ImagePlus size={16} className="text-qc-text-secondary" />
+                </div>
+                {sharedMedia.length === 0 ? (
+                  <p className="mt-3 text-sm text-qc-text-secondary">No media shared yet in this lane.</p>
+                ) : (
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    {sharedMedia.map((message) => (
+                      <button key={`media-${message.id}`} onClick={() => setPreviewImage(message.content)} className="aspect-square overflow-hidden rounded-2xl border border-qc-border bg-qc-surface">
+                        <img src={message.content} alt="" className="h-full w-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-[24px] border border-qc-border bg-qc-surface-hover p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Files</p>
+                    <h4 className="mt-1 text-sm font-semibold text-qc-text-primary">Recent attachments</h4>
+                  </div>
+                  <FileText size={16} className="text-qc-text-secondary" />
+                </div>
+                {sharedFiles.length === 0 ? (
+                  <p className="mt-3 text-sm text-qc-text-secondary">No file attachments yet.</p>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    {sharedFiles.map(({ message, attachment }) => (
+                      <a
+                        key={`file-${message.id}`}
+                        href={attachment?.url || '#'}
+                        download={attachment?.name || 'attachment'}
+                        className="flex items-center gap-3 rounded-2xl border border-qc-border bg-qc-surface px-3 py-3"
+                      >
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-qc-accent-tertiary text-qc-accent-primary">
+                          <FileText size={18} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-qc-text-primary">{attachment?.name || 'Attachment'}</p>
+                          <p className="text-xs text-qc-text-secondary">{attachment?.mime || 'file'}</p>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {(showQuickNote || showClearConfirm || permissionNotice) && (
         <div className="absolute inset-0 z-50 bg-black/45 backdrop-blur-sm flex items-end sm:items-center justify-center p-3" onClick={() => { setShowQuickNote(false); setShowClearConfirm(false); setPermissionNotice(''); }}>
           <div className="w-full max-w-sm rounded-[24px] border border-qc-border bg-qc-surface shadow-xl overflow-hidden animate-slideUp" onClick={(event) => event.stopPropagation()}>
@@ -970,6 +1128,31 @@ export default function ChatArea({
       <div className={`bg-qc-surface-hover px-3 md:px-4 py-2.5 flex items-end gap-2 flex-shrink-0 relative z-20 border-t border-qc-border ${isMobile && !keyboardOpen ? 'pb-[calc(0.7rem+env(safe-area-inset-bottom))]' : ''}`}>
         <input type="file" accept="image/*" className="hidden" ref={imageInputRef} onChange={(event) => handleFileChange(event, 'image')} />
         <input type="file" accept=".pdf,.txt,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip" className="hidden" ref={fileInputRef} onChange={(event) => handleFileChange(event, 'file')} />
+
+        {(input.trim() || pendingAttachment) && (
+          <div className={`${isMobile ? 'absolute left-3 right-3 bottom-[calc(100%+0.55rem)]' : 'absolute bottom-16 left-4 right-4'} z-30 rounded-[24px] border border-qc-border bg-qc-surface/94 backdrop-blur-xl px-3 py-2 shadow-[0_18px_50px_rgba(0,0,0,0.22)]`}>
+            <div className="flex items-center justify-between gap-3 text-[11px] text-qc-text-secondary">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="rounded-full bg-qc-accent-tertiary px-2 py-1 text-qc-text-primary">{pendingAttachment ? 'Attachment ready' : 'Draft live'}</span>
+                <span className="truncate">{draftCount > 0 ? `${draftCount} chars ready to send` : 'Preview before you send'}</span>
+              </div>
+              {input.trim() && (
+                <div className="flex items-center gap-1">
+                  {[5, 30].map((minutes) => (
+                    <button
+                      key={minutes}
+                      onClick={() => handleScheduleSend(minutes)}
+                      disabled={isScheduling}
+                      className="rounded-full border border-qc-border px-2.5 py-1 text-[10px] text-qc-text-primary hover:bg-qc-surface-hover disabled:opacity-40"
+                    >
+                      Later {minutes}m
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {!input.trim() && !isRecording && !showEmojiPicker && !showAttachMenu && !pendingAttachment && (
           <div className={`${isMobile ? 'absolute left-3 right-3 bottom-[calc(100%+0.55rem)]' : 'absolute bottom-16 left-4 right-4'} z-30 flex gap-2 overflow-x-auto hide-scrollbar pointer-events-auto`}>

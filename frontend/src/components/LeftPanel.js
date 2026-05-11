@@ -16,6 +16,9 @@ import {
   Camera,
   Bookmark,
   Archive,
+  Flame,
+  Pin,
+  Radio,
 } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import axios from 'axios';
@@ -172,6 +175,15 @@ export default function LeftPanel({
 
     return name.toLowerCase().includes(searchQuery.toLowerCase()) || formatConversationSnippet(conv.last_message).toLowerCase().includes(searchQuery.toLowerCase());
   });
+  const priorityConversations = filteredConversations
+    .filter((conv) => conv.is_starred || conv.unread_count > 0 || conv.streak_count > 0)
+    .slice(0, 4);
+  const liveConversations = filteredConversations
+    .filter((conv) => {
+      const candidateId = conv.other_user?.user_id || conv.participants?.find((participant) => participant.user_id !== user?.id)?.user_id;
+      return typingUsers[conv.id] || (candidateId && onlineUsers.has(candidateId));
+    })
+    .slice(0, 6);
 
   const navItems = [
     { id: 'chats', label: 'Chats', icon: MessageSquare },
@@ -183,7 +195,7 @@ export default function LeftPanel({
 
   const renderTopShell = () => (
     <>
-      <div ref={menuRef} className={`px-4 border-b border-qc-border bg-qc-surface backdrop-blur-xl relative ${isMobile ? 'pt-3 pb-2' : 'pt-4 pb-3'}`}>
+      <div ref={menuRef} className={`sticky top-0 z-20 px-4 border-b border-qc-border bg-qc-surface/95 backdrop-blur-xl relative ${isMobile ? 'pt-3 pb-2' : 'pt-4 pb-3'}`}>
         {isMobile ? (
           <>
             <div className="flex items-center justify-between gap-3">
@@ -407,7 +419,7 @@ export default function LeftPanel({
         )}
       </div>
 
-      <div className="px-4 py-3 border-b border-qc-border bg-qc-surface backdrop-blur-md">
+      <div className="sticky top-[5.45rem] md:top-[10.8rem] z-10 px-4 py-3 border-b border-qc-border bg-qc-surface/94 backdrop-blur-md">
         {!isMobile && (compactStories.length > 0 || orbitPeople.length > 0) && (
           <div className="mb-3 flex gap-3 overflow-x-auto hide-scrollbar">
             {(compactStories.length > 0 ? compactStories.map((group) => ({ id: group.user_id, name: group.user_name, avatar: group.user_avatar, online: true })) : orbitPeople).map((person) => (
@@ -508,6 +520,102 @@ export default function LeftPanel({
         </div>
       )}
       <div className="bg-qc-surface">
+        {priorityConversations.length > 0 && (
+          <div className="px-4 pt-4">
+            <div className="rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(16,23,36,0.96),rgba(10,15,25,0.96))] p-3 shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
+              <div className="flex items-center justify-between gap-3 px-1 pb-2">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-qc-text-tertiary">Priority lane</p>
+                  <h3 className="mt-1 text-sm font-semibold text-qc-text-primary">Keep hot chats close</h3>
+                </div>
+                <span className="rounded-full bg-white/6 px-2.5 py-1 text-[10px] font-medium text-qc-text-secondary">
+                  {priorityConversations.length} ready
+                </span>
+              </div>
+              <div className="mt-1 flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+                {priorityConversations.map((conv) => {
+                  const isGroupPriority = conv.type === 'group';
+                  const name = isGroupPriority ? conv.name : (conv.other_user?.name || conv.participants?.find((participant) => participant.user_id !== user?.id)?.name || 'Unknown');
+                  const avatar = isGroupPriority ? conv.avatar : (conv.other_user?.avatar || conv.participants?.find((participant) => participant.user_id !== user?.id)?.avatar || '');
+                  return (
+                    <button
+                      key={`priority-${conv.id}`}
+                      data-testid={`priority-chat-${conv.id}`}
+                      onClick={() => onSelectConv(conv)}
+                      className="min-w-[148px] max-w-[168px] rounded-[24px] border border-white/8 bg-white/[0.045] px-3 py-3 text-left transition-colors hover:bg-white/[0.08]"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="relative h-11 w-11 overflow-hidden rounded-2xl bg-qc-accent-tertiary flex-shrink-0">
+                          {avatar ? <img src={avatar} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-qc-text-secondary"><User size={18} /></div>}
+                          {conv.is_starred && (
+                            <span className="absolute -right-1 -top-1 rounded-full bg-[#ffe56a] p-1 text-black">
+                              <Pin size={10} />
+                            </span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-qc-text-primary">{name}</p>
+                          <p className="mt-0.5 text-[11px] text-qc-text-secondary truncate">
+                            {conv.unread_count > 0 ? `${conv.unread_count} unread` : conv.streak_count > 0 ? `${conv.streak_count} day streak` : 'Priority chat'}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {liveConversations.length > 0 && (
+          <div className="px-4 pt-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.24em] text-qc-text-tertiary">Active now</p>
+                <h3 className="mt-1 text-sm font-semibold text-qc-text-primary">Live lane</h3>
+              </div>
+              <div className="flex items-center gap-1 rounded-full border border-white/8 bg-white/[0.04] px-2.5 py-1 text-[10px] text-qc-text-secondary">
+                <Radio size={11} className="text-qc-accent-primary" />
+                {liveConversations.length} live
+              </div>
+            </div>
+
+            <div className="mt-3 flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+              {liveConversations.map((conv) => {
+                const isGroupLive = conv.type === 'group';
+                const name = isGroupLive ? conv.name : (conv.other_user?.name || conv.participants?.find((participant) => participant.user_id !== user?.id)?.name || 'Unknown');
+                const statusLabel = typingUsers[conv.id] ? 'typing...' : conv.streak_count > 0 ? `${conv.streak_count} streak` : 'online';
+                return (
+                  <button
+                    key={`live-${conv.id}`}
+                    data-testid={`live-chat-${conv.id}`}
+                    onClick={() => onSelectConv(conv)}
+                    className="shrink-0 rounded-full border border-white/8 bg-white/[0.04] px-3 py-2 text-left transition-colors hover:bg-white/[0.08]"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex h-2.5 w-2.5 rounded-full bg-qc-accent-primary shadow-[0_0_18px_rgba(0,229,255,0.45)]" />
+                      <span className="max-w-[96px] truncate text-sm font-medium text-qc-text-primary">{name}</span>
+                      {conv.streak_count > 0 && <Flame size={13} className="text-[#ff8b3d]" />}
+                    </div>
+                    <div className="mt-1 text-[11px] text-qc-text-secondary truncate">{statusLabel}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="px-4 pt-4 pb-2 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.24em] text-qc-text-tertiary">Conversation deck</p>
+            <h3 className="mt-1 text-sm font-semibold text-qc-text-primary">Recent chats</h3>
+          </div>
+          <span className="rounded-full border border-white/8 bg-white/[0.04] px-2.5 py-1 text-[10px] text-qc-text-secondary">
+            {filteredConversations.length} total
+          </span>
+        </div>
+
         {filteredConversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-qc-text-secondary text-sm p-6 text-center">
             <div className="w-16 h-16 rounded-3xl bg-qc-accent-tertiary text-qc-accent-primary flex items-center justify-center mb-4">
@@ -545,6 +653,11 @@ export default function LeftPanel({
                   <div className="flex justify-between items-center gap-3 mb-1">
                     <div className="min-w-0 flex items-center gap-2">
                       <span className={`font-medium text-qc-text-primary truncate ${isMobile ? 'text-[17px]' : 'text-[15px]'}`}>{name}</span>
+                      {conv.is_starred && (
+                        <span className="rounded-full bg-[#ffe56a]/18 px-1.5 py-0.5 text-[10px] font-medium text-[#ffe56a]">
+                          Pinned
+                        </span>
+                      )}
                       {conv.streak_count > 0 && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-qc-accent-tertiary text-qc-accent-primary font-medium whitespace-nowrap">
                           {'\u{1F525}'} {conv.streak_count}
@@ -572,15 +685,18 @@ export default function LeftPanel({
                       )}
                     </div>
 
-                    {conv.unread_count > 0 ? (
-                      <span className="bg-qc-accent-primary text-white text-[10px] font-bold min-w-[22px] h-[22px] rounded-full flex items-center justify-center px-1.5">
-                        {conv.unread_count}
-                      </span>
-                    ) : isGroup ? (
-                      <span className="text-[10px] uppercase tracking-[0.2em] text-qc-text-tertiary border border-qc-border rounded-full px-2 py-1">
-                        Squad
-                      </span>
-                    ) : null}
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {conv.unread_count > 0 ? (
+                        <span className="bg-qc-accent-primary text-white text-[10px] font-bold min-w-[22px] h-[22px] rounded-full flex items-center justify-center px-1.5">
+                          {conv.unread_count}
+                        </span>
+                      ) : null}
+                      {isGroup ? (
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-qc-text-tertiary border border-qc-border rounded-full px-2 py-1">
+                          Squad
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               </button>
