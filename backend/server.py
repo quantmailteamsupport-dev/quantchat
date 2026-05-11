@@ -38,13 +38,33 @@ missing_env = [key for key, value in REQUIRED_ENV.items() if not value]
 if missing_env:
     raise RuntimeError(f"Missing required environment variables: {', '.join(missing_env)}")
 
+DEFAULT_APP_ORIGINS = {
+    "http://localhost",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+    "capacitor://localhost",
+    "ionic://localhost",
+    "http://52.66.196.236",
+    "https://52.66.196.236",
+    "http://quantchat.online",
+    "https://quantchat.online",
+    "https://www.quantchat.online",
+}
+
+allowed_origins = {origin for origin in DEFAULT_APP_ORIGINS if origin}
+allowed_origins.add(FRONTEND_URL.rstrip("/"))
+allowed_origins_list = sorted(allowed_origins)
+
 # --- App ---
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
 fastapi_app = FastAPI(title="QuantChat API")
 
 fastapi_app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL],
+    allow_origins=allowed_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

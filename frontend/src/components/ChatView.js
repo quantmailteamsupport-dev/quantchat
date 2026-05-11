@@ -171,7 +171,7 @@ function MessageBubble({
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-current truncate">{attachment?.name || 'Shared file'}</p>
               <p className="text-[12px] text-gray-500 mt-1">
-                {attachment?.mime || 'File'} · {formatFileSize(attachment?.size)}
+                {attachment?.mime || 'File'} • {formatFileSize(attachment?.size)}
               </p>
             </div>
             {attachment?.url && (
@@ -717,7 +717,7 @@ export default function ChatArea({
         </div>
       )}
 
-      <div className={`premium-divider px-3 md:px-4 bg-qc-surface-hover/96 backdrop-blur-xl flex items-center gap-3 flex-shrink-0 shadow-sm relative z-20 border-b border-qc-border ${isMobile ? 'h-14' : 'sticky top-0 h-16'}`}>
+      <div className={`premium-divider premium-surface px-3 md:px-4 backdrop-blur-xl flex items-center gap-3 flex-shrink-0 shadow-[0_10px_28px_rgba(0,0,0,0.16)] relative z-20 border-b border-qc-border ${isMobile ? 'h-14' : 'sticky top-0 h-16'}`}>
         {isMobile && (
           <button data-testid="chat-back-button" onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 text-qc-text-secondary -ml-1">
             <ArrowLeft size={22} />
@@ -780,7 +780,7 @@ export default function ChatArea({
       </div>
 
       {isMobile && (
-        <div className="premium-divider px-3 py-2 border-b border-qc-border bg-qc-surface/92 backdrop-blur-md flex gap-2 overflow-x-auto hide-scrollbar relative z-20">
+        <div className="premium-divider px-3 py-2 border-b border-qc-border bg-qc-surface/92 backdrop-blur-md flex gap-2 overflow-x-auto hide-scrollbar relative z-20 shadow-[0_10px_24px_rgba(0,0,0,0.14)]">
           <button data-testid="chat-mobile-search-toggle" onClick={() => setShowSearch((value) => !value)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs border ${showSearch ? 'bg-qc-accent-tertiary text-qc-accent-primary border-qc-border' : 'bg-qc-surface-hover text-qc-text-secondary border-qc-border'}`}>
             Search
           </button>
@@ -848,13 +848,13 @@ export default function ChatArea({
       <div
         ref={messagesContainerRef}
         onScroll={handleMessagesScroll}
-        className={`safe-scroll-shell flex-1 py-4 space-y-1 relative z-10 ${isMobile ? 'px-3 pt-3 pb-28' : 'px-4 sm:px-[5%] md:px-[10%] pb-8'}`}
+        className={`safe-scroll-shell flex-1 py-4 space-y-1 relative z-10 ${isMobile ? 'px-3 pt-3 pb-32' : 'px-4 sm:px-[5%] md:px-[10%] pb-8'}`}
       >
         {messages.length === 0 ? (
           <div className="flex justify-center mt-10">
-            <div className="rounded-[24px] border border-qc-border bg-qc-surface px-5 py-4 shadow-sm text-center max-w-sm">
+            <div className="rounded-[24px] border border-qc-border bg-qc-surface px-5 py-4 shadow-sm text-center max-w-sm premium-surface">
               <span className="block mb-1 text-sm text-qc-text-primary font-medium">Start this lane</span>
-              <span className="block text-[12.5px] text-qc-text-secondary">Messages and calls are end-to-end encrypted. No one outside this chat, not even QuantChat, can read or listen to them.</span>
+              <span className="block text-[12.5px] text-qc-text-secondary">Drop a message, send a snap, ya quick note. This lane is ready for a cleaner mobile-first flow.</span>
             </div>
           </div>
         ) : messages.map((message) => {
@@ -1125,7 +1125,7 @@ export default function ChatArea({
         </div>
       )}
 
-      <div className={`premium-surface px-3 md:px-4 py-2.5 flex items-end gap-2 flex-shrink-0 relative z-20 border-t border-qc-border backdrop-blur-xl ${isMobile && !keyboardOpen ? 'pb-[calc(0.7rem+env(safe-area-inset-bottom))]' : ''}`}>
+      <div className={`premium-surface px-3 md:px-4 py-2.5 flex items-end gap-2 flex-shrink-0 relative z-20 border-t border-qc-border backdrop-blur-xl shadow-[0_-18px_44px_rgba(0,0,0,0.18)] ${isMobile && !keyboardOpen ? 'pb-[calc(0.7rem+env(safe-area-inset-bottom))]' : ''}`}>
         <input type="file" accept="image/*" className="hidden" ref={imageInputRef} onChange={(event) => handleFileChange(event, 'image')} />
         <input type="file" accept=".pdf,.txt,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip" className="hidden" ref={fileInputRef} onChange={(event) => handleFileChange(event, 'file')} />
 
@@ -1176,7 +1176,7 @@ export default function ChatArea({
           <button data-testid="chat-attach-toggle" onClick={() => { setShowAttachMenu((value) => !value); setShowEmojiPicker(false); }} className={`p-2 rounded-full ${showAttachMenu ? 'text-qc-accent-primary' : 'text-qc-text-secondary hover:text-qc-text-primary'}`}><Paperclip size={24} /></button>
         </div>
 
-        <div className={`flex-1 bg-qc-surface rounded-2xl flex items-center px-2 shadow-sm border border-qc-border ${isMobile ? 'min-h-[46px]' : 'min-h-[40px]'}`}>
+        <div className={`flex-1 bg-qc-surface rounded-[22px] flex items-center px-2 shadow-sm border border-qc-border ${isMobile ? 'min-h-[46px]' : 'min-h-[40px]'}`}>
           {isRecording ? (
             <div className="flex-1 flex items-center gap-3 px-2 text-[#FF3333] animate-pulse font-medium text-[15px]">
               <Mic size={20} className="fill-current" /> Recording {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}

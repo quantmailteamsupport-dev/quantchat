@@ -68,14 +68,25 @@ html, body, #root {
 }
 
 body {
+  min-height: 100dvh;
   background-image: var(--shell-gradient);
   background-attachment: fixed;
+  overscroll-behavior-y: none;
 }
 
 @media (max-width: 767px) {
   body {
     background-attachment: scroll;
+    overscroll-behavior-y: auto;
   }
+}
+
+html[data-platform="ios"] body {
+  -webkit-text-size-adjust: 100%;
+}
+
+html[data-viewport="phone"] .animate-surfaceGlow {
+  animation-duration: 6.4s;
 }
 
 .font-heading {
@@ -232,6 +243,12 @@ a:focus-visible {
   -webkit-overflow-scrolling: touch;
 }
 
+@media (max-width: 767px) {
+  .safe-scroll-shell {
+    overscroll-behavior-y: auto;
+  }
+}
+
 .premium-surface {
   background:
     radial-gradient(circle at top left, rgba(79, 140, 255, 0.12), transparent 22%),
@@ -252,6 +269,13 @@ a:focus-visible {
   bottom: 0;
   height: 1px;
   background: linear-gradient(90deg, rgba(79, 140, 255, 0), rgba(79, 140, 255, 0.28), rgba(255, 229, 106, 0.26), rgba(79, 140, 255, 0));
+}
+
+.floating-nav-shell {
+  background:
+    radial-gradient(circle at top, rgba(79, 140, 255, 0.18), transparent 44%),
+    linear-gradient(180deg, rgba(8, 10, 15, 0.9), rgba(8, 10, 15, 0.78));
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.42);
 }
 
 .hide-scrollbar {

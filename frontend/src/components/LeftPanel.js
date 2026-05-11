@@ -217,7 +217,7 @@ export default function LeftPanel({
 
   const renderTopShell = () => (
     <>
-      <div ref={menuRef} className={`${isMobile ? 'relative' : 'sticky top-0 z-20'} premium-divider px-4 border-b border-qc-border bg-qc-surface/95 backdrop-blur-xl relative ${isMobile ? 'pt-3 pb-2' : 'pt-4 pb-3'}`}>
+      <div ref={menuRef} className={`${isMobile ? 'relative premium-surface shadow-[0_18px_40px_rgba(0,0,0,0.22)]' : 'sticky top-0 z-20'} premium-divider px-4 border-b border-qc-border bg-qc-surface/95 backdrop-blur-xl relative ${isMobile ? 'pt-3 pb-2' : 'pt-4 pb-3'}`}>
         {isMobile ? (
           <>
             <div className="flex items-center justify-between gap-3">
@@ -441,7 +441,7 @@ export default function LeftPanel({
         )}
       </div>
 
-      <div className="sticky top-[5.45rem] md:top-[10.8rem] z-10 px-4 py-3 border-b border-qc-border bg-qc-surface/94 backdrop-blur-md">
+      <div className="relative md:sticky md:top-[10.8rem] z-10 px-4 py-3 border-b border-qc-border bg-qc-surface/94 backdrop-blur-md">
         {!isMobile && (compactStories.length > 0 || orbitPeople.length > 0) && (
           <div className="mb-3 flex gap-3 overflow-x-auto hide-scrollbar">
             {(compactStories.length > 0 ? compactStories.map((group) => ({ id: group.user_id, name: group.user_name, avatar: group.user_avatar, online: true })) : orbitPeople).map((person) => (
@@ -516,7 +516,7 @@ export default function LeftPanel({
   );
 
   const renderChats = () => (
-    <div className="safe-scroll-shell flex min-h-0 flex-col">
+    <div className="safe-scroll-shell flex min-h-0 flex-1 flex-col">
       {renderTopShell()}
       {view !== 'chats' && showPreviewHints && (
         <div className="px-4 py-3 border-b border-qc-border bg-qc-accent-tertiary/40">
@@ -542,7 +542,7 @@ export default function LeftPanel({
           </div>
         </div>
       )}
-      <div className="bg-qc-surface pb-[calc(env(safe-area-inset-bottom)+5.6rem)] md:pb-0">
+      <div className="bg-qc-surface pb-[calc(env(safe-area-inset-bottom)+6.4rem)] md:pb-0">
         {priorityConversations.length > 0 && (
           <div className="px-4 pt-4">
             <div className="rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(16,23,36,0.96),rgba(10,15,25,0.96))] p-3 shadow-[0_18px_50px_rgba(0,0,0,0.22)]">

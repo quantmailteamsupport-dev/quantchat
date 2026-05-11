@@ -79,6 +79,15 @@ export default function ChatApp() {
       const viewportHeight = viewport?.height || window.innerHeight;
       const viewportOffsetTop = viewport?.offsetTop || 0;
       const nextIsMobile = window.innerWidth < 768;
+      const nextViewport = nextIsMobile ? (window.innerWidth < 520 ? 'phone' : 'tablet') : 'desktop';
+      const userAgent = window.navigator.userAgent || '';
+      const platform = /iPhone|iPad|iPod/i.test(userAgent)
+        ? 'ios'
+        : /Android/i.test(userAgent)
+          ? 'android'
+          : /Windows/i.test(userAgent)
+            ? 'windows'
+            : 'desktop';
       const effectiveHeight = Math.max(viewportHeight + viewportOffsetTop, viewportHeight);
 
       if (!baseViewportHeightRef.current || (!isEditableTarget() && effectiveHeight > baseViewportHeightRef.current - 40)) {
@@ -91,6 +100,8 @@ export default function ChatApp() {
       setAppHeight(`${effectiveHeight}px`);
       setIsMobileView(nextIsMobile);
       setIsKeyboardOpen(keyboardLikelyOpen);
+      document.documentElement.dataset.platform = platform;
+      document.documentElement.dataset.viewport = nextViewport;
     };
 
     updateViewport();
@@ -225,11 +236,12 @@ export default function ChatApp() {
     const previousHtmlOverflow = document.documentElement.style.overflow;
     const previousBodyOverscroll = document.body.style.overscrollBehavior;
     const previousHtmlOverscroll = document.documentElement.style.overscrollBehavior;
+    const shouldLockShell = !isMobileView || showCamera;
 
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-    document.body.style.overscrollBehavior = 'none';
-    document.documentElement.style.overscrollBehavior = 'none';
+    document.body.style.overflow = shouldLockShell ? 'hidden' : previousBodyOverflow;
+    document.documentElement.style.overflow = shouldLockShell ? 'hidden' : previousHtmlOverflow;
+    document.body.style.overscrollBehavior = shouldLockShell ? 'none' : previousBodyOverscroll;
+    document.documentElement.style.overscrollBehavior = shouldLockShell ? 'none' : previousHtmlOverscroll;
 
     return () => {
       document.body.style.overflow = previousBodyOverflow;
@@ -237,7 +249,7 @@ export default function ChatApp() {
       document.body.style.overscrollBehavior = previousBodyOverscroll;
       document.documentElement.style.overscrollBehavior = previousHtmlOverscroll;
     };
-  }, []);
+  }, [isMobileView, showCamera]);
 
   const sendMessage = async (content, type = 'text', replyTo = null) => {
     if (!activeConv || (!content.trim() && type === 'text')) return;
@@ -380,14 +392,14 @@ export default function ChatApp() {
   return (
     <div
       data-testid="chat-app"
-      className="w-screen bg-[radial-gradient(circle_at_top_left,rgba(79,140,255,0.14),transparent_24%),radial-gradient(circle_at_78%_10%,rgba(255,229,106,0.13),transparent_16%),radial-gradient(circle_at_50%_100%,rgba(255,111,181,0.08),transparent_18%),radial-gradient(circle_at_bottom,rgba(157,76,221,0.1),transparent_20%),linear-gradient(180deg,#020409,#05070c_55%,#020409)] flex items-center justify-center overflow-hidden px-0 md:px-5 md:py-5"
+      className="w-screen bg-[radial-gradient(circle_at_top_left,rgba(79,140,255,0.14),transparent_24%),radial-gradient(circle_at_78%_10%,rgba(255,229,106,0.13),transparent_16%),radial-gradient(circle_at_50%_100%,rgba(255,111,181,0.08),transparent_18%),radial-gradient(circle_at_bottom,rgba(157,76,221,0.1),transparent_20%),linear-gradient(180deg,#020409,#05070c_55%,#020409)] flex items-stretch md:items-center justify-center overflow-y-auto md:overflow-hidden px-0 md:px-5 md:py-5"
       style={{
         height: appHeight,
         minHeight: '100svh',
         '--mobile-nav-height': isKeyboardOpen ? '0px' : '74px',
       }}
     >
-      <div className="flex h-full min-h-0 w-full md:max-w-[1460px] md:h-[94vh] bg-[linear-gradient(180deg,rgba(8,10,15,0.95),rgba(10,13,19,0.92))] md:border md:border-white/10 md:rounded-[34px] overflow-hidden relative shadow-[0_28px_90px_rgba(0,0,0,0.42)] backdrop-blur-2xl animate-surfaceGlow">
+      <div className="flex h-full min-h-[100svh] w-full md:max-w-[1460px] md:min-h-0 md:h-[94vh] bg-[linear-gradient(180deg,rgba(8,10,15,0.95),rgba(10,13,19,0.92))] md:border md:border-white/10 md:rounded-[34px] overflow-hidden relative shadow-[0_28px_90px_rgba(0,0,0,0.42)] backdrop-blur-2xl animate-surfaceGlow">
         <div className={`w-full md:w-[400px] min-h-0 flex-shrink-0 border-r border-qc-border bg-qc-surface flex flex-col ${isMobileView && showChat ? 'hidden' : 'flex'}`}>
           <LeftPanel
             user={user}
@@ -421,7 +433,7 @@ export default function ChatApp() {
 
         {isMobileView && !isKeyboardOpen && (
           <div className="absolute inset-x-0 bottom-0 z-40 px-3 pb-[max(0.6rem,env(safe-area-inset-bottom))]">
-            <div className="mx-auto max-w-[430px] rounded-[30px] border border-white/10 bg-[rgba(8,10,15,0.82)] backdrop-blur-2xl shadow-[0_22px_60px_rgba(0,0,0,0.42)] px-2 py-2">
+            <div className="floating-nav-shell mx-auto max-w-[430px] rounded-[30px] border border-white/10 backdrop-blur-2xl px-2 py-2">
             <div className="grid grid-cols-5 gap-1">
               {MOBILE_NAV_ITEMS.map((item) => {
                 const Icon = item.icon;

@@ -65,7 +65,7 @@ export default function RegisterPage() {
       <div className="relative z-10 px-4 py-5 sm:px-6">
         <div className="mx-auto max-w-7xl rounded-[30px] border border-white/10 bg-black/20 backdrop-blur-xl shadow-[0_30px_90px_rgba(0,0,0,0.35)] overflow-hidden">
           <div className="grid xl:grid-cols-[1fr_minmax(0,470px)]">
-            <section className="px-5 py-6 sm:px-8 sm:py-8 border-b xl:border-b-0 xl:border-r border-white/10">
+            <section className="px-5 py-6 sm:px-8 sm:py-8 border-b xl:border-b-0 xl:border-r border-white/10 premium-surface">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] uppercase tracking-[0.24em] text-[#ffe56a]">
                 <Sparkles size={13} />
                 Build your dark profile
@@ -80,7 +80,7 @@ export default function RegisterPage() {
 
               <div className="mt-7 grid gap-4 md:grid-cols-3">
                 {onboardingNotes.map(({ icon: Icon, title, body }) => (
-                  <article key={title} className="rounded-[26px] border border-white/10 bg-white/5 p-5">
+                  <article key={title} className="rounded-[26px] border border-white/10 bg-white/5 p-5 animate-floatBob">
                     <div className="w-11 h-11 rounded-2xl bg-white/8 flex items-center justify-center text-[#ffe56a]">
                       <Icon size={18} />
                     </div>
@@ -173,7 +173,7 @@ export default function RegisterPage() {
                   data-testid="register-submit-button"
                   type="submit"
                   disabled={loading}
-                  className="w-full rounded-full bg-[#ffe600] px-5 py-3.5 text-base font-semibold text-[#05070c] shadow-[0_18px_38px_rgba(255,230,0,0.22)] transition hover:bg-[#ffef5a] disabled:opacity-50"
+                  className="w-full rounded-full bg-[linear-gradient(135deg,#ffe56a,#ffb347,#ff6fb5)] px-5 py-3.5 text-base font-semibold text-[#05070c] shadow-[0_18px_38px_rgba(255,179,71,0.28)] transition hover:scale-[1.01] hover:brightness-105 disabled:opacity-50"
                 >
                   {loading ? 'Creating account...' : 'Create Account'}
                 </button>

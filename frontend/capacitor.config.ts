@@ -5,7 +5,9 @@ const config: CapacitorConfig = {
   appName: 'QuantChat',
   webDir: 'build',
   server: {
+    url: process.env.CAP_SERVER_URL ?? 'http://52.66.196.236',
     cleartext: true,
+    iosScheme: 'http',
     androidScheme: 'http',
   },
   android: {
