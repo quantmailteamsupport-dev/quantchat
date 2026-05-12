@@ -50,8 +50,11 @@ interface CallSession {
   endTime?: Date;
 }
 
+const RINGING_TIMEOUT_MS = 45_000;
+
 export class WebRTCCallService extends EventEmitter {
   private activeCalls: Map<string, CallSession> = new Map();
+  private ringTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private iceServers: RTCIceServer[] = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
@@ -89,6 +92,19 @@ export class WebRTCCallService extends EventEmitter {
     this.activeCalls.set(callId, callSession);
     this.emit('call:initiated', callSession);
 
+    // Auto-end calls that are never answered
+    const timeout = setTimeout(() => {
+      const call = this.activeCalls.get(callId);
+      if (call && call.status === 'ringing') {
+        call.status = 'ended';
+        call.endTime = new Date();
+        this.emit('call:timeout', call);
+        this.activeCalls.delete(callId);
+      }
+      this.ringTimeouts.delete(callId);
+    }, RINGING_TIMEOUT_MS);
+    this.ringTimeouts.set(callId, timeout);
+
     return callSession;
   }
 
@@ -100,6 +116,9 @@ export class WebRTCCallService extends EventEmitter {
     if (!call) {
       throw new Error('Call not found');
     }
+
+    clearTimeout(this.ringTimeouts.get(callId));
+    this.ringTimeouts.delete(callId);
 
     call.status = 'active';
     call.startTime = new Date();
@@ -119,6 +138,9 @@ export class WebRTCCallService extends EventEmitter {
       throw new Error('Call not found');
     }
 
+    clearTimeout(this.ringTimeouts.get(callId));
+    this.ringTimeouts.delete(callId);
+
     call.status = 'ended';
     call.endTime = new Date();
 
@@ -134,6 +156,9 @@ export class WebRTCCallService extends EventEmitter {
     if (!call) {
       throw new Error('Call not found');
     }
+
+    clearTimeout(this.ringTimeouts.get(callId));
+    this.ringTimeouts.delete(callId);
 
     call.status = 'ended';
     call.endTime = new Date();
@@ -204,9 +229,12 @@ export class WebRTCCallService extends EventEmitter {
     peerConnection: RTCPeerConnection,
     description: RTCSessionDescriptionInit
   ): Promise<void> {
-    await peerConnection.setRemoteDescription(
-      new RTCSessionDescription(description)
-    );
+    try {
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(description));
+    } catch (err) {
+      console.error('[WebRTC] setRemoteDescription failed:', err);
+      throw err;
+    }
   }
 
   /**
@@ -216,7 +244,12 @@ export class WebRTCCallService extends EventEmitter {
     peerConnection: RTCPeerConnection,
     candidate: RTCIceCandidateInit
   ): Promise<void> {
-    await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    try {
+      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    } catch (err) {
+      console.error('[WebRTC] addIceCandidate failed:', err);
+      throw err;
+    }
   }
 
   /**

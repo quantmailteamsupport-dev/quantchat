@@ -84,27 +84,6 @@ async function validateQuantmailBridgeToken(
     // Fall through to Quantmail legacy validation.
   }
 
-  // ── Local JWT payload fallback for already-exchanged QuantChat tokens ─
-  try {
-    const payload = JSON.parse(Buffer.from(accessToken.split(".")[1] ?? "", "base64url").toString("utf8")) as {
-      sub?: string;
-      email?: string;
-      username?: string;
-      sessionId?: string;
-    };
-    if (payload.sub === tokenUserId) {
-      return {
-        valid: true,
-        userId: tokenUserId,
-        email: payload.email,
-        displayName: payload.username,
-        sessionId: payload.sessionId,
-      };
-    }
-  } catch {
-    // Fall through to legacy path.
-  }
-
   // ── Fallback path: Quantmail /auth/verify endpoint ───────────────
   // Handles Master SSO tokens issued by Quantmail's legacy crypto module.
   try {

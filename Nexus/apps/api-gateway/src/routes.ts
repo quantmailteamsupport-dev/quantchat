@@ -46,6 +46,19 @@ import { sessionController } from "./services/AuthoritativeSessionController";
 
 const router = Router();
 
+function requireAdminRole(req: Request, res: Response, next: NextFunction): void {
+  const user = req.user as { sub: string; role?: string } | undefined;
+  if (!user) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  if (user.role !== "admin") {
+    res.status(403).json({ error: "Admin role required" });
+    return;
+  }
+  next();
+}
+
 // ─── Simple in-process rate limiter for REST routes ──────────
 // Uses a sliding window per IP address.
 interface RateBucket { count: number; windowStart: number; }
@@ -458,6 +471,27 @@ router.post(
   }
 );
 
+router.post(
+  "/api/media/:fileKey/complete",
+  restRateLimit,
+  requireBiometricAuth,
+  async (req: Request, res: Response) => {
+    if (!req.user) return res.status(401).json({ error: "Not authenticated" });
+    const fileKey = req.params.fileKey;
+    if (!fileKey || fileKey.length > 1024) {
+      return res.status(400).json({ error: "Invalid fileKey" });
+    }
+    const fileSize = typeof req.body?.fileSize === "number" ? req.body.fileSize : undefined;
+    try {
+      await S3Service.markUploadComplete(fileKey, req.user.sub, fileSize);
+      res.json({ success: true });
+    } catch (err) {
+      logger.error({ err, fileKey, userId: req.user.sub }, "[S3] markUploadComplete failed");
+      res.status(500).json({ error: "Failed to mark upload complete" });
+    }
+  },
+);
+
 // ─── Reels Stream (Range-based chunking) ─────────────────────
 router.get("/api/reels/stream/:id", (req: Request, res: Response) => {
   const range = req.headers.range;
@@ -800,7 +834,7 @@ router.get(
     const rawLimit = req.query.limit;
     const parsedLimit =
       typeof rawLimit === "string" ? Number.parseInt(rawLimit, 10) : NaN;
-    const limit = Number.isFinite(parsedLimit) ? parsedLimit : 30;
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 30;
     try {
       const history = await GiftSystem.listHistory({
         userId: req.user.sub,
@@ -1099,6 +1133,7 @@ router.get(
   "/api/v1/poi/stats",
   restRateLimit,
   requireBiometricAuth,
+  requireAdminRole,
   (_req: Request, res: Response) => {
     res.json(BiometricProofOfIntent.getStats());
   },
@@ -1219,6 +1254,7 @@ router.get(
   "/api/v1/messages/scheduled/stats",
   restRateLimit,
   requireBiometricAuth,
+  requireAdminRole,
   (_req: Request, res: Response) => {
     res.json(scheduledMessageQueue.getStats());
   },
@@ -1280,10 +1316,10 @@ router.patch(
   "/api/v1/sessions/policy",
   restRateLimit,
   requireBiometricAuth,
+  requireAdminRole,
   (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ error: "Not authenticated" });
 
-    // In production, this would check for admin role
     const updates: Record<string, unknown> = {};
     const body = req.body as Record<string, unknown>;
 
@@ -1386,6 +1422,7 @@ router.get(
   "/api/v1/metrics/system",
   restRateLimit,
   requireBiometricAuth,
+  requireAdminRole,
   async (_req: Request, res: Response) => {
     try {
       const metrics = await MetricsService.getSystemMetrics();
@@ -1401,6 +1438,7 @@ router.get(
   "/api/v1/metrics/users",
   restRateLimit,
   requireBiometricAuth,
+  requireAdminRole,
   async (_req: Request, res: Response) => {
     try {
       const metrics = await MetricsService.getUserMetrics();
@@ -1416,6 +1454,7 @@ router.get(
   "/api/v1/metrics/messages",
   restRateLimit,
   requireBiometricAuth,
+  requireAdminRole,
   async (_req: Request, res: Response) => {
     try {
       const metrics = await MetricsService.getMessageMetrics();

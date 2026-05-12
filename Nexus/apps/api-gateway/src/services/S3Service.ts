@@ -109,6 +109,22 @@ const ALLOWED_MIME_TYPES = [
 ];
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+
+// Magic-number signatures for types that support binary verification
+const FILE_MAGIC_NUMBERS: Record<string, Buffer[]> = {
+  "image/jpeg": [Buffer.from([0xff, 0xd8, 0xff])],
+  "image/png": [Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])],
+  "image/gif": [Buffer.from([0x47, 0x49, 0x46, 0x38, 0x37, 0x61]), Buffer.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61])],
+  "image/webp": [Buffer.from([0x52, 0x49, 0x46, 0x46])],
+  "application/pdf": [Buffer.from([0x25, 0x50, 0x44, 0x46])],
+  "video/mp4": [Buffer.from([0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70]), Buffer.from([0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70])],
+};
+
+function validateMagicNumbers(firstBytes: Buffer, mimeType: string): boolean {
+  const signatures = FILE_MAGIC_NUMBERS[mimeType];
+  if (!signatures) return true; // No signature check for this type
+  return signatures.some((sig) => firstBytes.subarray(0, sig.length).equals(sig));
+}
 function getPresignExpirySeconds(): number {
   const parsed = Number.parseInt(requiredEnv("S3_PRESIGN_EXPIRY_SECONDS"), 10);
   if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -136,9 +152,9 @@ export class S3Service {
   }
 
   /**
-   * Validates file type and size before upload
+   * Validates file type, size, and (optionally) magic-number signature before upload
    */
-  static validateFile(fileType: string, fileSize?: number): {
+  static validateFile(fileType: string, fileSize?: number, firstBytes?: Buffer): {
     valid: boolean;
     error?: string;
   } {
@@ -155,6 +171,14 @@ export class S3Service {
       return {
         valid: false,
         error: `File size exceeds maximum of ${MAX_FILE_SIZE / 1024 / 1024}MB`,
+      };
+    }
+
+    // Verify actual file content matches declared MIME type
+    if (firstBytes && !validateMagicNumbers(firstBytes, fileType)) {
+      return {
+        valid: false,
+        error: "File content does not match the declared file type",
       };
     }
 
@@ -197,6 +221,14 @@ export class S3Service {
         throw new Error(validation.error);
       }
 
+      // Validate metadata field lengths to stay within S3 metadata limits
+      if (metadata.conversationId && metadata.conversationId.length > 256) {
+        throw new Error("conversationId exceeds maximum length of 256 characters");
+      }
+      if (metadata.messageId && metadata.messageId.length > 256) {
+        throw new Error("messageId exceeds maximum length of 256 characters");
+      }
+
       // Sanitize filename
       const sanitized = this.sanitizeFileName(metadata.fileName);
       const timestamp = Date.now();
@@ -224,11 +256,17 @@ export class S3Service {
       });
 
       // Determine download URL (CloudFront or direct S3)
-      const downloadUrl = s3Config.cloudFrontDomain
-        ? `https://${s3Config.cloudFrontDomain}/${fileKey}`
-        : s3Config.endpoint
-          ? `${s3Config.endpoint.replace(/\/$/, "")}/${s3Config.bucket}/${fileKey}`
-        : `https://${s3Config.bucket}.s3.${s3Config.region}.amazonaws.com/${fileKey}`;
+      let downloadUrl: string;
+      if (s3Config.cloudFrontDomain) {
+        // Validate domain to prevent URL injection
+        new URL(`https://${s3Config.cloudFrontDomain}`);
+        downloadUrl = `https://${s3Config.cloudFrontDomain}/${fileKey}`;
+      } else if (s3Config.endpoint) {
+        new URL(s3Config.endpoint);
+        downloadUrl = `${s3Config.endpoint.replace(/\/$/, "")}/${s3Config.bucket}/${fileKey}`;
+      } else {
+        downloadUrl = `https://${s3Config.bucket}.s3.${s3Config.region}.amazonaws.com/${fileKey}`;
+      }
 
       // Log presign event
       logger.info(
@@ -305,9 +343,11 @@ export class S3Service {
   static getDownloadUrl(fileKey: string): string {
     const s3Config = getS3Config();
     if (s3Config.cloudFrontDomain) {
+      new URL(`https://${s3Config.cloudFrontDomain}`);
       return `https://${s3Config.cloudFrontDomain}/${fileKey}`;
     }
     if (s3Config.endpoint) {
+      new URL(s3Config.endpoint);
       return `${s3Config.endpoint.replace(/\/$/, "")}/${s3Config.bucket}/${fileKey}`;
     }
     return `https://${s3Config.bucket}.s3.${s3Config.region}.amazonaws.com/${fileKey}`;
@@ -350,6 +390,26 @@ export class S3Service {
     } catch (err) {
       logger.error({ err, userId }, "[S3] Failed to list user files");
       return [];
+    }
+  }
+
+  /**
+   * Deletes DB records (and optionally S3 objects) for uploads that were
+   * presigned but never completed within 24 hours.
+   * Schedule this to run periodically (e.g. daily via setInterval at startup).
+   */
+  static async cleanupStalePendingUploads(): Promise<void> {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    try {
+      const deleted = await prisma.fileMetadata.deleteMany({
+        where: {
+          status: "pending_upload",
+          createdAt: { lt: cutoff },
+        },
+      });
+      logger.info({ count: deleted.count }, "[S3] Cleaned up stale pending uploads");
+    } catch (err) {
+      logger.error({ err }, "[S3] Failed to clean up stale pending uploads");
     }
   }
 
