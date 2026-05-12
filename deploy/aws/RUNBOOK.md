@@ -61,13 +61,37 @@ Add each secret listed in [`docs/SECRETS_REQUIRED.md`](../../docs/SECRETS_REQUIR
 
 The non-obvious ones:
 
-- `EC2_HOST` — the Elastic IP from `terraform output app_public_ip`.
-- `EC2_USER` — `ubuntu`.
-- `EC2_SSH_KEY` — the **private** key matching `ssh_pubkey` you put in Terraform.
-  Paste the entire PEM contents including `-----BEGIN ...` lines. Read from
-  your local `~/.ssh/quantchat` (no `.pub` suffix).
+- `EC2_HOST` — the Elastic IP from `terraform output app_public_ip` (or the
+  public IPv4 of an existing EC2 instance you already own).
+- `EC2_USER` — `ubuntu` for Ubuntu AMIs, `ec2-user` for Amazon Linux.
+- `EC2_PASSWORD` — the SSH password for that user. **Only set this if you've
+  enabled password auth on the EC2 host** (see "Enabling password SSH" below).
+  Prefer key-based auth if you can — see `EC2_SSH_KEY` instead.
+- `EC2_SSH_KEY` *(preferred over password)* — the **private** key matching
+  `ssh_pubkey` you put in Terraform. Paste the entire PEM contents including
+  `-----BEGIN ...` lines. The workflow currently uses `EC2_PASSWORD`; to switch
+  back to key auth, replace `password:` with `key:` in `.github/workflows/deploy.yml`.
+- `EC2_PORT` *(optional)* — defaults to `22`.
 - `FIREBASE_SERVICE_ACCOUNT_JSON` — paste the entire JSON contents from your
   Firebase service-account key file as one big secret.
+
+### Enabling password SSH on the EC2 host
+
+By default, Ubuntu EC2 AMIs disable password auth. If you intend to use
+`EC2_PASSWORD`, SSH into the host once (using EC2 Instance Connect or the
+launch key pair) and run:
+
+```bash
+sudo sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+# Some AMIs also have a drop-in that overrides this — check and edit if present:
+sudo grep -RIl PasswordAuthentication /etc/ssh/sshd_config.d/ 2>/dev/null \
+  | xargs -r sudo sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/'
+sudo systemctl restart ssh
+# Set/rotate the password for the deploy user:
+sudo passwd ubuntu
+```
+
+Then verify locally: `ssh ubuntu@<EC2_HOST>` — it should prompt for the password.
 
 For the random-string secrets (`JWT_SECRET`, `NEXTAUTH_SECRET`), generate fresh:
 
