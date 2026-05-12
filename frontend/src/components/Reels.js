@@ -488,7 +488,7 @@ export default function Reels({ userId, onStartConversation }) {
   };
 
   if (loading) {
-    return <div className="flex h-full items-center justify-center text-qc-text-secondary">Loading...</div>;
+    return <div className="flex h-full items-center justify-center text-white/50">Loading...</div>;
   }
 
   return (

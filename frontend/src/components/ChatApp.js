@@ -352,17 +352,17 @@ export default function ChatApp() {
     }
 
     return (
-      <div className="hidden md:flex flex-col items-center justify-center h-full text-center bg-qc-bg chat-bg-pattern border-l border-qc-border">
-        <div className="bg-qc-surface rounded-full p-6 shadow-sm mb-6">
-          <span className="text-4xl text-qc-accent-primary font-bold">Q</span>
+      <div className="hidden md:flex flex-col items-center justify-center h-full text-center bg-[#050608] chat-bg-pattern border-l border-white/8">
+        <div className="bg-[rgba(255,255,255,0.03)] rounded-full p-6 shadow-sm mb-6">
+          <span className="text-4xl text-[#4f8cff] font-bold">Q</span>
         </div>
-        <h2 className="text-3xl font-light text-qc-text-primary mb-4">QuantChat for Web</h2>
-        <p className="text-qc-text-secondary text-sm max-w-md">
+        <h2 className="text-3xl font-light text-white/88 mb-4">QuantChat for Web</h2>
+        <p className="text-white/50 text-sm max-w-md">
           Open a conversation, jump into Stories, or browse Spotlight without losing your place.
           <br />
           Your chats stay ready while the social feed now owns the main stage.
         </p>
-        <div className="mt-10 flex items-center justify-center gap-2 text-qc-text-secondary text-xs">
+        <div className="mt-10 flex items-center justify-center gap-2 text-white/50 text-xs">
           <span>End-to-end encrypted</span>
         </div>
       </div>
@@ -400,7 +400,7 @@ export default function ChatApp() {
       }}
     >
       <div className="flex h-full min-h-[100svh] w-full md:max-w-[1460px] md:min-h-0 md:h-[94vh] bg-[linear-gradient(180deg,rgba(8,10,15,0.95),rgba(10,13,19,0.92))] md:border md:border-white/10 md:rounded-[34px] overflow-hidden relative shadow-[0_28px_90px_rgba(0,0,0,0.42)] backdrop-blur-2xl animate-surfaceGlow">
-        <div className={`w-full md:w-[400px] min-h-0 flex-shrink-0 border-r border-qc-border bg-qc-surface flex flex-col ${isMobileView && showChat ? 'hidden' : 'flex'}`}>
+        <div className={`w-full md:w-[400px] min-h-0 flex-shrink-0 border-r border-white/8 bg-[rgba(255,255,255,0.03)] flex flex-col ${isMobileView && showChat ? 'hidden' : 'flex'}`}>
           <LeftPanel
             user={user}
             logout={logout}
@@ -420,7 +420,7 @@ export default function ChatApp() {
           />
         </div>
 
-        <div className={`flex-1 min-h-0 flex flex-col bg-qc-bg ${isMobileView && !showChat ? 'hidden' : 'flex'} ${isMobileView && !isKeyboardOpen ? 'pb-[var(--mobile-nav-height)]' : ''}`}>
+        <div className={`flex-1 min-h-0 flex flex-col bg-[#050608] ${isMobileView && !showChat ? 'hidden' : 'flex'} ${isMobileView && !isKeyboardOpen ? 'pb-[var(--mobile-nav-height)]' : ''}`}>
           {renderMainContent()}
         </div>
 
@@ -446,7 +446,7 @@ export default function ChatApp() {
                     className={`rounded-2xl px-2 py-2 flex flex-col items-center justify-center gap-1 transition-all ${
                       isActive
                         ? 'bg-white text-black shadow-[0_12px_26px_rgba(255,255,255,0.14)]'
-                        : 'text-qc-text-secondary hover:bg-white/5'
+                        : 'text-white/50 hover:bg-white/5'
                     }`}
                   >
                     <Icon size={18} />

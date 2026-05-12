@@ -241,21 +241,21 @@ export default function Stories({ userId, onStartConversation }) {
   }, [otherStoryGroups, storyLane]);
 
   return (
-    <div data-testid="stories-view" className="safe-scroll-shell flex min-h-0 flex-col bg-qc-bg relative">
-      <div className="premium-divider md:sticky md:top-0 md:z-20 px-4 py-4 sm:px-5 border-b border-qc-border bg-[linear-gradient(180deg,rgba(10,14,24,0.98),rgba(9,14,23,0.94))]">
+    <div data-testid="stories-view" className="safe-scroll-shell flex min-h-0 flex-col bg-[#050608] relative">
+      <div className="premium-divider md:sticky md:top-0 md:z-20 px-4 py-4 sm:px-5 border-b border-white/8 bg-[linear-gradient(180deg,rgba(10,14,24,0.98),rgba(9,14,23,0.94))]">
         <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-[10px] uppercase tracking-[0.28em] text-[#ffe56a]/70">Story deck</p>
             <div className="flex items-center gap-2 mt-1">
-              <Radio size={18} className="text-qc-accent-primary" />
-              <h2 className="font-heading text-2xl text-qc-text-primary">Stories</h2>
+              <Radio size={18} className="text-[#4f8cff]" />
+              <h2 className="font-heading text-2xl text-white/88">Stories</h2>
             </div>
           </div>
 
           <button
             data-testid="open-story-composer"
             onClick={() => setShowComposer(true)}
-            className="h-11 px-3 sm:px-4 rounded-2xl bg-qc-accent-primary text-white hover:bg-qc-accent-secondary transition-colors flex items-center justify-center gap-2 shadow-glow whitespace-nowrap"
+            className="h-11 px-3 sm:px-4 rounded-2xl bg-[#4f8cff] text-white hover:bg-[#3a7aee] transition-colors flex items-center justify-center gap-2 shadow-[0_0_18px_rgba(79,140,255,0.20)] whitespace-nowrap"
           >
             <Plus size={16} />
             <span className="text-sm font-medium">Post story</span>
@@ -298,11 +298,11 @@ export default function Stories({ userId, onStartConversation }) {
                     {group.user_avatar ? (
                       <img src={group.user_avatar} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <User size={18} className="text-qc-text-secondary" />
+                      <User size={18} className="text-white/50" />
                     )}
                   </div>
                 </div>
-                <span className="max-w-[64px] truncate text-[11px] text-qc-text-secondary">{group.user_name || 'Unknown'}</span>
+                <span className="max-w-[64px] truncate text-[11px] text-white/50">{group.user_name || 'Unknown'}</span>
               </button>
             ))}
           </div>
@@ -310,26 +310,26 @@ export default function Stories({ userId, onStartConversation }) {
 
         <div className="flex gap-3 mt-4 overflow-x-auto hide-scrollbar sm:grid sm:grid-cols-3">
           <div className="shrink-0 min-w-[160px] rounded-2xl border border-white/10 bg-white/6 px-4 py-3 sm:min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Live updates</p>
-            <p className="text-xl font-semibold text-qc-text-primary mt-1">{timelineStories.length}</p>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-white/36">Live updates</p>
+            <p className="text-xl font-semibold text-white/88 mt-1">{timelineStories.length}</p>
           </div>
           <div className="shrink-0 min-w-[160px] rounded-2xl border border-white/10 bg-white/6 px-4 py-3 sm:min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Creators</p>
-            <p className="text-xl font-semibold text-qc-text-primary mt-1">{storyGroups.length}</p>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-white/36">Creators</p>
+            <p className="text-xl font-semibold text-white/88 mt-1">{storyGroups.length}</p>
           </div>
           <div className="shrink-0 min-w-[160px] rounded-2xl border border-white/10 bg-white/6 px-4 py-3 sm:min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Viewer mode</p>
-            <p className="text-sm font-semibold text-qc-text-primary mt-2">{autoAdvance ? 'Auto advance on' : 'Manual advance'}</p>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-white/36">Viewer mode</p>
+            <p className="text-sm font-semibold text-white/88 mt-2">{autoAdvance ? 'Auto advance on' : 'Manual advance'}</p>
           </div>
         </div>
       </div>
 
       {showComposer && (
         <div className="absolute inset-0 z-30 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setShowComposer(false)}>
-          <div className="w-full max-w-[460px] max-h-[100dvh] sm:max-h-[min(760px,92dvh)] bg-qc-surface border border-qc-border rounded-t-[28px] sm:rounded-[28px] overflow-hidden shadow-[0_24px_70px_rgba(19,31,51,0.24)] flex flex-col" onClick={(event) => event.stopPropagation()}>
-            <div className="h-14 border-b border-qc-border px-5 flex items-center justify-between flex-shrink-0">
-              <span className="text-qc-text-primary font-heading text-xl">Create Story</span>
-              <button onClick={() => setShowComposer(false)} className="text-qc-text-secondary hover:text-qc-text-primary">
+          <div className="w-full max-w-[460px] max-h-[100dvh] sm:max-h-[min(760px,92dvh)] bg-[rgba(255,255,255,0.03)] border border-white/8 rounded-t-[28px] sm:rounded-[28px] overflow-hidden shadow-[0_24px_70px_rgba(19,31,51,0.24)] flex flex-col" onClick={(event) => event.stopPropagation()}>
+            <div className="h-14 border-b border-white/8 px-5 flex items-center justify-between flex-shrink-0">
+              <span className="text-white/88 font-heading text-xl">Create Story</span>
+              <button onClick={() => setShowComposer(false)} className="text-white/50 hover:text-white/88">
                 <X size={18} />
               </button>
             </div>
@@ -350,7 +350,7 @@ export default function Stories({ userId, onStartConversation }) {
                     key={prompt}
                     type="button"
                     onClick={() => setContent(prompt)}
-                    className="shrink-0 rounded-full border border-qc-border bg-qc-surface-hover px-3 py-2 text-xs text-qc-text-primary"
+                    className="shrink-0 rounded-full border border-white/8 bg-white/5 px-3 py-2 text-xs text-white/88"
                   >
                     {prompt}
                   </button>
@@ -369,22 +369,22 @@ export default function Stories({ userId, onStartConversation }) {
                 <button
                   type="button"
                   onClick={() => setBgColor(COLORS[Math.floor(Math.random() * COLORS.length)])}
-                  className="inline-flex items-center gap-2 rounded-full border border-qc-border bg-qc-surface-hover px-3 py-2 text-qc-text-primary"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/5 px-3 py-2 text-white/88"
                 >
                   <Wand2 size={14} />
                   Shuffle color
                 </button>
-                <span className={`${remainingChars < 25 ? 'text-qc-accent-primary' : 'text-qc-text-tertiary'}`}>
+                <span className={`${remainingChars < 25 ? 'text-[#4f8cff]' : 'text-white/36'}`}>
                   {remainingChars} chars left
                 </span>
               </div>
             </div>
-            <div className="p-5 pt-4 border-t border-qc-border bg-qc-surface flex-shrink-0 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+            <div className="p-5 pt-4 border-t border-white/8 bg-[rgba(255,255,255,0.03)] flex-shrink-0 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
               <button
                 data-testid="submit-story"
                 onClick={createStory}
                 disabled={!content.trim() || submitting}
-                className="w-full h-12 bg-qc-accent-primary hover:bg-qc-accent-secondary disabled:opacity-40 text-white rounded-2xl flex items-center justify-center gap-2"
+                className="w-full h-12 bg-[#4f8cff] hover:bg-[#3a7aee] disabled:opacity-40 text-white rounded-2xl flex items-center justify-center gap-2"
               >
                 {submitting ? <Loader size={16} className="animate-spin" /> : <Send size={16} />}
                 <span>{submitting ? 'Posting...' : 'Publish story'}</span>
@@ -406,31 +406,31 @@ export default function Stories({ userId, onStartConversation }) {
       )}
 
       <div className="px-4 py-5 sm:px-5 space-y-6 pb-[calc(env(safe-area-inset-bottom)+7rem)] md:pb-8">
-        <section className="rounded-[28px] border border-qc-border bg-qc-surface p-4 shadow-sm">
+        <section className="rounded-[28px] border border-white/8 bg-[rgba(255,255,255,0.03)] p-4 shadow-sm">
           <div className="flex items-center justify-between gap-4 mb-4">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Your lane</p>
-              <h3 className="text-lg font-semibold text-qc-text-primary mt-1">Post or review your daily drop</h3>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-white/36">Your lane</p>
+              <h3 className="text-lg font-semibold text-white/88 mt-1">Post or review your daily drop</h3>
             </div>
-            <div className="rounded-full border border-qc-border bg-qc-surface-hover px-3 py-1 text-xs text-qc-text-secondary">
+            <div className="rounded-full border border-white/8 bg-white/5 px-3 py-1 text-xs text-white/50">
               {myStoryGroup?.stories?.length || 0} active
             </div>
           </div>
 
           <button
             data-testid="story-add-card-button"
-            className="w-full flex items-center gap-4 text-left bg-qc-surface-hover border border-qc-border rounded-[24px] p-4 hover:bg-qc-accent-tertiary transition-colors"
+            className="w-full flex items-center gap-4 text-left bg-white/5 border border-white/8 rounded-[24px] p-4 hover:bg-[rgba(79,140,255,0.10)] transition-colors"
             onClick={() => setShowComposer(true)}
           >
-            <div className="w-14 h-14 rounded-2xl bg-qc-highlight/20 flex items-center justify-center text-qc-accent-primary relative">
+            <div className="w-14 h-14 rounded-2xl bg-qc-highlight/20 flex items-center justify-center text-[#4f8cff] relative">
               <User size={20} />
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-qc-accent-primary text-white flex items-center justify-center border-2 border-qc-surface">
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#4f8cff] text-white flex items-center justify-center border-2 border-qc-surface">
                 <Plus size={14} />
               </div>
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-qc-text-primary text-sm font-medium">Add to your story</p>
-              <p className="text-qc-text-tertiary text-xs mt-1">
+              <p className="text-white/88 text-sm font-medium">Add to your story</p>
+              <p className="text-white/36 text-xs mt-1">
                 {myStoryGroup?.stories?.length > 0
                   ? `${myStoryGroup.stories.length} active update${myStoryGroup.stories.length > 1 ? 's' : ''}`
                   : 'Create a text story with your own color backdrop'}
@@ -443,10 +443,10 @@ export default function Stories({ userId, onStartConversation }) {
           <section>
             <div className="flex items-center justify-between gap-4 mb-4">
               <div>
-                <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Story rings</p>
-                <h3 className="text-lg font-semibold text-qc-text-primary mt-1">Watch creators at a glance</h3>
+                <p className="text-[10px] uppercase tracking-[0.22em] text-white/36">Story rings</p>
+                <h3 className="text-lg font-semibold text-white/88 mt-1">Watch creators at a glance</h3>
               </div>
-              <div className="rounded-full border border-qc-border bg-qc-surface px-3 py-1 text-xs text-qc-text-secondary">
+              <div className="rounded-full border border-white/8 bg-[rgba(255,255,255,0.03)] px-3 py-1 text-xs text-white/50">
                 Tap any card
               </div>
             </div>
@@ -467,17 +467,17 @@ export default function Stories({ userId, onStartConversation }) {
                   >
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-12 h-12 rounded-full p-[2px] bg-gradient-to-br from-qc-accent-primary via-qc-highlight to-[#8b5cf6]">
-                        <div className="w-full h-full rounded-full bg-qc-surface overflow-hidden flex items-center justify-center">
+                        <div className="w-full h-full rounded-full bg-[rgba(255,255,255,0.03)] overflow-hidden flex items-center justify-center">
                           {group.user_avatar ? (
                             <img src={group.user_avatar} alt="" className="w-full h-full object-cover" />
                           ) : (
-                            <User size={16} className="text-qc-text-secondary" />
+                            <User size={16} className="text-white/50" />
                           )}
                         </div>
                       </div>
                       <div className="min-w-0">
-                        <p className="text-qc-text-primary text-sm font-medium truncate">{group.user_name || 'Unknown'}</p>
-                        <p className="text-qc-text-tertiary text-[11px]">
+                        <p className="text-white/88 text-sm font-medium truncate">{group.user_name || 'Unknown'}</p>
+                        <p className="text-white/36 text-[11px]">
                           {group.stories?.length || 0} snap{(group.stories?.length || 0) === 1 ? '' : 's'}
                         </p>
                       </div>
@@ -502,23 +502,23 @@ export default function Stories({ userId, onStartConversation }) {
         <section>
           <div className="flex items-center justify-between gap-4 mb-4">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.22em] text-qc-text-tertiary">Timeline</p>
-              <h3 className="text-lg font-semibold text-qc-text-primary mt-1">Recent story updates</h3>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-white/36">Timeline</p>
+              <h3 className="text-lg font-semibold text-white/88 mt-1">Recent story updates</h3>
             </div>
-            <div className="rounded-full border border-qc-border bg-qc-surface px-3 py-1 text-xs text-qc-text-secondary flex items-center gap-2">
+            <div className="rounded-full border border-white/8 bg-[rgba(255,255,255,0.03)] px-3 py-1 text-xs text-white/50 flex items-center gap-2">
               <Clock3 size={12} />
               <span>24h shelf</span>
             </div>
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center py-16 text-qc-text-secondary">
+            <div className="flex items-center justify-center py-16 text-white/50">
               <Loader className="animate-spin" size={18} />
             </div>
           ) : timelineStories.length === 0 ? (
-            <div className="rounded-[28px] border border-dashed border-qc-border bg-qc-surface px-6 py-16 text-center">
-              <p className="text-qc-text-primary text-base font-medium">No stories yet</p>
-              <p className="text-qc-text-secondary text-sm mt-2">Post the first update and this timeline will start feeling alive.</p>
+            <div className="rounded-[28px] border border-dashed border-white/8 bg-[rgba(255,255,255,0.03)] px-6 py-16 text-center">
+              <p className="text-white/88 text-base font-medium">No stories yet</p>
+              <p className="text-white/50 text-sm mt-2">Post the first update and this timeline will start feeling alive.</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -537,18 +537,18 @@ export default function Stories({ userId, onStartConversation }) {
                           {story.user_avatar ? (
                             <img src={story.user_avatar} alt="" className="w-full h-full object-cover" />
                           ) : (
-                            <User size={14} className="text-qc-text-secondary" />
+                            <User size={14} className="text-white/50" />
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-qc-text-primary text-sm truncate">{story.user_name || 'Unknown'}</p>
-                          <p className="text-qc-text-tertiary text-[11px]">
+                          <p className="text-white/88 text-sm truncate">{story.user_name || 'Unknown'}</p>
+                          <p className="text-white/36 text-[11px]">
                             {formatDistanceToNow(new Date(story.created_at), { addSuffix: true })}
                           </p>
                         </div>
                       </div>
 
-                      <div className="text-[11px] uppercase tracking-[0.22em] text-qc-text-tertiary">View</div>
+                      <div className="text-[11px] uppercase tracking-[0.22em] text-white/36">View</div>
                     </div>
 
                     <div className="min-h-[220px] p-6 flex flex-col items-start justify-between text-left text-white" style={{ background: `linear-gradient(165deg, ${payload.bg || COLORS[0]}, rgba(3,7,18,0.22))` }}>
