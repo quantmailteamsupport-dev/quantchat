@@ -12,7 +12,9 @@ deploys via GitHub Actions, set every secret below under:
 |---|---|
 | `EC2_HOST` | Public IP or DNS of the target EC2 instance. Output from `terraform apply`. |
 | `EC2_USER` | SSH user on the EC2 instance (typically `ubuntu` or `ec2-user`). |
-| `EC2_SSH_KEY` | Private SSH key (PEM contents) matching the public key registered on the EC2 instance. |
+| `EC2_PASSWORD` | SSH password for `EC2_USER`. Used by the current `deploy.yml`. **Only works if password auth is enabled on the host** — see `deploy/aws/RUNBOOK.md`. |
+| `EC2_SSH_KEY` | *(Alternative to `EC2_PASSWORD`)* Private SSH key (PEM contents) matching the public key registered on the EC2 instance. To switch back to key auth, change `password:` to `key:` in `.github/workflows/deploy.yml`. |
+| `EC2_PORT` | *(Optional)* SSH port. Defaults to `22`. |
 | `DB_PASSWORD` | PostgreSQL password used by docker-compose on the host. |
 | `REDIS_PASSWORD` | Redis password used by docker-compose on the host. |
 | `JWT_SECRET` | Long random string used to sign JWTs. Generate with `openssl rand -hex 32`. |
