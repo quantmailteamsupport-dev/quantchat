@@ -26,7 +26,7 @@ import ChatRail from "@/components/ChatRail";
 import ChatDetails from "@/components/ChatDetails";
 import ServersSidebar from "@/components/ServersSidebar";
 import ChillRoomModal from "@/components/ChillRoomModal";
-import { ContactAvatar } from "@/components/qc-shared";
+import { ContactAvatar, Icon } from "@/components/qc-shared";
 import { DeliveryStatusBadge, MessageReactions } from "@/components/MessageMeta";
 import SpoilerShieldText, {
   encodeSpoilerShieldText,
@@ -452,15 +452,26 @@ function ContactList({
 
       {/* Empty state */}
       {contacts.length === 0 && (
-        <div style={{
+        <div data-testid="chat-list-empty-state" style={{
           flex: 1, display: "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center", gap: 12,
-          color: "var(--qc-ink-4)",
+          padding: "40px 24px",
+          color: "var(--qc-ink-3)",
+          textAlign: "center",
         }}>
-          <div style={{ fontSize: 48 }}>💬</div>
-          <span style={{ fontSize: 15, fontFamily: "-apple-system,sans-serif" }}>
-            No chats yet. Start a conversation.
-          </span>
+          <div aria-hidden="true" style={{
+            width: 56, height: 56, borderRadius: 14, display: "grid", placeItems: "center",
+            background: "var(--qc-accent-bg)", color: "var(--qc-accent)",
+            border: "1px solid var(--qc-accent-line)",
+          }}>
+            <Icon name="users" size={24} />
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--qc-ink)" }}>
+            No conversations yet
+          </div>
+          <div style={{ fontSize: 12, lineHeight: 1.5, maxWidth: 280 }}>
+            Once you connect with someone, your encrypted threads will land here.
+          </div>
         </div>
       )}
       {contacts.length > 0 && filtered.length === 0 && (
@@ -684,6 +695,17 @@ function ChatConversation({
     }
   }, [contact.id, input, myUserId, sendEncryptedMessage, sendTyping, spoilerShieldEnabled, spoilerShieldMode]);
 
+  const handleRetry = useCallback(async (failedMessage: ChatMessage) => {
+    const { updateMessageStatus } = await import("@/lib/useChatDB");
+    await updateMessageStatus(failedMessage.id, "sending");
+    try {
+      await sendEncryptedMessage(contact.id, failedMessage.text);
+      await updateMessageStatus(failedMessage.id, "sent");
+    } catch {
+      await updateMessageStatus(failedMessage.id, "failed");
+    }
+  }, [contact.id, sendEncryptedMessage]);
+
   const ATTACH_ITEMS = [
     { emoji: "IMG", label: "Gallery", color: "#7B5EA7" },
     { emoji: "CAM", label: "Camera", color: "#E53935" },
@@ -867,11 +889,25 @@ function ChatConversation({
       }}>
         {messages.length === 0 && (
           <div className="qc-chat-empty-state" data-testid="chat-empty-state" style={{
-            flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#52525B", fontSize: 13, fontFamily: "var(--qc-font-ui)",
-            padding: "60px 20px", textAlign: "center",
+            flex: 1, display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center",
+            color: "var(--qc-ink-3)", fontSize: 13, fontFamily: "var(--qc-font-ui)",
+            padding: "60px 20px", textAlign: "center", gap: 14, maxWidth: 380, margin: "0 auto",
           }}>
-            Messages are E2EE — only you and {contact.name} can read them.
+            <div aria-hidden="true" style={{
+              width: 56, height: 56, borderRadius: 14, display: "grid", placeItems: "center",
+              background: "var(--qc-accent-bg)", color: "var(--qc-accent)",
+              border: "1px solid var(--qc-accent-line)",
+            }}>
+              <Icon name="shield-check" size={26} />
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--qc-ink)" }}>
+              Start of your conversation with {contact.name}
+            </div>
+            <div style={{ fontSize: 12, lineHeight: 1.6, color: "var(--qc-ink-3)" }}>
+              Messages are end-to-end encrypted — only you and {contact.name} can read them.
+              Say hi to break the silence.
+            </div>
           </div>
         )}
         {messages.map((msg) => (
@@ -883,6 +919,7 @@ function ChatConversation({
             readReceiptsEnabled={readReceiptsEnabled}
             readReceiptMode={readReceiptMode}
             compactLayout={compactLayout}
+            onRetry={msg.status === "failed" ? () => handleRetry(msg) : undefined}
           />
         ))}
         <div ref={bottomRef} />
@@ -1112,6 +1149,7 @@ function MessageBubble({
   readReceiptsEnabled,
   readReceiptMode,
   compactLayout,
+  onRetry,
 }: {
   msg: ChatMessage;
   isMine: boolean;
@@ -1119,6 +1157,7 @@ function MessageBubble({
   readReceiptsEnabled: boolean;
   readReceiptMode: ReadReceiptMode;
   compactLayout: boolean;
+  onRetry?: () => void;
 }) {
   const text = typeof msg.text === "string" ? msg.text : "";
   const isAiReply = text.trim().startsWith("AI:") || text.trim().startsWith("[AI]");
@@ -1209,6 +1248,28 @@ function MessageBubble({
             )}
           </div>
         </div>
+        {msg.status === "failed" && onRetry && (
+          <div style={{
+            display: "flex", justifyContent: isMine ? "flex-end" : "flex-start",
+            marginTop: 4,
+          }}>
+            <button
+              type="button"
+              onClick={onRetry}
+              className="qc-btn qc-btn-ghost qc-btn-sm"
+              data-testid="chat-message-retry-button"
+              aria-label="Retry sending message"
+              style={{
+                color: "var(--qc-warn, #ff5722)",
+                fontSize: 11,
+                fontWeight: 700,
+                padding: "3px 8px",
+              }}
+            >
+              ↻ Retry
+            </button>
+          </div>
+        )}
       </div>
     </motion.div>
   );

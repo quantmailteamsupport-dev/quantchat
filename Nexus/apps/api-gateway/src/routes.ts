@@ -1507,7 +1507,9 @@ router.post(
   verifyQuantChatToken,
   (req: Request, res: Response) => {
     const user = req.user as { sub: string };
-    const result = toggleFeedLike(user.sub, req.params.id);
+    const itemId = normalizeOptionalString(req.params.id as string, 128);
+    if (!itemId) { res.status(400).json({ error: "Invalid id" }); return; }
+    const result = toggleFeedLike(user.sub, itemId);
     if (!result) {
       res.status(404).json({ error: "Feed item not found" });
       return;
@@ -1522,12 +1524,55 @@ router.post(
   verifyQuantChatToken,
   (req: Request, res: Response) => {
     const user = req.user as { sub: string };
-    const result = toggleReelLike(user.sub, req.params.id);
+    const itemId = normalizeOptionalString(req.params.id as string, 128);
+    if (!itemId) { res.status(400).json({ error: "Invalid id" }); return; }
+    const result = toggleReelLike(user.sub, itemId);
     if (!result) {
       res.status(404).json({ error: "Reel not found" });
       return;
     }
     res.json(result);
+  },
+);
+
+// ─── Notifications ──────────────────────────────────────────────────────────
+
+import {
+  listNotifications,
+  unreadCount,
+  markRead,
+  markAllRead,
+} from "./services/NotificationStore";
+
+router.get(
+  "/api/notifications",
+  restRateLimit,
+  (_req: Request, res: Response): void => {
+    const items = listNotifications();
+    res.json({ items, unread: unreadCount() });
+  },
+);
+
+router.post(
+  "/api/notifications/read-all",
+  restRateLimit,
+  verifyQuantChatToken,
+  (_req: Request, res: Response): void => {
+    const count = markAllRead();
+    res.json({ marked: count });
+  },
+);
+
+router.post(
+  "/api/notifications/:id/read",
+  restRateLimit,
+  verifyQuantChatToken,
+  (req: Request, res: Response): void => {
+    const notifId = normalizeOptionalString(req.params.id as string, 128);
+    if (!notifId) { res.status(400).json({ error: "Invalid id" }); return; }
+    const ok = markRead(notifId);
+    if (!ok) { res.status(404).json({ error: "Notification not found" }); return; }
+    res.json({ ok: true });
   },
 );
 

@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build (turbo)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: Nexus/package-lock.json
+
+      - name: Install dependencies
+        working-directory: Nexus
+        run: npm ci --no-audit --no-fund
+
+      - name: Generate Prisma client
+        working-directory: Nexus/packages/database
+        run: npx prisma generate
+
+      - name: Build all workspaces
+        working-directory: Nexus
+        run: npm run build
+
+  api-tests:
+    name: API gateway tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: Nexus/package-lock.json
+
+      - name: Install dependencies
+        working-directory: Nexus
+        run: npm ci --no-audit --no-fund
+
+      - name: Generate Prisma client
+        working-directory: Nexus/packages/database
+        run: npx prisma generate
+
+      - name: Run api-gateway tests if any
+        working-directory: Nexus
+        run: |
+          if npm run --workspace @repo/api-gateway 2>/dev/null | grep -q "^  test"; then
+            npm test --workspace @repo/api-gateway
+          else
+            echo "No test script defined for @repo/api-gateway, skipping."
+          fi
