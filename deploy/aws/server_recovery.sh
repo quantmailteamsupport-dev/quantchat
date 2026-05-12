@@ -1,6 +1,8 @@
 #!/bin/bash
-# QuantChat Server Recovery Script
-# Run on EC2: bash server_recovery.sh
+# LEGACY QuantChat Server Recovery Script — for the systemd + venv deploy that
+# predates the Docker-based pipeline. For the current Docker deploy, use
+# recover.sh in this directory instead. This script is kept for hosts still
+# running the old deploy.
 set -e
 
 EC2_REPO="/home/ubuntu/quantchat"

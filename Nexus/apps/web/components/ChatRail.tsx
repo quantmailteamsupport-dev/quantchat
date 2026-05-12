@@ -1,8 +1,21 @@
 "use client";
 import React from "react";
+import Link from "next/link";
 import { Icon, Avatar } from "./qc-shared";
+import { useNotifications } from "@/lib/useNotifications";
 
 export default function ChatRail({ activeId }: { activeId?: string }) {
+  const { unread } = useNotifications();
+
+  const navItems = [
+    { id: "chats",         label: "Chats",         icon: "users",        badge: 4,      href: "/chat" },
+    { id: "notifications", label: "Notifications",  icon: "bell",         badge: unread || undefined, href: "/notifications" },
+    { id: "calls",         label: "Calls",          icon: "phone",        href: "/call" },
+    { id: "vault",         label: "Vault",          icon: "shield" },
+    { id: "devices",       label: "Devices",        icon: "device-phone", badge: "1",   href: "/settings/devices" },
+    { id: "settings",      label: "Settings",       icon: "settings",     href: "/settings" },
+  ] as const;
+
   return (
     <aside style={{
       borderRight: "1px solid var(--qc-line)",
@@ -20,31 +33,50 @@ export default function ChatRail({ activeId }: { activeId?: string }) {
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {[
-          { id: "chats",    label: "Chats",         icon: "users",    badge: 4, active: true },
-          { id: "calls",    label: "Calls",         icon: "phone" },
-          { id: "vault",    label: "Vault",         icon: "shield" },
-          { id: "devices",  label: "Devices",       icon: "device-phone", badge: "1" },
-          { id: "settings", label: "Settings",      icon: "settings" },
-        ].map(item => (
-          <button key={item.id} className="qc-btn qc-btn-ghost" style={{
-            justifyContent: "flex-start", width: "100%",
-            background: item.active ? "var(--qc-bg-3)" : "transparent",
-            color: item.active ? "var(--qc-ink)" : "var(--qc-ink-2)",
-            fontWeight: item.active ? 600 : 500,
-            padding: "7px 10px",
-          }}>
-            <Icon name={item.icon} size={14}/>
-            <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>
-            {item.badge && <span style={{
-              background: item.id === "devices" ? "var(--qc-warn-bg)" : "var(--qc-bg)",
-              color: item.id === "devices" ? "var(--qc-warn)" : "var(--qc-ink-3)",
-              border: `1px solid ${item.id === "devices" ? "oklch(from var(--qc-warn) 0.85 0.08 h)" : "var(--qc-line)"}`,
-              borderRadius: 999, fontSize: 9.5, fontWeight: 700,
-              padding: "1px 6px", letterSpacing: "0.02em",
-            }}>{item.badge}</span>}
-          </button>
-        ))}
+        {navItems.map((item) => {
+          const isActive = item.id === (activeId ?? "chats");
+          const isNotifItem = item.id === "notifications";
+          const btn = (
+            <button key={item.id} className="qc-btn qc-btn-ghost" style={{
+              justifyContent: "flex-start", width: "100%",
+              background: isActive ? "var(--qc-bg-3)" : "transparent",
+              color: isActive ? "var(--qc-ink)" : "var(--qc-ink-2)",
+              fontWeight: isActive ? 600 : 500,
+              padding: "7px 10px",
+            }}>
+              <Icon name={item.icon} size={14}/>
+              <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>
+              {"badge" in item && item.badge ? (
+                <span style={{
+                  background: item.id === "devices"
+                    ? "var(--qc-warn-bg)"
+                    : isNotifItem
+                      ? "rgba(109,74,255,0.9)"
+                      : "var(--qc-bg)",
+                  color: item.id === "devices"
+                    ? "var(--qc-warn)"
+                    : isNotifItem
+                      ? "#fff"
+                      : "var(--qc-ink-3)",
+                  border: `1px solid ${
+                    item.id === "devices"
+                      ? "oklch(from var(--qc-warn) 0.85 0.08 h)"
+                      : isNotifItem
+                        ? "rgba(109,74,255,0.5)"
+                        : "var(--qc-line)"
+                  }`,
+                  borderRadius: 999, fontSize: 9.5, fontWeight: 700,
+                  padding: "1px 6px", letterSpacing: "0.02em",
+                }}>{item.badge}</span>
+              ) : null}
+            </button>
+          );
+          return "href" in item && item.href ? (
+            <Link key={item.id} href={item.href} style={{ textDecoration: "none" }}>
+              {btn}
+            </Link>
+          ) : btn;
+        })}
       </div>
 
       <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
@@ -65,10 +97,24 @@ export default function ChatRail({ activeId }: { activeId?: string }) {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Avatar contact={{ id: "you", name: "You Alvarez", avatarLetter: "Y" }} size={28}/>
+          {/* Own avatar with online presence dot */}
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <Avatar contact={{ id: "you", name: "You Alvarez", avatarLetter: "Y" }} size={28}/>
+            <div style={{
+              position: "absolute",
+              bottom: 0,
+              right: -1,
+              width: 9,
+              height: 9,
+              borderRadius: "50%",
+              background: "#22c55e",
+              border: "2px solid var(--qc-bg-2)",
+              boxShadow: "0 0 4px rgba(34,197,94,0.7)",
+            }} />
+          </div>
           <div style={{ flex: 1, fontSize: 12, lineHeight: 1.2 }}>
             <div style={{ fontWeight: 600 }}>You Alvarez</div>
-            <div style={{ color: "var(--qc-ink-3)", fontSize: 10 }} className="mono">@you · vol-desk</div>
+            <div style={{ color: "var(--qc-ink-3)", fontSize: 10 }} className="mono">@you · Online</div>
           </div>
           <button className="qc-btn qc-btn-ghost" style={{ padding: 6 }}><Icon name="more" size={14}/></button>
         </div>

@@ -1,54 +1,130 @@
-name: Build & Deploy to EC2
+name: Build & Deploy
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/api-gateway
+
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node 18
-        uses: actions/setup-node@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm install --legacy-peer-deps
+      - name: Compute image tag
+        id: meta
+        run: |
+          echo "tag=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
-      - name: Build frontend
-        working-directory: frontend
-        run: CI=false npm run build
-        env:
-          NODE_OPTIONS: '--max-old-space-size=1024'
+      - name: Build & push api-gateway image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infra/docker/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Deploy to EC2
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Copy compose + nginx config to host
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
+          username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "frontend/build/*"
-          target: "/var/www/quantchat/build"
-          strip_components: 2
+          source: "infra/docker/docker-compose.yml,deploy/aws/quantchat-nginx.conf"
+          target: "/opt/quantchat"
 
-      - name: Reload nginx & restart backend
+      - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
+          username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            sudo systemctl reload nginx
-            sudo systemctl restart quantchat-backend
-            echo "Deploy complete at $(date)"
-            curl -s -o /dev/null -w "Health: HTTP %{http_code}" http://localhost/
+            set -eux
+            cd /opt/quantchat
+
+            cat > .env <<'ENVEOF'
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
+            NEXTAUTH_URL=https://${{ secrets.EC2_HOST }}
+            ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
+            ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
+            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+            FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
+            FIREBASE_WEB_API_KEY=${{ secrets.FIREBASE_WEB_API_KEY }}
+            FIREBASE_SERVICE_ACCOUNT_JSON=${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+            AWS_REGION=${{ secrets.AWS_REGION }}
+            LOG_LEVEL=info
+            ENVEOF
+            chmod 600 .env
+
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker pull ${{ needs.build.outputs.image_tag }}
+
+            # Use the prebuilt image instead of building on the host
+            sed -i 's|build:.*||' docker-compose.yml || true
+            export API_GATEWAY_IMAGE='${{ needs.build.outputs.image_tag }}'
+
+            docker compose -f docker-compose.yml down || true
+            docker compose -f docker-compose.yml up -d
+            docker compose ps
+
+      - name: Health check
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -eux
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              if curl -fsS http://localhost:3000/healthz >/dev/null; then
+                echo "API gateway healthy"
+                exit 0
+              fi
+              sleep 5
+            done
+            echo "Healthcheck failed after 50s"
+            docker compose -f /opt/quantchat/docker-compose.yml logs --tail=100 api-gateway
+            exit 1

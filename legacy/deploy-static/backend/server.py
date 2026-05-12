@@ -165,7 +165,9 @@ async def startup():
 
 async def seed_admin():
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@quantchat.com")
-    admin_password = os.environ.get("ADMIN_PASSWORD", "QuantChat@2026")
+    admin_password = os.environ.get("ADMIN_PASSWORD")
+    if not admin_password:
+        raise RuntimeError("ADMIN_PASSWORD environment variable is required")
     existing = await db.users.find_one({"email": admin_email})
     if not existing:
         await db.users.insert_one({
