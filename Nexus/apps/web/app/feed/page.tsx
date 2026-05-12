@@ -13,7 +13,7 @@
  *  - Pitch-black glassmorphic UI with Framer Motion
  */
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import AICamera from "@/components/AICamera";
@@ -21,6 +21,7 @@ import ConversationHandoffPanel, { type HandoffPreview } from "@/components/Conv
 import SurfaceSwitchRail from "@/components/SurfaceSwitchRail";
 import { useFrontendPreferences, type ReadReceiptMode } from "@/lib/useFrontendPreferences";
 import type { MessageStatus } from "@/lib/db";
+import { useFeed, formatCount, type FeedItem as ApiFeedItem } from "@/lib/feed";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -41,67 +42,34 @@ interface FeedItem {
   following: boolean;
   isNew?: boolean;
   snapExpiry?: number; // seconds before snap disappears
+  liked?: boolean;
 }
 
-// ─── Feed data ────────────────────────────────────────────────────
+function adaptApiFeedItem(item: ApiFeedItem): FeedItem {
+  return {
+    id: item.id,
+    type: item.type === "story" ? "story" : item.type,
+    username: item.username,
+    handle: item.handle,
+    caption: item.caption,
+    song: item.song,
+    likes: formatCount(item.likes),
+    comments: formatCount(item.comments),
+    shares: formatCount(item.shares),
+    avatarColor: item.avatarColor,
+    avatarLetter: item.avatarLetter,
+    bg: item.bg,
+    neonAccent: item.neonAccent,
+    following: item.following,
+    isNew: item.isNew,
+    snapExpiry: item.snapExpiry,
+    liked: item.liked,
+  };
+}
 
-const FEED_ITEMS: FeedItem[] = [
-  {
-    id: "f1", type: "snap",
-    username: "Riya Kapoor", handle: "riya.k",
-    caption: "Living in 2030 while others are stuck in 2024 🚀✨",
-    likes: "2.1K", comments: "84", shares: "312",
-    avatarColor: "#e91e8c", avatarLetter: "R",
-    bg: "radial-gradient(ellipse at 30% 20%, #e91e8c28, transparent 55%), radial-gradient(ellipse at 70% 80%, #6d4aff20, transparent 60%), #000",
-    neonAccent: "#e91e8c",
-    following: true,
-    isNew: true, snapExpiry: 24,
-  },
-  {
-    id: "f2", type: "reel",
-    username: "Aryan Nexus", handle: "aryan.builds",
-    caption: "Shipped the BCI typing module in QuantChat 🧠⚡ Tab to accept AI ghost text. The future is HERE.",
-    song: "Kesariya — Arijit Singh",
-    likes: "8.7K", comments: "1.2K", shares: "940",
-    avatarColor: "#6d4aff", avatarLetter: "A",
-    bg: "radial-gradient(ellipse at 20% 70%, #6d4aff28, transparent 60%), radial-gradient(ellipse at 80% 20%, #00f5ff18, transparent 55%), #000",
-    neonAccent: "#6d4aff",
-    following: false,
-  },
-  {
-    id: "f3", type: "reel",
-    username: "Noor AI Twin", handle: "noor.twin",
-    caption: "My offline AI Avatar replied to 23 messages while I slept 😂 This is insane. #QuantChat",
-    song: "Original Sound — Noor",
-    likes: "22.3K", comments: "750", shares: "2.5K",
-    avatarColor: "#00897b", avatarLetter: "N",
-    bg: "radial-gradient(ellipse at 60% 80%, #00897b28, transparent 55%), radial-gradient(ellipse at 20% 20%, #bf5af218, transparent 50%), #000",
-    neonAccent: "#00f5ff",
-    following: true,
-  },
-  {
-    id: "f4", type: "snap",
-    username: "Dev Singh", handle: "dev.s",
-    caption: "Family group with AI Strict Mode = pure bliss. No more good morning spam. 🙏",
-    likes: "4.0K", comments: "210", shares: "880",
-    avatarColor: "#ff6b35", avatarLetter: "D",
-    bg: "radial-gradient(ellipse at 75% 25%, #ff6b3525, transparent 55%), radial-gradient(ellipse at 25% 75%, #bf5af215, transparent 50%), #000",
-    neonAccent: "#ff6b35",
-    following: false,
-    isNew: true, snapExpiry: 8,
-  },
-  {
-    id: "f5", type: "reel",
-    username: "Priya Creates", handle: "priya.creates",
-    caption: "POV: AI camera filter — typed 'Make me look like a neon warrior' and this happened 🤯 #QuantSnap",
-    song: "Raataan Lambiyan — Jubin Nautiyal",
-    likes: "1.6K", comments: "27", shares: "431",
-    avatarColor: "#0288b0", avatarLetter: "P",
-    bg: "radial-gradient(ellipse at 40% 60%, #0288b028, transparent 55%), radial-gradient(ellipse at 80% 10%, #39ff1412, transparent 50%), #000",
-    neonAccent: "#00f5ff",
-    following: false,
-  },
-];
+// Feed items are fetched from /api/feed via useFeed() inside SwipeDownFeed.
+// The previous hardcoded FEED_ITEMS array was migrated to the API-backed
+// store at apps/api-gateway/src/services/FeedStore.ts.
 
 type HandoffTarget = "chat" | "channel" | "call";
 
@@ -214,8 +182,7 @@ function EngBtn({
 
 // ─── Single Feed Card ────────────────────────────────────────────
 
-function FeedCard({ item, isActive }: { item: FeedItem; isActive: boolean }) {
-  const [liked, setLiked] = useState(false);
+function FeedCard({ item, isActive, onLike }: { item: FeedItem; isActive: boolean; onLike?: () => void }) {
   const [following, setFollowing] = useState(item.following);
   const [snapViewed, setSnapViewed] = useState(false);
 
@@ -343,7 +310,33 @@ function FeedCard({ item, isActive }: { item: FeedItem; isActive: boolean }) {
             </motion.div>
           )}
         </div>
-        <EngBtn icon={liked ? "❤️" : "🤍"} count={item.likes} active={liked} onTap={() => setLiked((l) => !l)} />
+        <button
+          onClick={onLike}
+          style={{
+            display: "flex", flexDirection: "column", alignItems: "center",
+            gap: 3, background: "none", border: "none", cursor: "pointer", padding: "4px 0",
+          }}
+        >
+          <motion.span
+            whileTap={{ scale: 1.35 }}
+            style={{
+              fontSize: 26, display: "block",
+              filter: item.liked
+                ? "drop-shadow(0 0 6px rgba(255,45,120,0.95))"
+                : "drop-shadow(0 0 3px rgba(255,255,255,0.25))",
+              transition: "filter 0.15s",
+            }}
+          >
+            {item.liked ? "❤️" : "🤍"}
+          </motion.span>
+          <span style={{
+            fontSize: 11, fontWeight: 700,
+            color: item.liked ? "#ff2d78" : "rgba(255,255,255,0.9)",
+            fontFamily: "Inter, sans-serif",
+          }}>
+            {item.likes}
+          </span>
+        </button>
         <EngBtn icon="💬" count={item.comments} />
         <EngBtn icon="🔁" count={item.shares} />
         <EngBtn icon="📨" count="" />
@@ -449,20 +442,51 @@ interface SwipeDownFeedProps {
   onClose?: () => void;
 }
 
+const PLACEHOLDER_FEED_ITEM: FeedItem = {
+  id: "__placeholder__",
+  type: "snap",
+  username: "",
+  handle: "",
+  caption: "",
+  likes: "0",
+  comments: "0",
+  shares: "0",
+  avatarColor: "#222",
+  avatarLetter: "?",
+  bg: "#000",
+  neonAccent: "#00f5ff",
+  following: false,
+};
+
 export function SwipeDownFeed({ onClose }: SwipeDownFeedProps) {
   const router = useRouter();
   const { preferences } = useFrontendPreferences();
+  const { data: apiItems, loading, error, toggleLike } = useFeed();
+  const FEED_ITEMS = useMemo(() => apiItems.map(adaptApiFeedItem), [apiItems]);
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showCamera, setShowCamera] = useState(false);
   const [handoffDraft, setHandoffDraft] = useState("");
-  const [handoffPreview, setHandoffPreview] = useState<HandoffPreview>(() =>
-    buildHandoffPreview(FEED_ITEMS[0]!, "chat", true, "instant"),
-  );
+  const [handoffPreview, setHandoffPreview] = useState<HandoffPreview | null>(null);
   const startY = useRef(0);
   const isDragging = useRef(false);
   const lastNavigationAtRef = useRef(0);
 
-  const currentItem = FEED_ITEMS[currentIndex]!;
+  // Initialize handoff preview once data has loaded.
+  useEffect(() => {
+    if (!handoffPreview && FEED_ITEMS[0]) {
+      setHandoffPreview(buildHandoffPreview(FEED_ITEMS[0], "chat", true, "instant"));
+    }
+  }, [FEED_ITEMS, handoffPreview]);
+
+  // Clamp the index if the feed shrinks under us.
+  useEffect(() => {
+    if (FEED_ITEMS.length > 0 && currentIndex >= FEED_ITEMS.length) {
+      setCurrentIndex(FEED_ITEMS.length - 1);
+    }
+  }, [FEED_ITEMS.length, currentIndex]);
+
+  const currentItem = FEED_ITEMS[currentIndex] ?? PLACEHOLDER_FEED_ITEM;
   const channelHref = resolveChannelHref(currentItem);
   const callHref = `/call/${encodeURIComponent(currentItem.handle)}?name=${encodeURIComponent(currentItem.username)}`;
   const compactLayout = preferences.compactChatLayout;
@@ -517,10 +541,11 @@ export function SwipeDownFeed({ onClose }: SwipeDownFeedProps) {
   }, [moveFeed]);
 
   useEffect(() => {
-    setHandoffPreview((existing) => ({
-      ...existing,
-      status: makeDeliveryStatus(preferences.readReceiptsEnabled, preferences.readReceiptMode),
-    }));
+    setHandoffPreview((existing) =>
+      existing === null
+        ? null
+        : { ...existing, status: makeDeliveryStatus(preferences.readReceiptsEnabled, preferences.readReceiptMode) },
+    );
   }, [preferences.readReceiptMode, preferences.readReceiptsEnabled]);
 
   const shareToSurface = useCallback((target: HandoffTarget) => {
@@ -548,6 +573,52 @@ export function SwipeDownFeed({ onClose }: SwipeDownFeedProps) {
     );
   }
 
+  if (loading && FEED_ITEMS.length === 0) {
+    return (
+      <div style={{ width: "100%", height: "100%", background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <motion.div
+          animate={{ opacity: [0.3, 0.7, 0.3] }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <span style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", fontFamily: "Inter, sans-serif" }}>
+            Loading feed…
+          </span>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ width: "100%", height: "100%", background: "#000", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+        <span style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", fontFamily: "Inter, sans-serif" }}>
+          Couldn't load feed
+        </span>
+        <button
+          onClick={() => window.location.reload()}
+          style={{
+            background: "rgba(109,74,255,0.2)", border: "1px solid rgba(109,74,255,0.5)",
+            borderRadius: 20, padding: "8px 20px",
+            color: "#bf5af2", fontSize: 13, fontFamily: "Inter, sans-serif", cursor: "pointer",
+          }}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (!loading && FEED_ITEMS.length === 0) {
+    return (
+      <div style={{ width: "100%", height: "100%", background: "#000", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+        <span style={{ fontSize: 32 }}>📭</span>
+        <span style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", fontFamily: "Inter, sans-serif" }}>
+          Nothing in your feed yet
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div
       onTouchStart={onTouchStart}
@@ -569,7 +640,7 @@ export function SwipeDownFeed({ onClose }: SwipeDownFeedProps) {
           exit={{ y: "-100%", opacity: 0.5 }}
           transition={{ type: "spring", stiffness: 300, damping: 32 }}
         >
-          <FeedCard item={currentItem} isActive={true} />
+          <FeedCard item={currentItem} isActive={true} onLike={() => toggleLike(currentItem.id)} />
         </motion.div>
       </AnimatePresence>
 
@@ -683,7 +754,7 @@ export function SwipeDownFeed({ onClose }: SwipeDownFeedProps) {
         <ConversationHandoffPanel
           title="Conversation Handoff"
           subtitle="Share this moment into chat, channels, or a live call with consistent receipts."
-          preview={handoffPreview}
+          preview={handoffPreview ?? buildHandoffPreview(currentItem, "chat", preferences.readReceiptsEnabled, preferences.readReceiptMode)}
           reactionsEnabled={preferences.reactionsEnabled}
           readReceiptsEnabled={preferences.readReceiptsEnabled}
           readReceiptMode={preferences.readReceiptMode}

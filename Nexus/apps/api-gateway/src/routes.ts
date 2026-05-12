@@ -43,6 +43,12 @@ import {
   ScheduledMessageValidationError,
 } from "./services/ScheduledMessageQueue";
 import { sessionController } from "./services/AuthoritativeSessionController";
+import {
+  listFeed,
+  listReels,
+  toggleFeedLike,
+  toggleReelLike,
+} from "./services/FeedStore";
 
 const router = Router();
 
@@ -1481,6 +1487,54 @@ router.get(
   }
 );
 
+// ─── Feed & Reels ────────────────────────────────────────────
+// Public list endpoints; like endpoints require a verified user.
+// Backed by an in-memory store (services/FeedStore.ts) until the Prisma
+// FeedPost / Reel models land.
+router.get("/api/feed", restRateLimit, (req: Request, res: Response) => {
+  const user = req.user as { sub: string } | undefined;
+  res.json({ items: listFeed(user?.sub) });
+});
+
+router.get("/api/reels", restRateLimit, (req: Request, res: Response) => {
+  const user = req.user as { sub: string } | undefined;
+  res.json({ items: listReels(user?.sub) });
+});
+
+router.post(
+  "/api/feed/:id/like",
+  restRateLimit,
+  verifyQuantChatToken,
+  (req: Request, res: Response) => {
+    const user = req.user as { sub: string };
+    const itemId = normalizeOptionalString(req.params.id as string, 128);
+    if (!itemId) { res.status(400).json({ error: "Invalid id" }); return; }
+    const result = toggleFeedLike(user.sub, itemId);
+    if (!result) {
+      res.status(404).json({ error: "Feed item not found" });
+      return;
+    }
+    res.json(result);
+  },
+);
+
+router.post(
+  "/api/reels/:id/like",
+  restRateLimit,
+  verifyQuantChatToken,
+  (req: Request, res: Response) => {
+    const user = req.user as { sub: string };
+    const itemId = normalizeOptionalString(req.params.id as string, 128);
+    if (!itemId) { res.status(400).json({ error: "Invalid id" }); return; }
+    const result = toggleReelLike(user.sub, itemId);
+    if (!result) {
+      res.status(404).json({ error: "Reel not found" });
+      return;
+    }
+    res.json(result);
+  },
+);
+
 // ─── Notifications ──────────────────────────────────────────────────────────
 
 import {
@@ -1514,7 +1568,9 @@ router.post(
   restRateLimit,
   verifyQuantChatToken,
   (req: Request, res: Response): void => {
-    const ok = markRead(req.params.id!);
+    const notifId = normalizeOptionalString(req.params.id as string, 128);
+    if (!notifId) { res.status(400).json({ error: "Invalid id" }); return; }
+    const ok = markRead(notifId);
     if (!ok) { res.status(404).json({ error: "Notification not found" }); return; }
     res.json({ ok: true });
   },
