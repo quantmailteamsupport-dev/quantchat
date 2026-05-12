@@ -1481,4 +1481,43 @@ router.get(
   }
 );
 
+// ─── Notifications ──────────────────────────────────────────────────────────
+
+import {
+  listNotifications,
+  unreadCount,
+  markRead,
+  markAllRead,
+} from "./services/NotificationStore";
+
+router.get(
+  "/api/notifications",
+  restRateLimit,
+  (_req: Request, res: Response): void => {
+    const items = listNotifications();
+    res.json({ items, unread: unreadCount() });
+  },
+);
+
+router.post(
+  "/api/notifications/read-all",
+  restRateLimit,
+  verifyQuantChatToken,
+  (_req: Request, res: Response): void => {
+    const count = markAllRead();
+    res.json({ marked: count });
+  },
+);
+
+router.post(
+  "/api/notifications/:id/read",
+  restRateLimit,
+  verifyQuantChatToken,
+  (req: Request, res: Response): void => {
+    const ok = markRead(req.params.id!);
+    if (!ok) { res.status(404).json({ error: "Notification not found" }); return; }
+    res.json({ ok: true });
+  },
+);
+
 export default router;
