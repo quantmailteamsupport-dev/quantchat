@@ -49,11 +49,13 @@ export default function ChatDetails({ contact }: { contact: any }) {
         </div>
       </Card>
 
-      <Card title="Shared" action={<button className="qc-btn qc-btn-ghost qc-btn-sm">all</button>}>
-        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
-          <div className="qc-placeholder" style={{ aspectRatio: "1" }}>file1.png</div>
-          <div className="qc-placeholder" style={{ aspectRatio: "1" }}>data.csv</div>
-          <div className="qc-placeholder" style={{ aspectRatio: "1" }}>doc.pdf</div>
+      <Card title="Shared media">
+        <div style={{ padding: "16px 14px", textAlign: "center", color: "var(--qc-ink-3)", fontSize: 12, lineHeight: 1.5 }}>
+          <Icon name="paperclip" size={20} />
+          <div style={{ marginTop: 6 }}>No shared files yet</div>
+          <div style={{ marginTop: 2, color: "var(--qc-ink-4)", fontSize: 11 }}>
+            Photos, docs and links you share here will appear in this list.
+          </div>
         </div>
       </Card>
 

@@ -627,7 +627,9 @@ async def startup():
 
 async def seed_admin():
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@quantchat.com")
-    admin_password = os.environ.get("ADMIN_PASSWORD", "QuantChat@2026")
+    admin_password = os.environ.get("ADMIN_PASSWORD")
+    if not admin_password:
+        raise RuntimeError("ADMIN_PASSWORD environment variable is required")
     existing = await db.users.find_one({"email": admin_email})
     if not existing:
         await db.users.insert_one({
@@ -900,7 +902,7 @@ async def request_phone_otp(body: PhoneOTPRequestBody):
         "created_at": datetime.now(timezone.utc),
         "provider": "firebase-demo-structure",
     })
-    return {"status": "otp_requested", "firebase_ready": False, "debug_code": code, "expires_in": 300}
+    return {"status": "otp_requested", "firebase_ready": False, "expires_in": 300}
 
 @fastapi_app.post("/api/auth/phone/verify")
 async def verify_phone_otp(body: PhoneOTPVerifyBody, response: Response):

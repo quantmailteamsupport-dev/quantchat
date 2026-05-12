@@ -8,11 +8,18 @@ scratch/
 
 .env
 .env.*
+!.env.example
 *.env
 credentials.json
 *.pem
 *.key
 .credentials
+backend/secrets/
+firebase-admin.json
+terraform.tfvars
+*.tfstate
+*.tfstate.backup
+.terraform/
 
 *.log
 npm-debug.log*

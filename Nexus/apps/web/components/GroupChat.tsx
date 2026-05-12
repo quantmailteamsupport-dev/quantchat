@@ -265,6 +265,9 @@ function MessageBubble({
 interface GroupChatProps {
   group?: GroupInfo;
   onBack?: () => void;
+  /** When true, seed the component with demo messages (for product previews / Storybook). */
+  demoMode?: boolean;
+  initialMessages?: GroupMessage[];
 }
 
 const DEFAULT_GROUP: GroupInfo = {
@@ -276,13 +279,14 @@ const DEFAULT_GROUP: GroupInfo = {
   avatarLetter: "C",
 };
 
-export default function GroupChat({ group = DEFAULT_GROUP, onBack }: GroupChatProps) {
+export default function GroupChat({ group = DEFAULT_GROUP, onBack, demoMode = false, initialMessages }: GroupChatProps) {
   const [activeTab, setActiveTab] = useState<"all" | "highlights" | "noise">("all");
   const [strictMode, setStrictMode] = useState(false);
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<GroupMessage[]>(() =>
-    DEMO_MESSAGES.map((m) => ({ ...m, category: classifyMessage(m.text) }))
-  );
+  const [messages, setMessages] = useState<GroupMessage[]>(() => {
+    const seed = initialMessages ?? (demoMode ? DEMO_MESSAGES : []);
+    return seed.map((m) => ({ ...m, category: classifyMessage(m.text) }));
+  });
   const [aiSorting, setAiSorting] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
 
