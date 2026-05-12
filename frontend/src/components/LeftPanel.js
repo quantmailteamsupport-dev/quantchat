@@ -286,8 +286,8 @@ export default function LeftPanel({
               <div className="mt-4 flex gap-3 overflow-x-auto hide-scrollbar">
                 {compactStories.map((group) => (
                   <button key={group.user_id} data-testid={`chat-story-circle-${group.user_id}`} onClick={() => onStartChat?.(group.user_id, `Saw your story`) } className="shrink-0 flex flex-col items-center gap-1.5 text-center">
-                    <div className="rounded-full p-[2px] bg-[linear-gradient(135deg,#ffe56a,#ff914d,#9f7aea)]">
-                      <div className="w-14 h-14 rounded-full bg-[#09111d] overflow-hidden flex items-center justify-center">
+                    <div className="story-ring">
+                      <div className="w-14 h-14 rounded-full bg-[#060810] overflow-hidden flex items-center justify-center">
                         {group.user_avatar ? <img src={group.user_avatar} alt="" className="w-full h-full object-cover" /> : <User size={16} className="text-qc-text-secondary" />}
                       </div>
                     </div>
@@ -305,8 +305,8 @@ export default function LeftPanel({
                   onClick={() => setChatFilter(filter.id)}
                   className={`shrink-0 inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm transition-all ${
                     chatFilter === filter.id
-                      ? 'bg-[#244463] text-[#66beff]'
-                      : 'bg-[#1a2734] text-qc-text-secondary'
+                      ? 'bg-[#4f8cff]/15 text-[#4f8cff] border border-[#4f8cff]/25'
+                      : 'bg-white/5 text-white/50 border border-white/8'
                   }`}
                 >
                   <span>{filter.label}</span>

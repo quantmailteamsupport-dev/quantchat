@@ -196,7 +196,7 @@ function MessageBubble({
       <div
         className={`max-w-[92%] sm:max-w-[72%] px-3 py-2 rounded-[22px] shadow-sm relative flex flex-col transition-all ${
           isPinned ? 'ring-2 ring-qc-accent-primary ring-offset-2 ring-offset-qc-bg' : ''
-        } ${isMine ? 'bg-qc-bubble-mine rounded-tr-md text-[#111B21]' : 'bg-qc-bubble-other rounded-tl-md text-white/92'}`}
+        } ${isMine ? 'bubble-mine rounded-tr-md text-white' : 'bubble-other rounded-tl-md text-white/92'}`}
       >
         <div
           className={`absolute top-1 right-1 p-1 cursor-pointer ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity z-10 ${
@@ -276,7 +276,7 @@ function MessageBubble({
         )}
 
         {reactionList.length > 0 && !isEditing && (
-          <div className="absolute -bottom-3 right-0 flex bg-white rounded-full px-1.5 shadow border border-gray-200 z-10">
+          <div className="absolute -bottom-3 right-0 flex reaction-badge rounded-full px-1.5 z-10">
             {reactionList.map(([reactionUserId, emoji]) => (
               <span key={reactionUserId} className="text-[12px]">{emoji}</span>
             ))}
@@ -656,7 +656,7 @@ export default function ChatArea({
       <div className="absolute inset-0 chat-bg-pattern z-0 pointer-events-none" />
 
       {isDragging && (
-        <div className="absolute inset-0 bg-qc-accent-primary/90 z-50 flex items-center justify-center backdrop-blur-sm transition-all border-4 border-dashed border-white m-4 rounded-xl">
+        <div className="absolute inset-0 bg-[#4f8cff]/15 border-2 border-dashed border-[#4f8cff]/50 z-50 flex items-center justify-center backdrop-blur-md m-4 rounded-3xl">
           <div className="flex flex-col items-center text-white">
             <UploadCloud size={64} className="mb-4 animate-bounce" />
             <h2 className="text-3xl font-bold uppercase tracking-wider">Drop to Upload</h2>
@@ -694,7 +694,7 @@ export default function ChatArea({
 
       {forwardMsgId && (
         <div className="absolute inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setForwardMsgId(null)}>
-          <div className="bg-qc-surface w-full max-w-sm rounded-2xl shadow-xl flex flex-col max-h-[80vh] overflow-hidden" onClick={(event) => event.stopPropagation()}>
+          <div className="bg-[#0d0f18] border border-white/10 w-full max-w-sm rounded-[28px] shadow-2xl flex flex-col max-h-[80vh] overflow-hidden" onClick={(event) => event.stopPropagation()}>
             <div className="p-4 border-b border-qc-border flex items-center justify-between bg-qc-surface-hover">
               <span className="font-medium text-qc-text-primary text-lg">Forward message to</span>
               <button onClick={() => setForwardMsgId(null)} className="text-qc-text-secondary hover:text-qc-text-primary"><X size={24} /></button>
@@ -802,7 +802,7 @@ export default function ChatArea({
 
       {showSearch && (
         <div className={`bg-qc-surface px-3 md:px-4 py-3 border-b border-qc-border flex items-center gap-3 relative z-20 ${isMobile ? 'flex-wrap' : ''}`}>
-          <div className="flex-1 rounded-2xl bg-qc-surface-hover border border-qc-border px-3 py-2 flex items-center gap-2 min-w-0">
+          <div className="flex-1 rounded-2xl bg-white/5 border border-white/8 px-3 py-2 flex items-center gap-2 min-w-0">
             <Search size={16} className="text-qc-text-secondary" />
             <input
               data-testid="chat-search-input"
@@ -1126,7 +1126,7 @@ export default function ChatArea({
         </div>
       )}
 
-      <div className={`premium-surface px-3 md:px-4 py-2.5 flex items-end gap-2 flex-shrink-0 relative z-20 border-t border-qc-border backdrop-blur-xl shadow-[0_-18px_44px_rgba(0,0,0,0.18)] ${isMobile && !keyboardOpen ? 'pb-[calc(0.7rem+env(safe-area-inset-bottom))]' : ''}`}>
+      <div className={`input-area-shell px-3 md:px-4 py-2.5 flex items-end gap-2 flex-shrink-0 relative z-20 ${isMobile && !keyboardOpen ? 'pb-[calc(0.7rem+env(safe-area-inset-bottom))]' : ''}`}>
         <input type="file" accept="image/*" className="hidden" ref={imageInputRef} onChange={(event) => handleFileChange(event, 'image')} />
         <input type="file" accept=".pdf,.txt,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip" className="hidden" ref={fileInputRef} onChange={(event) => handleFileChange(event, 'file')} />
 
