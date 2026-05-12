@@ -14,7 +14,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Sparkles, Wifi, WifiOff } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Sparkles, Wifi, WifiOff, Monitor, MonitorOff } from "lucide-react";
 import { useWebRTC } from "@/lib/useWebRTC";
 import SpatialAudioControls from "@/components/SpatialAudioControls";
 import {
@@ -46,6 +46,9 @@ export default function HolographicVideoCall({
   const [callStarted, setCallStarted] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [videoEnabled, setVideoEnabled] = useState(true);
+  const [isSharing, setIsSharing] = useState(false);
+  const [callSeconds, setCallSeconds] = useState(0);
+  const screenStreamRef = useRef<MediaStream | null>(null);
   // Default peer position: 2m in front of the listener. The merged
   // SpatialAudioControls minimap is read-only, so this stays constant
   // for now; future work can expose a drag callback for repositioning.
@@ -164,20 +167,51 @@ export default function HolographicVideoCall({
     );
   }, [callStarted, peerPosition, peerId, audioZones]);
 
+  // ── Call duration timer — starts when remote stream connects ──
+  useEffect(() => {
+    if (!remoteStream) return;
+    setCallSeconds(0);
+    const id = setInterval(() => setCallSeconds((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [remoteStream]);
+
   // ── Always tear down the peer connection on unmount. We leave the
   //    singleton SpatialAudioEngine running so other call UIs can keep
   //    using it; we only remove the participants we added. ──
   useEffect(() => () => {
+    screenStreamRef.current?.getTracks().forEach((t) => t.stop());
     endCall();
     spatialEngine.removeParticipant(peerId);
   }, [endCall, spatialEngine, peerId]);
 
+  const handleShareScreen = useCallback(async () => {
+    if (isSharing) {
+      screenStreamRef.current?.getTracks().forEach((t) => t.stop());
+      screenStreamRef.current = null;
+      setIsSharing(false);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      screenStreamRef.current = stream;
+      setIsSharing(true);
+      stream.getVideoTracks()[0]?.addEventListener("ended", () => {
+        screenStreamRef.current = null;
+        setIsSharing(false);
+      });
+    } catch {
+      // User cancelled or permission denied
+    }
+  }, [isSharing]);
+
   const handleClose = useCallback(() => {
+    screenStreamRef.current?.getTracks().forEach((t) => t.stop());
     endCall();
     spatialEngine.removeParticipant(peerId);
     setCallStarted(false);
     setIsMuted(false);
     setVideoEnabled(true);
+    setIsSharing(false);
     onClose();
   }, [endCall, onClose, spatialEngine, peerId]);
 
@@ -190,6 +224,12 @@ export default function HolographicVideoCall({
   }, [callError, isCalling, isConnected, remoteStream]);
 
   const peerInitial = peerName[0]?.toUpperCase() ?? "?";
+
+  const callTimeLabel = useMemo(() => {
+    const m = Math.floor(callSeconds / 60).toString().padStart(2, "0");
+    const s = (callSeconds % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  }, [callSeconds]);
 
   return (
     <AnimatePresence>
@@ -219,12 +259,22 @@ export default function HolographicVideoCall({
               Holographic Call
             </span>
           </div>
-          <span
-            className="text-[10px] uppercase tracking-widest"
-            style={{ color: callError ? "#ff8a80" : "#8fe4ff" }}
-          >
-            {statusText}
-          </span>
+          <div className="flex items-center gap-3">
+            {remoteStream && (
+              <span
+                className="text-[11px] font-mono font-bold tabular-nums"
+                style={{ color: "#4ade80" }}
+              >
+                ● {callTimeLabel}
+              </span>
+            )}
+            <span
+              className="text-[10px] uppercase tracking-widest"
+              style={{ color: callError ? "#ff8a80" : "#8fe4ff" }}
+            >
+              {statusText}
+            </span>
+          </div>
         </div>
 
         {/* ── Remote holographic plane ── */}
@@ -274,19 +324,40 @@ export default function HolographicVideoCall({
             />
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-              <div
-                className="w-24 h-24 rounded-full flex items-center justify-center text-4xl font-black"
-                style={{
-                  background:
-                    "linear-gradient(135deg, rgba(0,243,255,0.8), rgba(138,43,226,0.8))",
-                  color: "#fff",
-                  boxShadow: "0 0 40px rgba(0,243,255,0.45)",
-                }}
-              >
-                {peerInitial}
+              {/* Pulsing rings */}
+              <div className="relative flex items-center justify-center">
+                {[1, 2, 3].map((i) => (
+                  <motion.div
+                    key={i}
+                    className="absolute rounded-full"
+                    style={{
+                      width: 96, height: 96,
+                      border: "1px solid rgba(0,243,255,0.45)",
+                    }}
+                    animate={{ scale: [1, 1 + i * 0.45], opacity: [0.7, 0] }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      delay: i * 0.5,
+                      ease: "easeOut",
+                    }}
+                  />
+                ))}
+                <motion.div
+                  className="w-24 h-24 rounded-full flex items-center justify-center text-4xl font-black relative z-10"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(0,243,255,0.8), rgba(138,43,226,0.8))",
+                    color: "#fff",
+                    boxShadow: "0 0 40px rgba(0,243,255,0.45)",
+                  }}
+                  animate={{ boxShadow: ["0 0 30px rgba(0,243,255,0.4)", "0 0 60px rgba(0,243,255,0.7)", "0 0 30px rgba(0,243,255,0.4)"] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  {peerInitial}
+                </motion.div>
               </div>
               <p className="text-[12px] uppercase tracking-[0.3em] text-gray-400">
-                Awaiting projection…
+                {isCalling ? "Projecting hologram…" : "Awaiting projection…"}
               </p>
             </div>
           )}
@@ -365,6 +436,14 @@ export default function HolographicVideoCall({
               accent="#8a2be2"
             >
               {videoEnabled ? <Video size={18} /> : <VideoOff size={18} />}
+            </ControlButton>
+            <ControlButton
+              active={isSharing}
+              onClick={() => { void handleShareScreen(); }}
+              ariaLabel={isSharing ? "Stop sharing screen" : "Share screen"}
+              accent="#00f3ff"
+            >
+              {isSharing ? <MonitorOff size={18} /> : <Monitor size={18} />}
             </ControlButton>
             <ControlButton
               active
