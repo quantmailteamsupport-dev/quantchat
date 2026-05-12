@@ -43,6 +43,12 @@ import {
   ScheduledMessageValidationError,
 } from "./services/ScheduledMessageQueue";
 import { sessionController } from "./services/AuthoritativeSessionController";
+import {
+  listFeed,
+  listReels,
+  toggleFeedLike,
+  toggleReelLike,
+} from "./services/FeedStore";
 
 const router = Router();
 
@@ -1479,6 +1485,50 @@ router.get(
       res.status(503).json({ status: "down", error: "Health check failed" });
     }
   }
+);
+
+// ─── Feed & Reels ────────────────────────────────────────────
+// Public list endpoints; like endpoints require a verified user.
+// Backed by an in-memory store (services/FeedStore.ts) until the Prisma
+// FeedPost / Reel models land.
+router.get("/api/feed", restRateLimit, (req: Request, res: Response) => {
+  const user = req.user as { sub: string } | undefined;
+  res.json({ items: listFeed(user?.sub) });
+});
+
+router.get("/api/reels", restRateLimit, (req: Request, res: Response) => {
+  const user = req.user as { sub: string } | undefined;
+  res.json({ items: listReels(user?.sub) });
+});
+
+router.post(
+  "/api/feed/:id/like",
+  restRateLimit,
+  verifyQuantChatToken,
+  (req: Request, res: Response) => {
+    const user = req.user as { sub: string };
+    const result = toggleFeedLike(user.sub, req.params.id);
+    if (!result) {
+      res.status(404).json({ error: "Feed item not found" });
+      return;
+    }
+    res.json(result);
+  },
+);
+
+router.post(
+  "/api/reels/:id/like",
+  restRateLimit,
+  verifyQuantChatToken,
+  (req: Request, res: Response) => {
+    const user = req.user as { sub: string };
+    const result = toggleReelLike(user.sub, req.params.id);
+    if (!result) {
+      res.status(404).json({ error: "Reel not found" });
+      return;
+    }
+    res.json(result);
+  },
 );
 
 export default router;

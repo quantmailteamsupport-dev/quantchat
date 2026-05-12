@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useReels, formatCount, type Reel as ApiReel } from "@/lib/feed";
 
 // ─── Types ───────────────────────────────────────────────────────
 interface Reel {
@@ -18,68 +19,40 @@ interface Reel {
   avatarColor: string;
   avatarLetter: string;
   bg: string;
-  /** Per-reel accent hex color used for neon glow effects (e.g. "#bf5af2") */
   neonAccent: string;
   following: boolean;
+  liked?: boolean;
 }
 
-// ─── Data ────────────────────────────────────────────────────────
-const REELS: Reel[] = [
-  {
-    id: "r1",
-    username: "Aryan Sharma",
-    handle: "aryan.sharma",
-    caption: "Just shipped the NativeAI Core. 🧠⚡ Running fully offline on-device. No cloud needed. #QuantAI #OfflineFirst",
-    song: "Kesariya — Arijit Singh",
-    likes: "4,012", comments: "847", shares: "1.2K", sends: "318", saves: "906",
-    avatarColor: "#6d4aff", avatarLetter: "A",
-    bg: "radial-gradient(ellipse at 20% 80%, #1a003380 0%, transparent 60%), radial-gradient(ellipse at 80% 10%, #00f5ff18 0%, transparent 55%), linear-gradient(180deg,#0d001a 0%,#040008 100%)",
-    neonAccent: "#bf5af2",
-    following: false,
-  },
-  {
-    id: "r2",
-    username: "Noor",
-    handle: "noor.ai.twin",
-    caption: "My AI Twin replied before I could 😂 The future is weird. #DigitalTwin #Quantchat",
-    song: "Original Sound — Noor",
-    likes: "22.3K", comments: "750", shares: "2,560", sends: "15.4K", saves: "18.2K",
-    avatarColor: "#e91e8c", avatarLetter: "N",
-    bg: "radial-gradient(ellipse at 75% 85%, #ff2d7830 0%, transparent 55%), radial-gradient(ellipse at 20% 15%, #bf5af218 0%, transparent 50%), linear-gradient(180deg,#120009 0%,#000 100%)",
-    neonAccent: "#ff2d78",
-    following: true,
-  },
-  {
-    id: "r3",
-    username: "Priya Mehta",
-    handle: "priya.creates",
-    caption: "POV: You built a whole social platform from scratch in a month 💪 @Quantchat #BuildInPublic",
-    song: "Raataan Lambiyan — Jubin Nautiyal",
-    likes: "1,565", comments: "27", shares: "431", sends: "232", saves: "189",
-    avatarColor: "#0288b0", avatarLetter: "P",
-    bg: "radial-gradient(ellipse at 30% 70%, #00f5ff22 0%, transparent 55%), radial-gradient(ellipse at 70% 20%, #39ff1412 0%, transparent 50%), linear-gradient(180deg,#000d12 0%,#000 100%)",
-    neonAccent: "#00f5ff",
-    following: false,
-  },
-  {
-    id: "r4",
-    username: "Nexus Dev",
-    handle: "nexus.official",
-    caption: "E2EE + WebRTC + AI Twin. One app. Zero servers reading your messages. 🔐 #Privacy #Quantchat",
-    song: "Trending Sound — Quantchat",
-    likes: "8.7K", comments: "1.2K", shares: "940", sends: "2.1K", saves: "3.4K",
-    avatarColor: "#ff6b35", avatarLetter: "N",
-    bg: "radial-gradient(ellipse at 60% 80%, #ff6b3525 0%, transparent 55%), radial-gradient(ellipse at 20% 20%, #bf5af215 0%, transparent 50%), linear-gradient(180deg,#120600 0%,#000 100%)",
-    neonAccent: "#ff6b35",
-    following: true,
-  },
-];
+function adaptApiReel(reel: ApiReel): Reel {
+  return {
+    id: reel.id,
+    username: reel.username,
+    handle: reel.handle,
+    caption: reel.caption,
+    song: reel.song,
+    likes: formatCount(reel.likes),
+    comments: formatCount(reel.comments),
+    shares: formatCount(reel.shares),
+    sends: formatCount(reel.sends),
+    saves: formatCount(reel.saves),
+    avatarColor: reel.avatarColor,
+    avatarLetter: reel.avatarLetter,
+    bg: reel.bg,
+    neonAccent: reel.neonAccent,
+    following: reel.following,
+    liked: reel.liked,
+  };
+}
+
+// Reels are fetched from /api/reels via useReels() inside ReelsPage.
+// The previous hardcoded REELS array was migrated to the API-backed
+// store at apps/api-gateway/src/services/FeedStore.ts.
 
 // ─── Neon Orb (background art) ───────────────────────────────────
 function NeonOrbs({ accent }: { accent: string }) {
   return (
     <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
-      {/* large ambient orb */}
       <motion.div
         style={{
           position: "absolute",
@@ -92,7 +65,6 @@ function NeonOrbs({ accent }: { accent: string }) {
         animate={{ scale: [1, 1.08, 1], opacity: [0.6, 0.9, 0.6] }}
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
       />
-      {/* secondary orb */}
       <motion.div
         style={{
           position: "absolute",
@@ -105,7 +77,6 @@ function NeonOrbs({ accent }: { accent: string }) {
         animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.7, 0.4] }}
         transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
       />
-      {/* corner flare */}
       <div style={{
         position: "absolute", top: 0, left: 0, right: 0,
         height: 180,
@@ -123,14 +94,9 @@ function EngBtn({
   const [pressed, setPressed] = useState(false);
   const isActive = active || pressed;
 
-  const tap = () => {
-    setPressed(p => !p);
-    onTap?.();
-  };
-
   return (
     <button
-      onClick={tap}
+      onClick={() => { setPressed(p => !p); onTap?.(); }}
       style={{
         display: "flex", flexDirection: "column", alignItems: "center",
         gap: 3, background: "none", border: "none", cursor: "pointer",
@@ -167,8 +133,7 @@ function EngBtn({
 }
 
 // ─── Single Reel Card ─────────────────────────────────────────────
-function ReelCard({ reel, isActive }: { reel: Reel; isActive: boolean }) {
-  const [liked, setLiked] = useState(false);
+function ReelCard({ reel, isActive, onLike }: { reel: Reel; isActive: boolean; onLike?: () => void }) {
   const [saved, setSaved] = useState(false);
   const [following, setFollowing] = useState(reel.following);
   const [muted, setMuted] = useState(false);
@@ -182,10 +147,8 @@ function ReelCard({ reel, isActive }: { reel: Reel; isActive: boolean }) {
       overflow: "hidden",
       flexShrink: 0,
     }}>
-      {/* ── Animated neon orb background ── */}
       <NeonOrbs accent={reel.neonAccent} />
 
-      {/* ── Center visual art (large ghost letter) ── */}
       <div style={{
         position: "absolute", inset: 0,
         display: "flex", alignItems: "center", justifyContent: "center",
@@ -209,14 +172,12 @@ function ReelCard({ reel, isActive }: { reel: Reel; isActive: boolean }) {
         </motion.div>
       </div>
 
-      {/* ── Scanline texture overlay ── */}
       <div style={{
         position: "absolute", inset: 0, pointerEvents: "none",
         background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px)",
         zIndex: 1,
       }} />
 
-      {/* ── Gradient overlay (bottom darkening) ── */}
       <div style={{
         position: "absolute", bottom: 0, left: 0, right: 0, height: "72%",
         background: "linear-gradient(to top, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.65) 42%, rgba(0,0,0,0.15) 72%, transparent 100%)",
@@ -224,13 +185,12 @@ function ReelCard({ reel, isActive }: { reel: Reel; isActive: boolean }) {
         zIndex: 2,
       }} />
 
-      {/* ── Top bar ── */}
+      {/* Top bar */}
       <div style={{
         position: "absolute", top: 14, left: 0, right: 0, zIndex: 10,
         display: "flex", justifyContent: "space-between", alignItems: "center",
         padding: "0 16px",
       }}>
-        {/* Reels title */}
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <span className="reels-title">Reels</span>
           <span style={{
@@ -248,7 +208,6 @@ function ReelCard({ reel, isActive }: { reel: Reel; isActive: boolean }) {
           }}>
             Friends
           </span>
-          {/* Glass mute button */}
           <button
             onClick={() => setMuted(m => !m)}
             className="neon-mute-btn"
@@ -258,7 +217,7 @@ function ReelCard({ reel, isActive }: { reel: Reel; isActive: boolean }) {
         </div>
       </div>
 
-      {/* ── Right side engagement strip (glass panel) ── */}
+      {/* Right side engagement strip */}
       <div style={{
         position: "absolute", right: 10, bottom: 110, zIndex: 10,
         display: "flex", flexDirection: "column", alignItems: "center",
@@ -271,7 +230,6 @@ function ReelCard({ reel, isActive }: { reel: Reel; isActive: boolean }) {
         border: `1px solid ${reel.neonAccent}30`,
         boxShadow: `0 0 18px ${reel.neonAccent}18, inset 0 0 12px rgba(255,255,255,0.03)`,
       }}>
-        {/* Creator avatar with neon ring */}
         <div style={{ position: "relative", marginBottom: 10 }}>
           <div style={{
             width: 46, height: 46, borderRadius: "50%",
@@ -304,12 +262,37 @@ function ReelCard({ reel, isActive }: { reel: Reel; isActive: boolean }) {
           )}
         </div>
 
-        <EngBtn
-          icon={liked ? "❤️" : "🤍"}
-          count={reel.likes}
-          active={liked}
-          onTap={() => setLiked(l => !l)}
-        />
+        {/* Like button — controlled from parent via reel.liked */}
+        <button
+          onClick={onLike}
+          style={{
+            display: "flex", flexDirection: "column", alignItems: "center",
+            gap: 3, background: "none", border: "none", cursor: "pointer", padding: "5px 0",
+          }}
+        >
+          <motion.span
+            whileTap={{ scale: 1.35 }}
+            style={{
+              fontSize: 26, display: "block",
+              filter: reel.liked
+                ? "drop-shadow(0 0 6px rgba(255,45,120,0.95)) drop-shadow(0 0 14px rgba(255,45,120,0.5))"
+                : "drop-shadow(0 0 3px rgba(255,255,255,0.25))",
+              transition: "filter 0.15s ease",
+            }}
+          >
+            {reel.liked ? "❤️" : "🤍"}
+          </motion.span>
+          <span style={{
+            fontSize: 11, fontWeight: 700,
+            color: reel.liked ? "#ff2d78" : "rgba(255,255,255,0.9)",
+            fontFamily: "Inter, -apple-system, sans-serif",
+            lineHeight: 1,
+            transition: "color 0.15s",
+          }}>
+            {reel.likes}
+          </span>
+        </button>
+
         <EngBtn icon="💬" count={reel.comments} />
         <EngBtn icon="🔁" count={reel.shares} />
         <EngBtn icon="📨" count={reel.sends} />
@@ -322,11 +305,10 @@ function ReelCard({ reel, isActive }: { reel: Reel; isActive: boolean }) {
         <EngBtn icon="⋯" count="" />
       </div>
 
-      {/* ── Bottom-left creator info (glass overlay) ── */}
+      {/* Bottom-left creator info */}
       <div style={{
         position: "absolute", bottom: 82, left: 12, right: 76, zIndex: 10,
       }}>
-        {/* Username + Follow */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
           <span style={{
             color: "#fff", fontWeight: 800, fontSize: 14,
@@ -346,7 +328,6 @@ function ReelCard({ reel, isActive }: { reel: Reel; isActive: boolean }) {
           )}
         </div>
 
-        {/* Caption */}
         <p style={{
           color: "rgba(255,255,255,0.88)",
           fontSize: 13, lineHeight: 1.55, margin: "0 0 8px 0",
@@ -361,7 +342,6 @@ function ReelCard({ reel, isActive }: { reel: Reel; isActive: boolean }) {
           {reel.caption}
         </p>
 
-        {/* Song — glass pill */}
         <div style={{
           display: "inline-flex", alignItems: "center", gap: 6,
           padding: "5px 12px",
@@ -393,7 +373,6 @@ function ReelCard({ reel, isActive }: { reel: Reel; isActive: boolean }) {
         </div>
       </div>
 
-      {/* ── Neon progress bar at bottom ── */}
       <div
         className="neon-progress-track"
         style={{ position: "absolute", bottom: 68, left: 0, right: 0, zIndex: 10 }}
@@ -411,9 +390,23 @@ function ReelCard({ reel, isActive }: { reel: Reel; isActive: boolean }) {
 
 // ─── Main Page ────────────────────────────────────────────────────
 export default function ReelsPage() {
+  const { data: apiItems, loading, error, toggleLike } = useReels();
+  const REELS = useMemo(() => apiItems.map(adaptApiReel), [apiItems]);
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const startY = useRef<number>(0);
   const isDragging = useRef(false);
+  const lastNavigationAtRef = useRef(0);
+
+  const moveReels = useCallback((direction: 1 | -1) => {
+    const now = Date.now();
+    if (now - lastNavigationAtRef.current < 220) return;
+    lastNavigationAtRef.current = now;
+    setCurrentIndex((index) => {
+      const next = Math.min(REELS.length - 1, Math.max(0, index + direction));
+      return next;
+    });
+  }, [REELS.length]);
 
   const onTouchStart = (e: React.TouchEvent) => {
     startY.current = e.touches[0]?.clientY ?? 0;
@@ -423,15 +416,63 @@ export default function ReelsPage() {
   const onTouchEnd = (e: React.TouchEvent) => {
     if (!isDragging.current) return;
     const delta = startY.current - (e.changedTouches[0]?.clientY ?? 0);
-    if (delta > 60 && currentIndex < REELS.length - 1) setCurrentIndex(i => i + 1);
-    if (delta < -60 && currentIndex > 0) setCurrentIndex(i => i - 1);
+    if (delta > 60) moveReels(1);
+    if (delta < -60) moveReels(-1);
     isDragging.current = false;
   };
 
   const onWheel = useCallback((e: React.WheelEvent) => {
-    if (e.deltaY > 40 && currentIndex < REELS.length - 1) setCurrentIndex(i => i + 1);
-    if (e.deltaY < -40 && currentIndex > 0) setCurrentIndex(i => i - 1);
-  }, [currentIndex]);
+    if (e.deltaY > 40) moveReels(1);
+    if (e.deltaY < -40) moveReels(-1);
+  }, [moveReels]);
+
+  if (loading && REELS.length === 0) {
+    return (
+      <div style={{ width: "100%", height: "100%", background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <motion.div
+          animate={{ opacity: [0.3, 0.7, 0.3] }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <span style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", fontFamily: "Inter, sans-serif" }}>
+            Loading reels…
+          </span>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ width: "100%", height: "100%", background: "#000", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+        <span style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", fontFamily: "Inter, sans-serif" }}>
+          Couldn't load reels
+        </span>
+        <button
+          onClick={() => window.location.reload()}
+          style={{
+            background: "rgba(109,74,255,0.2)", border: "1px solid rgba(109,74,255,0.5)",
+            borderRadius: 20, padding: "8px 20px",
+            color: "#bf5af2", fontSize: 13, fontFamily: "Inter, sans-serif", cursor: "pointer",
+          }}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (!loading && REELS.length === 0) {
+    return (
+      <div style={{ width: "100%", height: "100%", background: "#000", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+        <span style={{ fontSize: 32 }}>🎬</span>
+        <span style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", fontFamily: "Inter, sans-serif" }}>
+          No reels yet
+        </span>
+      </div>
+    );
+  }
+
+  const currentReel = REELS[currentIndex] ?? REELS[0]!;
 
   return (
     <div
@@ -445,7 +486,6 @@ export default function ReelsPage() {
         userSelect: "none",
       }}
     >
-      {/* Reel stack */}
       <AnimatePresence initial={false} custom={currentIndex}>
         <motion.div
           key={currentIndex}
@@ -455,11 +495,15 @@ export default function ReelsPage() {
           exit={{ y: "-100%", opacity: 0.6 }}
           transition={{ type: "spring", stiffness: 280, damping: 32 }}
         >
-          <ReelCard reel={REELS[currentIndex]!} isActive={true} />
+          <ReelCard
+            reel={currentReel}
+            isActive={true}
+            onLike={() => toggleLike(currentReel.id)}
+          />
         </motion.div>
       </AnimatePresence>
 
-      {/* Neon scroll indicator dots */}
+      {/* Scroll position dots */}
       <div style={{
         position: "absolute", right: 4, top: "50%",
         transform: "translateY(-50%)",
@@ -467,8 +511,11 @@ export default function ReelsPage() {
       }}>
         {REELS.map((r, i) => (
           <motion.div
-            key={i}
-            onClick={() => setCurrentIndex(i)}
+            key={r.id}
+            onClick={() => {
+              lastNavigationAtRef.current = Date.now();
+              setCurrentIndex(i);
+            }}
             animate={{
               width: i === currentIndex ? 4 : 3,
               height: i === currentIndex ? 20 : 6,
@@ -479,10 +526,10 @@ export default function ReelsPage() {
               borderRadius: 3,
               cursor: "pointer",
               background: i === currentIndex
-                ? (REELS[i]?.neonAccent ?? "#00f5ff")
+                ? (r.neonAccent ?? "#00f5ff")
                 : "rgba(255,255,255,0.35)",
               boxShadow: i === currentIndex
-                ? `0 0 6px ${REELS[i]?.neonAccent ?? "#00f5ff"}cc, 0 0 12px ${REELS[i]?.neonAccent ?? "#00f5ff"}66`
+                ? `0 0 6px ${r.neonAccent ?? "#00f5ff"}cc, 0 0 12px ${r.neonAccent ?? "#00f5ff"}66`
                 : "none",
             }}
           />
