@@ -83,21 +83,21 @@ jobs:
             set -eux
             cd /opt/quantchat
 
-            cat > .env << 'ENVEOF'
-DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
-JWT_SECRET=${{ secrets.JWT_SECRET }}
-NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
-NEXTAUTH_URL=http://${{ secrets.EC2_HOST }}
-ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
-ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
-GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-AWS_REGION=${{ secrets.AWS_REGION }}
-CORS_ORIGINS=*
-LOG_LEVEL=info
-ENVEOF
+            cat > .env <<ENVEOF
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
+            NEXTAUTH_URL=http://${{ secrets.EC2_HOST }}
+            ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
+            ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
+            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+            AWS_REGION=${{ secrets.AWS_REGION }}
+            CORS_ORIGINS=*
+            LOG_LEVEL=info
+            ENVEOF
             chmod 600 .env
 
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
