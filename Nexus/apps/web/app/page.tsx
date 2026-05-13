@@ -13,6 +13,30 @@ const capabilities = [
   "Admin telemetry",
 ];
 
+const features = [
+  {
+    id: "e2ee",
+    icon: "🔐",
+    title: "End-to-End Encrypted",
+    description:
+      "Every message is encrypted on-device with keys that never leave your hardware. Zero server-side plaintext — ever.",
+  },
+  {
+    id: "fast-delivery",
+    icon: "⚡",
+    title: "Fast Delivery",
+    description:
+      "Sub-140 ms median delivery over a globally distributed relay network. Realtime feel with none of the compromise.",
+  },
+  {
+    id: "cross-device",
+    icon: "📱",
+    title: "Cross-Device Sync",
+    description:
+      "Your encrypted history follows you across trusted devices via secure key-linking — no plaintext ever leaves your mesh.",
+  },
+];
+
 export default function Home() {
   return (
     <main data-testid="quantchat-home-page" className="qc-home-page">
@@ -71,6 +95,73 @@ export default function Home() {
           </div>
         </aside>
       </section>
+
+      {/* ── Features section ── */}
+      <section
+        data-testid="quantchat-home-features"
+        style={{
+          padding: "clamp(40px, 6vw, 80px) clamp(20px, 5vw, 72px)",
+          borderTop: "1px solid rgba(9,9,11,0.1)",
+        }}
+      >
+        <h2
+          className="qc-display"
+          style={{ fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 900, margin: "0 0 40px", textAlign: "center" }}
+        >
+          Built for teams that demand more
+        </h2>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: 24,
+          }}
+        >
+          {features.map((f) => (
+            <div
+              key={f.id}
+              data-testid={`quantchat-feature-${f.id}`}
+              style={{
+                background: "rgba(255,255,255,0.88)",
+                border: "1px solid rgba(9,9,11,0.12)",
+                padding: "28px 24px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+                transition: "transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease",
+              }}
+              className="qc-home-panel"
+            >
+              <span style={{ fontSize: 32 }} aria-hidden="true">{f.icon}</span>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#09090b" }}>{f.title}</h3>
+              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, color: "#52525B" }}>{f.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Footer ── */}
+      <footer
+        data-testid="quantchat-home-footer"
+        style={{
+          borderTop: "1px solid rgba(9,9,11,0.1)",
+          padding: "28px clamp(20px, 5vw, 72px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 16,
+          background: "rgba(255,255,255,0.72)",
+        }}
+      >
+        <span style={{ display: "flex", alignItems: "center", gap: 10, color: "#09090b", textDecoration: "none", fontWeight: 700 }}>
+          <span aria-hidden="true" style={{ width: 26, height: 26, display: "grid", placeItems: "center", background: "#002FA7", color: "white", fontFamily: "var(--qc-font-mono)", fontWeight: 800, fontSize: 13 }}>Q</span>
+          QuantChat
+        </span>
+        <p style={{ margin: 0, fontSize: 12, color: "#71717A" }}>
+          &copy; {new Date().getFullYear()} QuantChat. Secure by design.
+        </p>
+      </footer>
     </main>
   );
 }

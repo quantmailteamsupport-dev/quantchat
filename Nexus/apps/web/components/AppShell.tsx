@@ -87,6 +87,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // Auth pages and full-screen pages get no shell nav
   const isAuthPage = pathname === "/" || pathname === "/login" || pathname === "/claim";
   const isFullScreen = pathname.startsWith("/feed") || pathname.startsWith("/settings");
+
+  // Lock body scroll when the app shell is active (non-auth pages); restore on unmount.
+  const shellActive = !isAuthPage && !isFullScreen;
+  useEffect(() => {
+    if (shellActive) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    } else {
+      document.body.style.overflow = "";
+    }
+  }, [shellActive]);
+
   if (isAuthPage || isFullScreen) return <>{children}</>;
 
   // Workspace uses a full 3-pane desktop layout — skip the mobile bottom nav
