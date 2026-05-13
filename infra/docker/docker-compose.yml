@@ -78,12 +78,42 @@ services:
       retries: 3
       start_period: 40s
 
+  # Next.js Web Frontend — uses prebuilt GHCR image in CI (WEB_IMAGE env var)
+  web:
+    image: ${WEB_IMAGE:-quantchat/web:local}
+    container_name: quantchat-web
+    env_file:
+      - /opt/quantchat/.env
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost}
+      QUANTCHAT_API_URL: http://api-gateway:3000
+      DATABASE_URL: postgresql://quantchat_app:${DB_PASSWORD:-change-me-in-production}@postgres:5432/quantchat_prod?sslmode=disable
+      REDIS_URL: redis://:${REDIS_PASSWORD:-change-me-in-production}@redis:6379
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+    networks:
+      - quantchat-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
   # Nginx Reverse Proxy
   nginx:
     image: nginx:alpine
     container_name: quantchat-nginx
     depends_on:
       - api-gateway
+      - web
     ports:
       - "80:80"
     volumes:

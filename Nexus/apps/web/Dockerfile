@@ -17,6 +17,14 @@ ENV CYPRESS_INSTALL_BINARY=0
 RUN npm ci
 COPY --from=builder /app/out/full/ .
 COPY turbo.json turbo.json
+
+# Build-time public env vars (baked into Next.js bundle)
+ARG NEXT_PUBLIC_QUANTCHAT_API_URL=""
+ARG NEXT_PUBLIC_WS_URL=""
+ENV NEXT_PUBLIC_QUANTCHAT_API_URL=$NEXT_PUBLIC_QUANTCHAT_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+ENV NEXT_PHASE=phase-production-build
+
 RUN npx turbo run build --filter=web...
 
 FROM base AS runner

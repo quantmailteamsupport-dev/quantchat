@@ -7,18 +7,20 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/api-gateway
+  API_IMAGE_NAME: ${{ github.repository }}/api-gateway
+  WEB_IMAGE_NAME: ${{ github.repository }}/web
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     permissions:
       contents: read
       packages: write
 
     outputs:
-      image_tag: ${{ steps.meta.outputs.tag }}
+      api_image_tag: ${{ steps.meta-api.outputs.tag }}
+      web_image_tag: ${{ steps.meta-web.outputs.tag }}
 
     steps:
       - name: Checkout
@@ -34,10 +36,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Compute image tag
-        id: meta
+      - name: Compute image tags
+        id: meta-api
         run: |
-          echo "tag=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          echo "tag=${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Compute web image tag
+        id: meta-web
+        run: |
+          echo "tag=${{ env.REGISTRY }}/${{ env.WEB_IMAGE_NAME }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
       - name: Build & push api-gateway image
         uses: docker/build-push-action@v5
@@ -46,15 +53,30 @@ jobs:
           file: infra/docker/Dockerfile
           push: true
           tags: |
-            ${{ steps.meta.outputs.tag }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            ${{ steps.meta-api.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:latest
+          cache-from: type=gha,scope=api-gateway
+          cache-to: type=gha,mode=max,scope=api-gateway
+
+      - name: Build & push web image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Nexus/apps/web/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta-web.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.WEB_IMAGE_NAME }}:latest
+          build-args: |
+            NEXT_PUBLIC_QUANTCHAT_API_URL=http://${{ secrets.EC2_HOST }}
+            NEXT_PUBLIC_WS_URL=http://${{ secrets.EC2_HOST }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     environment: production
 
     steps:
@@ -100,10 +122,74 @@ jobs:
             ENVEOF
             chmod 600 .env
 
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker pull ${{ needs.build.outputs.image_tag }}
+            # Write nginx config routing frontend + API
+            cat > /opt/quantchat/nginx.conf <<'NGINXEOF'
+            events { worker_connections 1024; }
 
-            export API_GATEWAY_IMAGE='${{ needs.build.outputs.image_tag }}'
+            http {
+              include /etc/nginx/mime.types;
+              default_type application/octet-stream;
+              sendfile on;
+              keepalive_timeout 65;
+
+              upstream api_backend {
+                server api-gateway:3000;
+              }
+
+              upstream web_frontend {
+                server web:3000;
+              }
+
+              server {
+                listen 80;
+                server_name _;
+                client_max_body_size 50M;
+
+                # API routes → api-gateway
+                location ~ ^/(api|healthz|readyz)(/|$) {
+                  proxy_pass http://api_backend;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_read_timeout 300s;
+                }
+
+                # WebSocket (Socket.io) → api-gateway
+                location /socket.io/ {
+                  proxy_pass http://api_backend;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_read_timeout 3600s;
+                }
+
+                # Everything else → Next.js frontend
+                location / {
+                  proxy_pass http://web_frontend;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_read_timeout 300s;
+                }
+              }
+            }
+            NGINXEOF
+
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker pull ${{ needs.build.outputs.api_image_tag }}
+            docker pull ${{ needs.build.outputs.web_image_tag }}
+
+            export API_GATEWAY_IMAGE='${{ needs.build.outputs.api_image_tag }}'
+            export WEB_IMAGE='${{ needs.build.outputs.web_image_tag }}'
 
             docker compose -f docker-compose.yml down || true
             docker compose -f docker-compose.yml up -d
@@ -122,14 +208,24 @@ jobs:
           port: 22
           script: |
             set -eux
-            for i in $(seq 1 15); do
+            for i in $(seq 1 20); do
               if curl -fsS http://localhost:3000/healthz >/dev/null 2>&1; then
                 echo "API gateway healthy"
-                exit 0
+                break
               fi
-              echo "Attempt $i/15 - waiting..."
+              echo "API attempt $i/20 - waiting..."
               sleep 5
             done
-            echo "Healthcheck failed after 75s"
-            docker compose -f /opt/quantchat/docker-compose.yml logs --tail=100 api-gateway
+            for i in $(seq 1 20); do
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/ 2>/dev/null || echo "000")
+              if [ "$STATUS" != "000" ] && [ "$STATUS" != "502" ] && [ "$STATUS" != "503" ]; then
+                echo "Web frontend healthy (HTTP $STATUS)"
+                exit 0
+              fi
+              echo "Web attempt $i/20 (HTTP $STATUS) - waiting..."
+              sleep 5
+            done
+            echo "Healthcheck failed after 100s"
+            docker compose -f /opt/quantchat/docker-compose.yml logs --tail=50 web
+            docker compose -f /opt/quantchat/docker-compose.yml logs --tail=50 api-gateway
             exit 1
