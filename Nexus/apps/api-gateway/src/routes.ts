@@ -1576,4 +1576,322 @@ router.post(
   },
 );
 
+// ─── User Profile & Discovery ─────────────────────────────────────────────────
+
+/**
+ * GET /api/v1/users/me
+ * Returns the authenticated user's profile.
+ */
+router.get(
+  "/api/v1/users/me",
+  restRateLimit,
+  verifyQuantChatToken,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = (req.user as { sub: string }).sub;
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          avatarUrl: true,
+          createdAt: true,
+          tokenBalance: true,
+          aiCount: true,
+        },
+      });
+      if (!user) { res.status(404).json({ error: "User not found" }); return; }
+      res.json({ user });
+    } catch (err) {
+      logger.error({ err }, "GET /api/v1/users/me error");
+      res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
+/**
+ * PATCH /api/v1/users/me
+ * Update the authenticated user's display name or avatar URL.
+ */
+const UpdateProfileSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  avatarUrl: z.string().url().max(512).optional(),
+});
+
+router.patch(
+  "/api/v1/users/me",
+  restRateLimit,
+  verifyQuantChatToken,
+  async (req: Request, res: Response): Promise<void> => {
+    const parsed = UpdateProfileSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
+      return;
+    }
+    try {
+      const userId = (req.user as { sub: string }).sub;
+      const updated = await prisma.user.update({
+        where: { id: userId },
+        data: parsed.data,
+        select: { id: true, name: true, avatarUrl: true, email: true },
+      });
+      res.json({ user: updated });
+    } catch (err) {
+      logger.error({ err }, "PATCH /api/v1/users/me error");
+      res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
+/**
+ * GET /api/v1/users/search?q=<query>&limit=<n>
+ * Search users by name or email prefix. Excludes the caller.
+ * Results capped at 20 to avoid bulk enumeration.
+ */
+router.get(
+  "/api/v1/users/search",
+  restRateLimit,
+  verifyQuantChatToken,
+  async (req: Request, res: Response): Promise<void> => {
+    const q = normalizeOptionalString(req.query.q as string, 100);
+    if (!q || q.length < 2) {
+      res.status(400).json({ error: "Query must be at least 2 characters" });
+      return;
+    }
+    const limit = Math.min(parseInt((req.query.limit as string) || "20", 10) || 20, 20);
+    try {
+      const userId = (req.user as { sub: string }).sub;
+      const users = await prisma.user.findMany({
+        where: {
+          id: { not: userId },
+          OR: [
+            { name: { contains: q, mode: "insensitive" } },
+            { email: { startsWith: q, mode: "insensitive" } },
+          ],
+        },
+        select: { id: true, name: true, email: true, avatarUrl: true },
+        take: limit,
+        orderBy: { name: "asc" },
+      });
+      res.json({ users, total: users.length });
+    } catch (err) {
+      logger.error({ err }, "GET /api/v1/users/search error");
+      res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
+// ─── Conversation Management ───────────────────────────────────────────────────
+
+/**
+ * GET /api/v1/conversations
+ * List all conversations the authenticated user participates in,
+ * with the last message preview and unread count.
+ */
+router.get(
+  "/api/v1/conversations",
+  restRateLimit,
+  verifyQuantChatToken,
+  async (req: Request, res: Response): Promise<void> => {
+    const limit = Math.min(parseInt((req.query.limit as string) || "30", 10) || 30, 100);
+    const cursor = normalizeOptionalString(req.query.cursor as string, 128);
+    try {
+      const userId = (req.user as { sub: string }).sub;
+      const participations = await prisma.conversationParticipant.findMany({
+        where: { userId },
+        include: {
+          conversation: {
+            include: {
+              participants: {
+                include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+              },
+              messages: {
+                orderBy: { createdAt: "desc" },
+                take: 1,
+                select: {
+                  id: true,
+                  content: true,
+                  createdAt: true,
+                  senderId: true,
+                  messageType: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { conversation: { updatedAt: "desc" } },
+        take: limit,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      });
+
+      const conversations = participations.map((p) => {
+        const conv = p.conversation;
+        const lastMessage = conv.messages[0] ?? null;
+        const otherParticipants = conv.participants
+          .filter((cp) => cp.userId !== userId)
+          .map((cp) => cp.user);
+        const unreadCount = 0; // TODO: derive from lastReadAt vs lastMessage.createdAt
+        return {
+          id: conv.id,
+          type: conv.type,
+          name: conv.name ?? (otherParticipants[0]?.name ?? "Unknown"),
+          avatarUrl: conv.avatarUrl ?? otherParticipants[0]?.avatarUrl ?? null,
+          participants: otherParticipants,
+          lastMessage,
+          unreadCount,
+          disappearingSecs: conv.disappearingSecs,
+          updatedAt: conv.updatedAt,
+        };
+      });
+
+      const nextCursor = participations.length === limit ? participations[participations.length - 1]?.id : null;
+      res.json({ conversations, nextCursor });
+    } catch (err) {
+      logger.error({ err }, "GET /api/v1/conversations error");
+      res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
+/**
+ * POST /api/v1/conversations
+ * Create (or return existing) a direct conversation with another user.
+ * Body: { participantId: string }
+ */
+const CreateConversationSchema = z.object({
+  participantId: z.string().uuid(),
+  name: z.string().min(1).max(100).optional(),
+  type: z.enum(["DIRECT", "GROUP"]).default("DIRECT"),
+});
+
+router.post(
+  "/api/v1/conversations",
+  restRateLimit,
+  verifyQuantChatToken,
+  async (req: Request, res: Response): Promise<void> => {
+    const parsed = CreateConversationSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
+      return;
+    }
+    const { participantId, name, type } = parsed.data;
+    const userId = (req.user as { sub: string }).sub;
+
+    if (type === "DIRECT" && participantId === userId) {
+      res.status(400).json({ error: "Cannot create a conversation with yourself" });
+      return;
+    }
+
+    try {
+      // For DIRECT conversations, find existing one between these two users
+      if (type === "DIRECT") {
+        const existing = await prisma.conversation.findFirst({
+          where: {
+            type: "DIRECT",
+            participants: {
+              every: { userId: { in: [userId, participantId] } },
+            },
+          },
+          include: {
+            participants: {
+              include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+            },
+          },
+        });
+        if (existing) {
+          res.json({ conversation: existing, created: false });
+          return;
+        }
+      }
+
+      // Create new conversation
+      const conversation = await prisma.conversation.create({
+        data: {
+          type,
+          name: type === "GROUP" ? name : undefined,
+          participants: {
+            create: [
+              { userId },
+              ...(participantId !== userId ? [{ userId: participantId }] : []),
+            ],
+          },
+        },
+        include: {
+          participants: {
+            include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+          },
+        },
+      });
+      res.status(201).json({ conversation, created: true });
+    } catch (err) {
+      logger.error({ err }, "POST /api/v1/conversations error");
+      res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
+/**
+ * GET /api/v1/conversations/:id/messages
+ * Paginated message history for a conversation.
+ * Query: limit (default 50), before (cursor messageId for pagination)
+ */
+router.get(
+  "/api/v1/conversations/:id/messages",
+  restRateLimit,
+  verifyQuantChatToken,
+  async (req: Request, res: Response): Promise<void> => {
+    const conversationId = normalizeOptionalString(req.params.id as string, 128);
+    if (!conversationId) { res.status(400).json({ error: "Invalid conversationId" }); return; }
+    const limit = Math.min(parseInt((req.query.limit as string) || "50", 10) || 50, 100);
+    const before = normalizeOptionalString(req.query.before as string, 128);
+
+    try {
+      const userId = (req.user as { sub: string }).sub;
+      // Verify participant
+      const membership = await prisma.conversationParticipant.findUnique({
+        where: { conversationId_userId: { conversationId, userId } },
+      });
+      if (!membership) { res.status(403).json({ error: "Not a participant" }); return; }
+
+      const messages = await prisma.message.findMany({
+        where: {
+          conversationId,
+          ...(before ? { id: { lt: before } } : {}),
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        select: {
+          id: true,
+          content: true,
+          iv: true,
+          messageType: true,
+          senderId: true,
+          createdAt: true,
+          status: true,
+          expiresAt: true,
+        },
+      });
+
+      // Mark as delivered for caller
+      const undelivered = messages.filter((m) => m.senderId !== userId && m.status === "QUEUED").map((m) => m.id);
+      if (undelivered.length > 0) {
+        await prisma.message.updateMany({
+          where: { id: { in: undelivered } },
+          data: { status: "DELIVERED", deliveredAt: new Date() },
+        });
+      }
+
+      res.json({
+        messages: messages.reverse(), // chronological order
+        hasMore: messages.length === limit,
+        nextCursor: messages.length > 0 ? messages[0]?.id : null,
+      });
+    } catch (err) {
+      logger.error({ err }, "GET /api/v1/conversations/:id/messages error");
+      res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
 export default router;
