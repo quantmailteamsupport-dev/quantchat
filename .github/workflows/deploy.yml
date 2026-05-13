@@ -61,15 +61,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Copy compose + nginx config to host
+      - name: Copy compose file to host
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
-          source: "infra/docker/docker-compose.yml,deploy/aws/quantchat-nginx.conf"
+          source: "infra/docker/docker-compose.yml"
           target: "/opt/quantchat"
+          strip_components: 2
 
       - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -82,35 +83,35 @@ jobs:
             set -eux
             cd /opt/quantchat
 
-            cat > .env <<'ENVEOF'
-            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-            REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
-            NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
-            NEXTAUTH_URL=https://${{ secrets.EC2_HOST }}
-            ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
-            ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
-            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-            FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
-            FIREBASE_WEB_API_KEY=${{ secrets.FIREBASE_WEB_API_KEY }}
-            FIREBASE_SERVICE_ACCOUNT_JSON=${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
-            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-            AWS_REGION=${{ secrets.AWS_REGION }}
-            LOG_LEVEL=info
-            ENVEOF
+            cat > .env << 'ENVEOF'
+DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+JWT_SECRET=${{ secrets.JWT_SECRET }}
+NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
+NEXTAUTH_URL=http://${{ secrets.EC2_HOST }}
+ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
+ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
+GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+AWS_REGION=${{ secrets.AWS_REGION }}
+CORS_ORIGINS=*
+LOG_LEVEL=info
+ENVEOF
             chmod 600 .env
 
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker pull ${{ needs.build.outputs.image_tag }}
 
-            # Use the prebuilt image instead of building on the host
-            sed -i 's|build:.*||' docker-compose.yml || true
             export API_GATEWAY_IMAGE='${{ needs.build.outputs.image_tag }}'
 
             docker compose -f docker-compose.yml down || true
             docker compose -f docker-compose.yml up -d
-            docker compose ps
+            docker compose -f docker-compose.yml ps
+
+            # Run Prisma migrations
+            sleep 10
+            docker exec quantchat-api sh -c 'cd /app/packages/database && npx prisma db push --skip-generate' || true
 
       - name: Health check
         uses: appleboy/ssh-action@v1.0.3
@@ -121,13 +122,14 @@ jobs:
           port: 22
           script: |
             set -eux
-            for i in 1 2 3 4 5 6 7 8 9 10; do
-              if curl -fsS http://localhost:3000/healthz >/dev/null; then
+            for i in $(seq 1 15); do
+              if curl -fsS http://localhost:3000/healthz >/dev/null 2>&1; then
                 echo "API gateway healthy"
                 exit 0
               fi
+              echo "Attempt $i/15 - waiting..."
               sleep 5
             done
-            echo "Healthcheck failed after 50s"
+            echo "Healthcheck failed after 75s"
             docker compose -f /opt/quantchat/docker-compose.yml logs --tail=100 api-gateway
             exit 1
