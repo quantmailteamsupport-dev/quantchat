@@ -38,9 +38,7 @@ services:
     networks:
       - quantchat-network
 
-  # API Gateway
-  # In CI, API_GATEWAY_IMAGE is set to a prebuilt GHCR image.
-  # Locally, leave it unset and Docker Compose builds from source.
+  # API Gateway — uses prebuilt GHCR image in CI (API_GATEWAY_IMAGE env var)
   api-gateway:
     image: ${API_GATEWAY_IMAGE:-quantchat/api-gateway:local}
     container_name: quantchat-api
