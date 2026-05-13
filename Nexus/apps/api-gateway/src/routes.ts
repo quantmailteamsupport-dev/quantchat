@@ -1504,7 +1504,7 @@ router.get("/api/reels", restRateLimit, (req: Request, res: Response) => {
 router.post(
   "/api/feed/:id/like",
   restRateLimit,
-  verifyQuantChatToken,
+  requireBiometricAuth,
   (req: Request, res: Response) => {
     const user = req.user as { sub: string };
     const itemId = normalizeOptionalString(req.params.id as string, 128);
@@ -1521,7 +1521,7 @@ router.post(
 router.post(
   "/api/reels/:id/like",
   restRateLimit,
-  verifyQuantChatToken,
+  requireBiometricAuth,
   (req: Request, res: Response) => {
     const user = req.user as { sub: string };
     const itemId = normalizeOptionalString(req.params.id as string, 128);
@@ -1556,7 +1556,7 @@ router.get(
 router.post(
   "/api/notifications/read-all",
   restRateLimit,
-  verifyQuantChatToken,
+  requireBiometricAuth,
   (_req: Request, res: Response): void => {
     const count = markAllRead();
     res.json({ marked: count });
@@ -1566,7 +1566,7 @@ router.post(
 router.post(
   "/api/notifications/:id/read",
   restRateLimit,
-  verifyQuantChatToken,
+  requireBiometricAuth,
   (req: Request, res: Response): void => {
     const notifId = normalizeOptionalString(req.params.id as string, 128);
     if (!notifId) { res.status(400).json({ error: "Invalid id" }); return; }
@@ -1585,7 +1585,7 @@ router.post(
 router.get(
   "/api/v1/users/me",
   restRateLimit,
-  verifyQuantChatToken,
+  requireBiometricAuth,
   async (req: Request, res: Response): Promise<void> => {
     try {
       const userId = (req.user as { sub: string }).sub;
@@ -1622,7 +1622,7 @@ const UpdateProfileSchema = z.object({
 router.patch(
   "/api/v1/users/me",
   restRateLimit,
-  verifyQuantChatToken,
+  requireBiometricAuth,
   async (req: Request, res: Response): Promise<void> => {
     const parsed = UpdateProfileSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -1652,7 +1652,7 @@ router.patch(
 router.get(
   "/api/v1/users/search",
   restRateLimit,
-  verifyQuantChatToken,
+  requireBiometricAuth,
   async (req: Request, res: Response): Promise<void> => {
     const q = normalizeOptionalString(req.query.q as string, 100);
     if (!q || q.length < 2) {
@@ -1692,7 +1692,7 @@ router.get(
 router.get(
   "/api/v1/conversations",
   restRateLimit,
-  verifyQuantChatToken,
+  requireBiometricAuth,
   async (req: Request, res: Response): Promise<void> => {
     const limit = Math.min(parseInt((req.query.limit as string) || "30", 10) || 30, 100);
     const cursor = normalizeOptionalString(req.query.cursor as string, 128);
@@ -1768,7 +1768,7 @@ const CreateConversationSchema = z.object({
 router.post(
   "/api/v1/conversations",
   restRateLimit,
-  verifyQuantChatToken,
+  requireBiometricAuth,
   async (req: Request, res: Response): Promise<void> => {
     const parsed = CreateConversationSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -1839,7 +1839,7 @@ router.post(
 router.get(
   "/api/v1/conversations/:id/messages",
   restRateLimit,
-  verifyQuantChatToken,
+  requireBiometricAuth,
   async (req: Request, res: Response): Promise<void> => {
     const conversationId = normalizeOptionalString(req.params.id as string, 128);
     if (!conversationId) { res.status(400).json({ error: "Invalid conversationId" }); return; }
