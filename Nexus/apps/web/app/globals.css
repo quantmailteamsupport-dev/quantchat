@@ -105,6 +105,7 @@ html, body {
   margin: 0;
   padding: 0;
   background: var(--qc-bg);
+  scroll-behavior: smooth;
 }
 .qc .mono { font-family: var(--qc-font-mono); font-feature-settings: normal; letter-spacing: 0; }
 
