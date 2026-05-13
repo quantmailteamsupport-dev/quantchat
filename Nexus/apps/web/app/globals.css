@@ -432,53 +432,47 @@ html, body {
   animation: qc-shimmer 1.6s infinite linear;
 }
 
-/* A1 Chat Control Room polish */
+/* ════════════════════════════════════════════════════════════════
+   Snapchat-dark Chat Control Room
+   ════════════════════════════════════════════════════════════════ */
 .qc-chat-app {
-  background:
-    linear-gradient(rgba(9, 9, 11, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(9, 9, 11, 0.035) 1px, transparent 1px),
-    #ffffff !important;
-  background-size: 44px 44px !important;
-  color: #09090b;
+  background: #000000 !important;
+  color: #ffffff;
 }
 
 .qc-chat-rail,
 .desktop-sidebar {
-  background: rgba(255, 255, 255, 0.86) !important;
-  backdrop-filter: blur(18px) saturate(140%);
+  background: #0d0d0d !important;
+  border-right: 1px solid #2a2a2a !important;
 }
 
 .qc-chat-stage {
-  background: rgba(248, 249, 250, 0.74) !important;
-  border-left: 1px solid rgba(9, 9, 11, 0.08);
-  border-right: 1px solid rgba(9, 9, 11, 0.08);
+  background: #000000 !important;
+  border-left: 1px solid #2a2a2a;
+  border-right: 1px solid #2a2a2a;
 }
 
 .qc-conversation-stage {
-  background:
-    radial-gradient(circle at top right, rgba(0, 47, 167, 0.08), transparent 36%),
-    linear-gradient(rgba(9, 9, 11, 0.032) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(9, 9, 11, 0.032) 1px, transparent 1px),
-    #ffffff !important;
-  background-size: auto, 40px 40px, 40px 40px, auto !important;
+  background: #000000 !important;
 }
 
 .qc-conversation-header {
-  background: rgba(255, 255, 255, 0.84) !important;
-  border-bottom: 1px solid rgba(9, 9, 11, 0.1);
+  background: #0d0d0d !important;
+  border-bottom: 1px solid #2a2a2a !important;
   box-shadow: none !important;
-  backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: none !important;
 }
 
 .qc-message-stream {
-  padding: 24px clamp(14px, 3vw, 36px) !important;
-  scrollbar-width: thin !important;
+  padding: 16px 12px !important;
+  scrollbar-width: none !important;
+  background: #000000 !important;
 }
 
 .qc-chat-empty-state {
-  border: 1px solid rgba(9, 9, 11, 0.12);
-  background: rgba(255, 255, 255, 0.82);
-  color: #52525b !important;
+  border: none !important;
+  background: transparent !important;
+  color: rgba(255,255,255,0.55) !important;
   padding: 28px !important;
   max-width: 420px;
   margin: auto;
@@ -486,41 +480,67 @@ html, body {
 
 .qc-attach-tray,
 .qc-input-bar {
-  background: rgba(255, 255, 255, 0.88) !important;
-  border-top: 1px solid rgba(9, 9, 11, 0.1);
-  backdrop-filter: blur(18px) saturate(140%);
+  background: #0d0d0d !important;
+  border-top: 1px solid #2a2a2a !important;
+  backdrop-filter: none !important;
 }
 
 .qc-composer {
-  background: #ffffff !important;
-  border: 1px solid rgba(9, 9, 11, 0.14) !important;
-  border-radius: 2px !important;
-  box-shadow: 0 14px 40px rgba(9, 9, 11, 0.06);
+  background: #1a1a1a !important;
+  border: 1px solid #2a2a2a !important;
+  border-radius: 28px !important;
+  box-shadow: none !important;
 }
 
-.qc-composer input { color: #09090b !important; caret-color: #002FA7 !important; font-family: var(--qc-font-ui) !important; }
+.qc-composer input {
+  color: #ffffff !important;
+  caret-color: #FFFC00 !important;
+  font-family: var(--qc-font-ui) !important;
+}
+.qc-composer input::placeholder { color: rgba(255,255,255,0.35) !important; }
 
 .qc-bubble {
-  border: 1px solid rgba(9, 9, 11, 0.12);
-  border-radius: 2px !important;
+  border: none !important;
+  border-radius: 18px !important;
 }
-.qc-bubble-own { background: #002FA7 !important; color: #ffffff !important; }
-.qc-bubble-other { background: rgba(255, 255, 255, 0.92) !important; color: #09090b !important; }
+.qc-bubble-own {
+  background: #0078ff !important;
+  color: #ffffff !important;
+  border-radius: 18px 18px 4px 18px !important;
+}
+.qc-bubble-other {
+  background: #262626 !important;
+  color: #ffffff !important;
+  border-radius: 18px 18px 18px 4px !important;
+}
 
 .qc-chat-action-button {
-  border-radius: 2px !important;
-  background: #ffffff !important;
-  border: 1px solid rgba(9, 9, 11, 0.14) !important;
-  color: #09090b !important;
+  border-radius: 20px !important;
+  background: rgba(255,252,0,0.1) !important;
+  border: 1px solid rgba(255,252,0,0.25) !important;
+  color: #FFFC00 !important;
   box-shadow: none !important;
 }
 
 .qc-send-button {
-  border-radius: 2px !important;
-  background: #002FA7 !important;
+  border-radius: 50% !important;
+  background: #0078ff !important;
   color: #ffffff !important;
-  border: 1px solid #002FA7 !important;
+  border: none !important;
 }
+
+/* Snap-dark conv rows */
+.qc-conv { border-left: 3px solid transparent; }
+.qc-conv:hover { background: rgba(255,255,255,0.04) !important; }
+.qc-conv[aria-selected="true"] {
+  background: rgba(255,252,0,0.07) !important;
+  border-left-color: #FFFC00 !important;
+}
+.qc-conv[aria-selected="true"]::before { background: #FFFC00 !important; }
+.qc-conv-name { color: #ffffff !important; }
+.qc-conv-preview { color: rgba(255,255,255,0.5) !important; }
+.qc-conv-time { color: rgba(255,255,255,0.35) !important; }
+.qc-conv-unread { background: #FFFC00 !important; color: #000000 !important; }
 
 @media (max-width: 1180px) {
   .qc-chat-app { grid-template-columns: 82px 300px minmax(0, 1fr) !important; }

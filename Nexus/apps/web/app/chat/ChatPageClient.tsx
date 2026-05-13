@@ -1,21 +1,14 @@
 "use client";
 
 /**
- * app/chat/page.tsx
- *
- * Production chat page â€” fully wired to real backend.
+ * app/chat/page.tsx  — SnapChat-inspired dark UI
  *
  * Data flow:
- *   SEND:    input â†’ addOptimisticMessage â†’ sendEncryptedMessage (socket)
- *              â†“ server ack â†’ confirmOptimisticMessage (swap tempId â†’ realId)
- *   RECEIVE: socket "receive-message" â†’ storeIncomingMessage (Dexie)
- *              â†’ useLiveQuery auto-rerenders the list
- *   STATUS:  socket "delivery-receipt" â†’ updateMessageStatus (Dexie)
- *
- * Architecture:
- *   - useSignalSocket:  socket connect/send/subscribe
- *   - useChatDB:        all Dexie reads (reactive via useLiveQuery)
- *   - No dummy data.    No static arrays.
+ *   SEND:    input → addOptimisticMessage → sendEncryptedMessage (socket)
+ *              ↓ server ack → confirmOptimisticMessage (swap tempId → realId)
+ *   RECEIVE: socket "receive-message" → storeIncomingMessage (Dexie)
+ *              → useLiveQuery auto-rerenders the list
+ *   STATUS:  socket "delivery-receipt" → updateMessageStatus (Dexie)
  */
 
 import { memo, useState, useEffect, useRef, useCallback, useMemo } from "react";
@@ -52,93 +45,133 @@ import { useFrontendPreferences, type ReadReceiptMode } from "@/lib/useFrontendP
 import type { Contact, ChatMessage } from "@/lib/db";
 import { getEmotionDetectionService, getAdaptiveThemeEngine } from "@/lib/emotion";
 
-// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-interface TypingState {
-  [senderId: string]: boolean;
-}
+// ─── Snap Design Tokens ───────────────────────────────────────────────────────
+const S = {
+  black:      "#000000",
+  dark:       "#0d0d0d",
+  card:       "#1a1a1a",
+  cardBorder: "#2a2a2a",
+  outBubble:  "#0078ff",        // sent: Snapchat blue
+  inBubble:   "#262626",        // received: dark gray
+  yellow:     "#FFFC00",        // Snapchat yellow accent
+  textPrimary:"#ffffff",
+  textSecond: "rgba(255,255,255,0.55)",
+  textMuted:  "rgba(255,255,255,0.30)",
+  purple:     "#a855f7",
+  green:      "#22c55e",
+  red:        "#ef4444",
+};
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface TypingState { [senderId: string]: boolean; }
 type ContactFilter = "all" | "unread" | "groups" | "priority";
-
 const CONTACT_FILTERS: Array<{ key: ContactFilter; label: string }> = [
   { key: "priority", label: "Priority" },
-  { key: "unread", label: "Unread" },
-  { key: "groups", label: "Groups" },
-  { key: "all", label: "All" },
+  { key: "unread",   label: "Unread"   },
+  { key: "groups",   label: "Groups"   },
+  { key: "all",      label: "All"      },
 ];
 
 function getContactPriorityScore(contact: Contact): number {
-  const unreadBoost = Math.min(contact.unreadCount, 12) * 4;
-  const groupBoost = contact.isGroup ? 8 : 0;
-  const mutedPenalty = contact.isMuted ? -10 : 0;
+  const unreadBoost   = Math.min(contact.unreadCount, 12) * 4;
+  const groupBoost    = contact.isGroup ? 8 : 0;
+  const mutedPenalty  = contact.isMuted ? -10 : 0;
   const ageMs = contact.lastMessageAt ? Date.now() - contact.lastMessageAt : Number.POSITIVE_INFINITY;
-
-  let freshnessBoost = 0;
-  if (ageMs <= 15 * 60 * 1000) freshnessBoost = 12;
-  else if (ageMs <= 60 * 60 * 1000) freshnessBoost = 8;
-  else if (ageMs <= 24 * 60 * 60 * 1000) freshnessBoost = 4;
-
+  let freshnessBoost  = 0;
+  if      (ageMs <= 15 * 60 * 1000)       freshnessBoost = 12;
+  else if (ageMs <= 60 * 60 * 1000)       freshnessBoost = 8;
+  else if (ageMs <= 24 * 60 * 60 * 1000)  freshnessBoost = 4;
   return unreadBoost + groupBoost + mutedPenalty + freshnessBoost;
 }
 
 function formatReceiptMode(mode: ReadReceiptMode): string {
   if (mode === "delayed") return "Delayed";
-  if (mode === "batch") return "Batch";
+  if (mode === "batch")   return "Batch";
   return "Instant";
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// ROOT COMPONENT â€“ manages socket lifecycle and routing
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ─── Emoji / Sticker data ─────────────────────────────────────────────────────
+const EMOJI_CATS = [
+  { key: "hi",     label: "👋 Hi"    },
+  { key: "love",   label: "❤️ Love"  },
+  { key: "haha",   label: "😂 Haha"  },
+  { key: "sad",    label: "😢 Sad"   },
+  { key: "angry",  label: "😡 Angry" },
+  { key: "wow",    label: "😮 Wow"   },
+  { key: "fire",   label: "🔥 Fire"  },
+  { key: "all",    label: "✨ All"   },
+];
+const STICKER_MAP: Record<string, string[]> = {
+  hi:    ["👋","🤚","🙌","🤝","✋","🫱","🫲","🫳","🫴","🙏","💪","🫶"],
+  love:  ["❤️","🧡","💛","💚","💙","💜","🤍","🖤","💗","💓","💞","💕","😍","🥰","😘","💋","💌","💝"],
+  haha:  ["😂","🤣","😆","😁","😄","😃","😀","🤭","🫢","😅","😋","🤪","😜","😝","😛"],
+  sad:   ["😢","😭","😔","😞","😟","🥺","😿","💔","😩","😫","🙁","☹️","😕","🫠"],
+  angry: ["😡","🤬","😠","👿","💢","😤","🔥","💥","🗯️","⚡"],
+  wow:   ["😮","😲","🤯","😱","😳","🫨","😨","😦","😧","🤩","✨","🌟","⭐","💫"],
+  fire:  ["🔥","💥","⚡","🌪️","❄️","💨","🌊","🌈","☄️","🚀","💎","👑","🏆","🎯"],
+  all:   ["😀","😂","😍","🥰","😎","🤩","😢","😡","🔥","💯","✅","🎉","🎊","🎈","🎁","💌","💪","🙌","👋","❤️","🧡","💛","💚","💙","💜","⭐","🌟","✨","💫","🎯","🏆","👑","💎","🚀","☄️","🌈","🌊","💥","⚡"],
+};
+
+// ─── Mini-Games data ──────────────────────────────────────────────────────────
+const MINI_GAMES = [
+  { id: "darts",        name: "101 Darts",       emoji: "🎯", color: "#1d4ed8", players: "1-2" },
+  { id: "fourinrow",    name: "Four in a Row",   emoji: "🟡", color: "#d97706", players: "2"   },
+  { id: "seabattle",   name: "Sea Battle",       emoji: "⚓", color: "#0369a1", players: "2"   },
+  { id: "chess",        name: "Chess",            emoji: "♟️", color: "#374151", players: "2"   },
+  { id: "checkers",     name: "Checkers",         emoji: "⬛", color: "#6b21a8", players: "2"   },
+  { id: "minigolf",     name: "2P Mini Golf",     emoji: "⛳", color: "#166534", players: "2"   },
+  { id: "pool",         name: "8 Ball Pool",      emoji: "🎱", color: "#1e293b", players: "2"   },
+  { id: "snakeladder",  name: "Snake & Ladders",  emoji: "🐍", color: "#b45309", players: "2-4" },
+  { id: "blockbuster",  name: "Block Buster",     emoji: "🧱", color: "#be123c", players: "1"   },
+  { id: "tennis",       name: "Bitmoji Tennis",   emoji: "🎾", color: "#0d9488", players: "2"   },
+  { id: "dots",         name: "Dots & Boxes",     emoji: "⬜", color: "#7c3aed", players: "2"   },
+  { id: "wordbattle",   name: "Word Battle",      emoji: "📝", color: "#0891b2", players: "2"   },
+  { id: "tictactoe",    name: "Tic-Tac-Toe",      emoji: "❌", color: "#dc2626", players: "2"   },
+  { id: "trivia",       name: "Trivia Clash",     emoji: "🧠", color: "#7c3aed", players: "2"   },
+  { id: "memory",       name: "Memory Match",     emoji: "🃏", color: "#0f766e", players: "1-2" },
+  { id: "hangman",      name: "Hangman",          emoji: "🪢", color: "#9a3412", players: "2"   },
+];
+
+// ════════════════════════════════════════════════════════════════════════════════
+// ROOT COMPONENT
+// ════════════════════════════════════════════════════════════════════════════════
 export default function ChatPage() {
   const { requestedUserId, authToken } = useQuantchatIdentity();
-  const [activeContact, setActiveContact] = useState<Contact | null>(null);
-  const [typing, setTyping] = useState<TypingState>({});
+  const [activeContact, setActiveContact]   = useState<Contact | null>(null);
+  const [typing, setTyping]                 = useState<TypingState>({});
   const [activeServerId, setActiveServerId] = useState<string | undefined>();
   const [activeChannelId, setActiveChannelId] = useState<string | undefined>();
   const [sidebarSection, setSidebarSection] = useState<"dms" | "servers">("dms");
-  const { preferences } = useFrontendPreferences();
+  const { preferences }                     = useFrontendPreferences();
   const { userId: activeUserId, isConnected, sendEncryptedMessage, subscribeToMessages, subscribeToReceipts, sendTyping, socket } =
     useSignalSocket(requestedUserId, authToken);
 
-  // â”€â”€â”€ Subscribe to incoming messages globally â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     if (!activeUserId) return;
     const unsub = subscribeToMessages(async (msg) => {
       await storeIncomingMessage(activeUserId, {
-        id: msg.id,
-        senderId: msg.senderId,
-        text: msg.plaintext,
-        createdAt: msg.createdAt,
+        id: msg.id, senderId: msg.senderId, text: msg.plaintext, createdAt: msg.createdAt,
       });
-      // Ensure sender exists as a contact
       await upsertContact({
-        id: msg.senderId,
-        name: msg.senderId, // Replace with profile lookup
-        avatarColor: "#6d4aff",
+        id: msg.senderId, name: msg.senderId, avatarColor: "#6d4aff",
         avatarLetter: msg.senderId[0]?.toUpperCase() ?? "?",
-        lastMessageText: msg.plaintext,
-        lastMessageAt: Date.now(),
+        lastMessageText: msg.plaintext, lastMessageAt: Date.now(),
       });
     });
     return unsub;
   }, [activeUserId, subscribeToMessages]);
 
-  // â”€â”€â”€ Subscribe to delivery receipts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     const unsub = subscribeToReceipts(async (receipt) => {
       const status = receipt.status === "DELIVERED" ? "delivered" : "read";
-      await updateMessageStatus(
-        receipt.messageId,
-        status,
+      await updateMessageStatus(receipt.messageId, status,
         receipt.deliveredAt ? new Date(receipt.deliveredAt).getTime()
-          : receipt.readAt ? new Date(receipt.readAt).getTime()
-          : undefined
+          : receipt.readAt ? new Date(receipt.readAt).getTime() : undefined
       );
     });
     return unsub;
   }, [subscribeToReceipts]);
 
-  // ————————————————————— Subscribe to typing indicators ———————————————————————————
   useEffect(() => {
     if (!socket) return;
     const listener = (data: { senderId: string; isTyping: boolean }) => {
@@ -148,30 +181,19 @@ export default function ChatPage() {
     return () => { socket.off("typing", listener); };
   }, [socket]);
 
-  // ————————————————————— Subscribe to emotion engine ——————————————————————————————
   useEffect(() => {
     const engine = getAdaptiveThemeEngine();
     const detector = getEmotionDetectionService();
-    engine.start();
-    detector.start();
-
-    const unsub = detector.subscribe((est) => {
-      engine.applyFromDetector(est.emotion);
-    });
-
+    engine.start(); detector.start();
+    const unsub = detector.subscribe((est) => { engine.applyFromDetector(est.emotion); });
     const handleTap = () => detector.ingestTap();
     window.addEventListener("pointerdown", handleTap);
-
-    return () => {
-      unsub();
-      window.removeEventListener("pointerdown", handleTap);
-    };
+    return () => { unsub(); window.removeEventListener("pointerdown", handleTap); };
   }, []);
 
   const openContact = useCallback((contact: Contact) => {
     setActiveContact(contact);
     setActiveChannelId(undefined);
-
     if (activeUserId && preferences.readReceiptsEnabled && preferences.readReceiptMode === "instant") {
       void markConversationRead(activeUserId, contact.id);
     } else {
@@ -181,55 +203,44 @@ export default function ChatPage() {
 
   if (!activeUserId) {
     return (
-      <div className="qc qc-chat-app" data-testid="chat-auth-required" style={{
-        minHeight: "100%",
-        display: "grid",
-        placeItems: "center",
-        background: "var(--qc-bg)",
-        color: "var(--qc-ink)",
-        padding: 24,
-        textAlign: "center",
+      <div style={{
+        minHeight: "100%", display: "grid", placeItems: "center",
+        background: S.black, color: S.textPrimary, padding: 24, textAlign: "center",
       }}>
         <div style={{ maxWidth: 420 }}>
-          <h1 style={{ fontSize: 28, marginBottom: 10 }}>Sign in to open secure chat</h1>
-          <p style={{ color: "var(--qc-ink-3)", lineHeight: 1.6 }}>QuantChat needs a verified identity before starting encrypted realtime sessions.</p>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>👻</div>
+          <h1 style={{ fontSize: 28, marginBottom: 10, fontFamily: "-apple-system,sans-serif" }}>Sign in to QuantChat</h1>
+          <p style={{ color: S.textSecond, lineHeight: 1.6 }}>End-to-end encrypted messaging. Sign in to start chatting.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="qc qc-chat-app" data-testid="chat-control-room-shell" data-density={preferences.compactChatLayout ? "compact" : "regular"} style={{
-      display: "grid",
-      gridTemplateColumns: "260px 320px 1fr 280px",
-      height: "100%", minHeight: 0,
-      background: "var(--qc-bg)",
-    }}>
+    <div className="qc qc-chat-app" data-testid="chat-control-room-shell"
+      data-density={preferences.compactChatLayout ? "compact" : "regular"}
+      style={{
+        display: "grid",
+        gridTemplateColumns: "260px 320px 1fr 280px",
+        height: "100%", minHeight: 0,
+        background: S.black,
+      }}>
       <ChatRail activeId={activeContact?.id || activeChannelId} />
 
-      {/* ── Desktop Hybrid Sidebar (hidden on mobile) ── */}
-      <aside
-        className="desktop-sidebar qc-scroll"
-        style={{
-          borderRight: "1px solid var(--qc-line)",
-          background: "var(--qc-bg)",
-          display: "flex",
-          flexDirection: "column",
-          minHeight: 0,
-        }}
-      >
+      <aside className="desktop-sidebar qc-scroll" style={{
+        borderRight: `1px solid ${S.cardBorder}`,
+        background: S.dark, display: "flex", flexDirection: "column", minHeight: 0,
+      }}>
         <ContactList onSelect={openContact} activeContactId={activeContact?.id} />
       </aside>
 
-      {/* ── Main content area ── */}
-      <main className="qc-chat-stage" data-testid="chat-main-stage" style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+      <main className="qc-chat-stage" data-testid="chat-main-stage"
+        style={{ flex: 1, position: "relative", overflow: "hidden", background: S.black }}>
         <AnimatePresence mode="wait">
           {activeContact ? (
             <motion.div
               key={`conv-${activeContact.id}`}
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
+              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ type: "spring", stiffness: 350, damping: 35 }}
               style={{ position: "absolute", inset: 0 }}
             >
@@ -248,11 +259,8 @@ export default function ChatPage() {
               />
             </motion.div>
           ) : activeChannelId ? (
-            <motion.div
-              key={`channel-${activeChannelId}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+            <motion.div key={`channel-${activeChannelId}`}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
               style={{
                 position: "absolute", inset: 0, display: "flex",
@@ -261,9 +269,7 @@ export default function ChatPage() {
               }}
             >
               <div style={{ fontSize: 48 }}>⇅</div>
-              <span style={{ color: "var(--qc-ink-3)", fontSize: 15, fontFamily: "-apple-system,sans-serif" }}>
-                #{activeChannelId} — coming soon
-              </span>
+              <span style={{ color: S.textSecond, fontSize: 15 }}>#{activeChannelId} — coming soon</span>
             </motion.div>
           ) : (
             <div key="list" style={{ position: "absolute", inset: 0 }} className="mobile-contact-list">
@@ -273,100 +279,59 @@ export default function ChatPage() {
         </AnimatePresence>
       </main>
 
-      {/* ── Right details panel ── */}
       <ChatDetails contact={activeContact} />
     </div>
   );
 }
 
-function ContactList({
-  onSelect,
-  activeContactId,
-}: {
-  onSelect: (c: Contact) => void;
-  activeContactId?: string;
-}) {
-  const contacts = useContacts(); // reactive, auto-updates on new messages
-  const [search, setSearch] = useState("");
+// ─── Contact List (Snapchat-dark sidebar) ─────────────────────────────────────
+function ContactList({ onSelect, activeContactId }: { onSelect: (c: Contact) => void; activeContactId?: string; }) {
+  const contacts = useContacts();
+  const [search, setSearch]           = useState("");
   const [activeFilter, setActiveFilter] = useState<ContactFilter>("all");
   const normalizedSearch = (search ?? "").trim().toLowerCase();
 
   const filterCounts = useMemo<Record<ContactFilter, number>>(() => {
-    let unread = 0;
-    let groups = 0;
-    let priority = 0;
-
-    for (const contact of contacts) {
-      if (contact.unreadCount > 0) unread += 1;
-      if (contact.isGroup) groups += 1;
-      if (getContactPriorityScore(contact) > 0) priority += 1;
+    let unread = 0, groups = 0, priority = 0;
+    for (const c of contacts) {
+      if (c.unreadCount > 0) unread++;
+      if (c.isGroup) groups++;
+      if (getContactPriorityScore(c) > 0) priority++;
     }
-
-    return {
-      all: contacts.length,
-      unread,
-      groups,
-      priority,
-    };
+    return { all: contacts.length, unread, groups, priority };
   }, [contacts]);
 
   const filtered = useMemo(() => {
-    const visible = contacts.filter((contact) => {
-      const matchesSearch = normalizedSearch.length === 0
-        || contact.name.toLowerCase().includes(normalizedSearch)
-        || (contact.lastMessageText ?? "").toLowerCase().includes(normalizedSearch);
-      if (!matchesSearch) return false;
-
-      if (activeFilter === "unread") return contact.unreadCount > 0;
-      if (activeFilter === "groups") return Boolean(contact.isGroup);
-      if (activeFilter === "priority") return getContactPriorityScore(contact) > 0;
+    const vis = contacts.filter((c) => {
+      const m = normalizedSearch.length === 0
+        || c.name.toLowerCase().includes(normalizedSearch)
+        || (c.lastMessageText ?? "").toLowerCase().includes(normalizedSearch);
+      if (!m) return false;
+      if (activeFilter === "unread")   return c.unreadCount > 0;
+      if (activeFilter === "groups")   return Boolean(c.isGroup);
+      if (activeFilter === "priority") return getContactPriorityScore(c) > 0;
       return true;
     });
-
-    visible.sort((a, b) => {
+    vis.sort((a, b) => {
       if (activeFilter === "priority") {
-        const scoreDelta = getContactPriorityScore(b) - getContactPriorityScore(a);
-        if (scoreDelta !== 0) return scoreDelta;
+        const d = getContactPriorityScore(b) - getContactPriorityScore(a);
+        if (d !== 0) return d;
       }
       return (b.lastMessageAt ?? 0) - (a.lastMessageAt ?? 0);
     });
-
-    return visible;
+    return vis;
   }, [contacts, normalizedSearch, activeFilter]);
 
-  const topPriorityContact = useMemo(() => {
-    const prioritized = contacts
-      .filter((contact) => {
-        const matchesSearch = normalizedSearch.length === 0
-          || contact.name.toLowerCase().includes(normalizedSearch)
-          || (contact.lastMessageText ?? "").toLowerCase().includes(normalizedSearch);
-        return matchesSearch && getContactPriorityScore(contact) > 0;
-      })
-      .sort((a, b) => {
-        const scoreDelta = getContactPriorityScore(b) - getContactPriorityScore(a);
-        if (scoreDelta !== 0) return scoreDelta;
-        return (b.lastMessageAt ?? 0) - (a.lastMessageAt ?? 0);
-      });
-
-    return prioritized[0];
-  }, [contacts, normalizedSearch]);
-
   return (
-    <div style={{
-      width: "100%", height: "100%", display: "flex", flexDirection: "column",
-      background: "var(--qc-bg)", overflow: "hidden",
-    }}>
+    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: S.dark, overflow: "hidden" }}>
       {/* Header */}
-      <div style={{
-        padding: "14px 16px 8px",
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-      }}>
-        <span style={{ fontSize: 22, fontWeight: 800, color: "var(--qc-ink)", fontFamily: "-apple-system,sans-serif" }}>
-          Chats
+      <div style={{ padding: "16px 16px 8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 22, fontWeight: 800, color: S.textPrimary, fontFamily: "-apple-system,sans-serif" }}>
+          💬 Chats
         </span>
-        <div style={{ display: "flex", gap: 18, color: "var(--qc-ink-3)", fontSize: 20 }}>
-          <span style={{ cursor: "pointer" }}>⊕</span>
-          <span style={{ cursor: "pointer" }}>⋮</span>
+        <div style={{ display: "flex", gap: 14, fontSize: 20 }}>
+          <span style={{ cursor: "pointer", color: S.textSecond }}>⊕</span>
+          <span style={{ cursor: "pointer", color: S.textSecond }}>⋮</span>
         </div>
       </div>
 
@@ -374,173 +339,114 @@ function ContactList({
       <div style={{ padding: "0 12px 10px" }}>
         <div style={{
           display: "flex", alignItems: "center", gap: 10,
-          background: "var(--qc-bg-2)", borderRadius: 12, padding: "9px 14px",
+          background: S.card, borderRadius: 14, padding: "9px 14px",
+          border: `1px solid ${S.cardBorder}`,
         }}>
-          <span style={{ color: "var(--qc-ink-4)", fontSize: 16 }}>🔍</span>
+          <span style={{ color: S.textMuted, fontSize: 16 }}>🔍</span>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search"
+            placeholder="Search Chats"
             style={{
               background: "none", border: "none", outline: "none",
-              color: "var(--qc-ink)", fontSize: 15, flex: 1,
+              color: S.textPrimary, fontSize: 15, flex: 1,
               fontFamily: "-apple-system,sans-serif",
             }}
           />
         </div>
       </div>
 
-      {/* Smart filters for one-tap inbox triage */}
-      <div style={{
-        display: "flex", gap: 8, padding: "0 12px 10px",
-        overflowX: "auto", scrollbarWidth: "none",
-      }}>
-        {CONTACT_FILTERS.map((filter) => {
-          const isActive = activeFilter === filter.key;
-          const count = filterCounts[filter.key];
+      {/* Filters */}
+      <div style={{ display: "flex", gap: 8, padding: "0 12px 10px", overflowX: "auto", scrollbarWidth: "none" }}>
+        {CONTACT_FILTERS.map((f) => {
+          const isActive = activeFilter === f.key;
+          const count = filterCounts[f.key];
           return (
-            <button
-              key={filter.key}
-              type="button"
-              onClick={() => setActiveFilter(filter.key)}
-              style={{
-                borderRadius: 999,
-                border: isActive ? "1px solid var(--qc-accent)" : "1px solid var(--qc-line)",
-                background: isActive ? "oklch(from var(--qc-accent) l c h / 0.2)" : "var(--qc-bg-3)",
-                color: isActive ? "var(--qc-accent)" : "var(--qc-ink-3)",
-                padding: "6px 11px",
-                fontSize: 12,
-                fontWeight: isActive ? 700 : 500,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                fontFamily: "-apple-system,sans-serif",
-              }}
-            >
-              {filter.label} {count > 0 ? `(${count})` : ""}
+            <button key={f.key} type="button" onClick={() => setActiveFilter(f.key)} style={{
+              borderRadius: 999, border: isActive ? `1px solid ${S.yellow}` : `1px solid ${S.cardBorder}`,
+              background: isActive ? `rgba(255,252,0,0.15)` : S.card,
+              color: isActive ? S.yellow : S.textSecond,
+              padding: "6px 12px", fontSize: 12, fontWeight: isActive ? 700 : 500,
+              cursor: "pointer", whiteSpace: "nowrap", fontFamily: "-apple-system,sans-serif",
+            }}>
+              {f.label}{count > 0 ? ` (${count})` : ""}
             </button>
           );
         })}
       </div>
 
-      {topPriorityContact && (
-        <div style={{ padding: "0 12px 10px" }}>
-          <button
-            type="button"
-            onClick={() => onSelect(topPriorityContact)}
-            style={{
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 10,
-              borderRadius: 12,
-              border: "1px solid oklch(from var(--qc-accent) l c h / 0.4)",
-              background: "oklch(from var(--qc-accent) l c h / 0.1)",
-              color: "var(--qc-accent)",
-              padding: "10px 12px",
-              cursor: "pointer",
-              fontFamily: "-apple-system,sans-serif",
-            }}
-            aria-label={`Open top priority conversation with ${topPriorityContact.name}`}
-          >
-            <span style={{ fontWeight: 700, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-              Open top priority
-            </span>
-          </button>
-        </div>
-      )}
-
-      {/* Empty state */}
+      {/* Empty states */}
       {contacts.length === 0 && (
-        <div data-testid="chat-list-empty-state" style={{
+        <div style={{
           flex: 1, display: "flex", flexDirection: "column",
-          alignItems: "center", justifyContent: "center", gap: 12,
-          padding: "40px 24px",
-          color: "var(--qc-ink-3)",
-          textAlign: "center",
+          alignItems: "center", justifyContent: "center", gap: 14,
+          padding: "40px 24px", color: S.textSecond, textAlign: "center",
         }}>
-          <div aria-hidden="true" style={{
-            width: 56, height: 56, borderRadius: 14, display: "grid", placeItems: "center",
-            background: "var(--qc-accent-bg)", color: "var(--qc-accent)",
-            border: "1px solid var(--qc-accent-line)",
-          }}>
-            <Icon name="users" size={24} />
-          </div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--qc-ink)" }}>
-            No conversations yet
-          </div>
-          <div style={{ fontSize: 12, lineHeight: 1.5, maxWidth: 280 }}>
-            Once you connect with someone, your encrypted threads will land here.
-          </div>
+          <div style={{ fontSize: 56 }}>👻</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: S.textPrimary }}>No conversations yet</div>
+          <div style={{ fontSize: 12, lineHeight: 1.6 }}>Add friends to start snapping!</div>
         </div>
       )}
       {contacts.length > 0 && filtered.length === 0 && (
-        <div style={{
-          padding: "18px 24px 12px",
-          color: "var(--qc-ink-4)",
-          fontSize: 13,
-          textAlign: "center",
-          fontFamily: "-apple-system,sans-serif",
-        }}>
-          No chats match this filter yet.
+        <div style={{ padding: "18px", color: S.textMuted, fontSize: 13, textAlign: "center" }}>
+          No chats match this filter.
         </div>
       )}
 
       {/* Contact rows */}
       <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
         {filtered.map((contact, i) => (
-          <ContactRow
-            key={contact.id}
-            contact={contact}
-            index={i}
+          <ContactRow key={contact.id} contact={contact} index={i}
             isActive={contact.id === activeContactId}
-            onClick={() => onSelect(contact)}
-          />
+            onClick={() => onSelect(contact)} />
         ))}
       </div>
     </div>
   );
 }
 
-// ————————————————————————————————————————————————————————————————————————
-// Single Contact Row 
-// ————————————————————————————————————————————————————————————————————————
+// ─── Contact Row ──────────────────────────────────────────────────────────────
 const ContactRow = memo(function ContactRow({ contact, index, isActive, onClick }: {
   contact: Contact; index: number; isActive?: boolean; onClick: () => void;
 }) {
-  const lastTime = contact.lastMessageAt
-    ? formatTime(contact.lastMessageAt)
-    : "";
-  const lastMessagePreview = contact.lastMessageText
-    ? parseSpoilerShieldText(contact.lastMessageText).text
-    : "";
+  const lastTime = contact.lastMessageAt ? formatTime(contact.lastMessageAt) : "";
+  const preview  = contact.lastMessageText ? parseSpoilerShieldText(contact.lastMessageText).text : "";
   return (
     <motion.div
       onClick={onClick}
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: Math.min(index, 12) * 0.018 }}
-      className="qc-conv"
-      aria-selected={isActive}
+      style={{
+        display: "flex", alignItems: "center", gap: 12,
+        padding: "10px 14px", cursor: "pointer",
+        background: isActive ? "rgba(255,252,0,0.07)" : "transparent",
+        borderLeft: isActive ? `3px solid ${S.yellow}` : "3px solid transparent",
+        transition: "background 0.15s",
+      }}
     >
-      <ContactAvatar contact={contact} size={40} />
-      <div style={{ minWidth: 0, overflow: "hidden" }}>
-        <div className="qc-conv-name">
-          {contact.isGroup && <span style={{ color: "var(--qc-ink-3)", fontSize: 13, marginRight: 2 }}>#</span>}
+      <ContactAvatar contact={contact} size={46} />
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontWeight: 700, fontSize: 15, color: S.textPrimary, fontFamily: "-apple-system,sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {contact.isGroup && <span style={{ color: S.textSecond, marginRight: 4 }}>#</span>}
           {contact.name}
         </div>
-        <div className="qc-conv-preview">
-          {lastMessagePreview || <span style={{ fontStyle: "italic", opacity: 0.6 }}>No messages yet</span>}
+        <div style={{ fontSize: 12, color: S.textSecond, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
+          {preview || <span style={{ fontStyle: "italic", opacity: 0.5 }}>No messages yet</span>}
         </div>
       </div>
-      <div className="qc-conv-meta">
-        {lastTime && <span className="qc-conv-time">{lastTime}</span>}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+        {lastTime && <span style={{ fontSize: 11, color: S.textMuted }}>{lastTime}</span>}
         {contact.unreadCount > 0 ? (
-          <span className="qc-conv-unread">
+          <span style={{
+            background: S.yellow, color: "#000", borderRadius: 999,
+            minWidth: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 10, fontWeight: 800, padding: "0 5px",
+          }}>
             {contact.unreadCount > 99 ? "99+" : contact.unreadCount}
           </span>
         ) : (
-          <span style={{ color: "var(--qc-ink-4)", fontSize: 12 }}>✓✓</span>
+          <span style={{ color: S.textMuted, fontSize: 12 }}>✓✓</span>
         )}
       </div>
     </motion.div>
@@ -548,122 +454,94 @@ const ContactRow = memo(function ContactRow({ contact, index, isActive, onClick 
 });
 ContactRow.displayName = "ContactRow";
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// CHAT CONVERSATION  â€”  messages from Dexie (useLiveQuery)
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ════════════════════════════════════════════════════════════════════════════════
+// CHAT CONVERSATION  (Snapchat-inspired dark)
+// ════════════════════════════════════════════════════════════════════════════════
 function ChatConversation({
-  contact,
-  myUserId,
-  onBack,
-  sendEncryptedMessage,
-  sendTyping,
-  isContactTyping,
-  showReactions,
-  readReceiptsEnabled,
-  readReceiptMode,
-  compactLayout,
-  aiReplySuggestionsEnabled,
+  contact, myUserId, onBack, sendEncryptedMessage, sendTyping,
+  isContactTyping, showReactions, readReceiptsEnabled, readReceiptMode,
+  compactLayout, aiReplySuggestionsEnabled,
 }: {
-  contact: Contact;
-  myUserId: string;
-  onBack: () => void;
+  contact: Contact; myUserId: string; onBack: () => void;
   sendEncryptedMessage: (recipientId: string, plaintext: string) => Promise<void>;
   sendTyping: (receiverId: string, isTyping: boolean) => void;
-  isContactTyping: boolean;
-  showReactions: boolean;
-  readReceiptsEnabled: boolean;
-  readReceiptMode: ReadReceiptMode;
-  compactLayout: boolean;
-  aiReplySuggestionsEnabled: boolean;
+  isContactTyping: boolean; showReactions: boolean;
+  readReceiptsEnabled: boolean; readReceiptMode: ReadReceiptMode;
+  compactLayout: boolean; aiReplySuggestionsEnabled: boolean;
 }) {
-  const messages = useMessages(myUserId, contact.id); // reactive
-  const [input, setInput] = useState("");
-  const [showAttach, setShowAttach] = useState(false);
-  const [isAudioCallOpen, setIsAudioCallOpen] = useState(false);
-  const [chillRoomOpen, setChillRoomOpen] = useState(false);
-  const [showHandshake, setShowHandshake] = useState(false);
+  const messages = useMessages(myUserId, contact.id);
+  const [input, setInput]                         = useState("");
+  const [showAttach, setShowAttach]               = useState(false);
+  const [showEmoji, setShowEmoji]                 = useState(false);
+  const [showGames, setShowGames]                 = useState(false);
+  const [emojiCategory, setEmojiCategory]         = useState("all");
+  const [emojiSearch, setEmojiSearch]             = useState("");
+  const [screenshotBanner, setScreenshotBanner]   = useState(false);
+  const [showLocation, setShowLocation]           = useState(true);
+  const [isRecordingVoice, setIsRecordingVoice]   = useState(false);
+  const [isAudioCallOpen, setIsAudioCallOpen]     = useState(false);
+  const [chillRoomOpen, setChillRoomOpen]         = useState(false);
+  const [showHandshake, setShowHandshake]         = useState(false);
   const [isHandshakeVerified, setIsHandshakeVerified] = useState(false);
   const [spoilerShieldEnabled, setSpoilerShieldEnabled] = useState(false);
   const [spoilerShieldMode, setSpoilerShieldMode] = useState<SpoilerShieldMode>("auto");
-  const [ghostSuggestion, setGhostSuggestion] = useState("");
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const ghostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [ghostSuggestion, setGhostSuggestion]     = useState("");
+  const [showMoreMenu, setShowMoreMenu]           = useState(false);
+
+  const bottomRef         = useRef<HTMLDivElement>(null);
+  const typingTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ghostTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
   const readReceiptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onInitiateHandshake = useCallback(() => setShowHandshake(true), []);
 
-  // Auto-scroll on new messages
+  // Auto-scroll
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length]);
+
+  // Read receipts
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
-
-  // Mark all read when conversation opens
-  useEffect(() => {
-    if (readReceiptTimerRef.current) {
-      clearTimeout(readReceiptTimerRef.current);
-      readReceiptTimerRef.current = null;
-    }
-
-    if (!readReceiptsEnabled) {
-      void clearConversationUnread(contact.id);
-      return;
-    }
-
-    if (readReceiptMode === "instant") {
-      void markConversationRead(myUserId, contact.id);
-      return;
-    }
-
+    if (readReceiptTimerRef.current) { clearTimeout(readReceiptTimerRef.current); readReceiptTimerRef.current = null; }
+    if (!readReceiptsEnabled) { void clearConversationUnread(contact.id); return; }
+    if (readReceiptMode === "instant") { void markConversationRead(myUserId, contact.id); return; }
     if (readReceiptMode === "delayed") {
-      readReceiptTimerRef.current = setTimeout(() => {
-        void markConversationRead(myUserId, contact.id);
-      }, 4500);
-      return () => {
-        if (readReceiptTimerRef.current) {
-          clearTimeout(readReceiptTimerRef.current);
-          readReceiptTimerRef.current = null;
-        }
-      };
+      readReceiptTimerRef.current = setTimeout(() => { void markConversationRead(myUserId, contact.id); }, 4500);
+      return () => { if (readReceiptTimerRef.current) { clearTimeout(readReceiptTimerRef.current); readReceiptTimerRef.current = null; } };
     }
-
     void clearConversationUnread(contact.id);
   }, [contact.id, myUserId, readReceiptMode, readReceiptsEnabled]);
 
-  useEffect(() => {
-    if (!aiReplySuggestionsEnabled) {
-      setGhostSuggestion("");
-    }
-  }, [aiReplySuggestionsEnabled]);
+  useEffect(() => { if (!aiReplySuggestionsEnabled) setGhostSuggestion(""); }, [aiReplySuggestionsEnabled]);
+
+  // Close panels when other opens
+  const openEmojiPanel = () => { setShowEmoji(true); setShowGames(false); setShowAttach(false); };
+  const openGamesPanel = () => { setShowGames(true); setShowEmoji(false); setShowAttach(false); };
+  const openAttachPanel = () => { setShowAttach(true); setShowEmoji(false); setShowGames(false); };
+
+  const triggerScreenshotBanner = () => {
+    setScreenshotBanner(true);
+    setTimeout(() => setScreenshotBanner(false), 4000);
+  };
 
   const handleInputChange = useCallback((val: string) => {
     setInput(val);
-    setGhostSuggestion(""); // clear old suggestion immediately
+    setGhostSuggestion("");
     sendTyping(contact.id, true);
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     typingTimerRef.current = setTimeout(() => sendTyping(contact.id, false), 2000);
-
-    if (!aiReplySuggestionsEnabled) {
-      return;
-    }
-
-    // BCI ghost text: debounced prediction after 400ms of idle typing
+    if (!aiReplySuggestionsEnabled) return;
     if (ghostTimerRef.current) clearTimeout(ghostTimerRef.current);
     if ((val ?? "").trim().length >= 2) {
       ghostTimerRef.current = setTimeout(async () => {
         try {
           const recentTexts = messages.slice(-5).map((m) => m.text);
           const resp = await fetch("/api/predict-typing", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+            method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ currentInput: val, recentMessages: recentTexts }),
           });
           if (resp.ok) {
             const data = await resp.json() as { suggestion?: string };
             setGhostSuggestion(data.suggestion ?? "");
           }
-        } catch {
-          // ignore prediction errors silently
-        }
+        } catch { /* ignore */ }
       }, 400);
     }
   }, [aiReplySuggestionsEnabled, contact.id, sendTyping, messages]);
@@ -671,21 +549,12 @@ function ChatConversation({
   const handleSend = useCallback(async () => {
     const baseText = (input ?? "").trim();
     if (!baseText) return;
-
-    const text = spoilerShieldEnabled
-      ? encodeSpoilerShieldText(baseText, spoilerShieldMode)
-      : baseText;
-
-    setInput("");
-    setGhostSuggestion("");
-    setSpoilerShieldEnabled(false);
+    const text = spoilerShieldEnabled ? encodeSpoilerShieldText(baseText, spoilerShieldMode) : baseText;
+    setInput(""); setGhostSuggestion(""); setSpoilerShieldEnabled(false);
     sendTyping(contact.id, false);
-
     getEmotionDetectionService().ingestMessage(text);
-
     const tempId = `temp_${Date.now()}_${Math.random()}`;
     await addOptimisticMessage(myUserId, contact.id, text, tempId);
-
     try {
       await sendEncryptedMessage(contact.id, text);
       await confirmOptimisticMessage(tempId, tempId.replace("temp_", "real_"));
@@ -694,6 +563,20 @@ function ChatConversation({
       await updateMessageStatus(tempId, "failed");
     }
   }, [contact.id, input, myUserId, sendEncryptedMessage, sendTyping, spoilerShieldEnabled, spoilerShieldMode]);
+
+  const handleSendEmoji = useCallback(async (emoji: string) => {
+    setShowEmoji(false);
+    getEmotionDetectionService().ingestMessage(emoji);
+    const tempId = `temp_${Date.now()}_${Math.random()}`;
+    await addOptimisticMessage(myUserId, contact.id, emoji, tempId);
+    try {
+      await sendEncryptedMessage(contact.id, emoji);
+      await confirmOptimisticMessage(tempId, tempId.replace("temp_", "real_"));
+    } catch {
+      const { updateMessageStatus } = await import("@/lib/useChatDB");
+      await updateMessageStatus(tempId, "failed");
+    }
+  }, [contact.id, myUserId, sendEncryptedMessage]);
 
   const handleRetry = useCallback(async (failedMessage: ChatMessage) => {
     const { updateMessageStatus } = await import("@/lib/useChatDB");
@@ -707,256 +590,306 @@ function ChatConversation({
   }, [contact.id, sendEncryptedMessage]);
 
   const ATTACH_ITEMS = [
-    { emoji: "IMG", label: "Gallery", color: "#7B5EA7" },
-    { emoji: "CAM", label: "Camera", color: "#E53935" },
-    { emoji: "LOC", label: "Location", color: "#43A047" },
-    { emoji: "CON", label: "Contact", color: "#1E88E5" },
-    { emoji: "DOC", label: "Document", color: "#7B5EA7" },
-    { emoji: "AUD", label: "Audio", color: "#F4511E" },
-    { emoji: "POL", label: "Poll", color: "#3949AB" },
-    { emoji: "PAY", label: "Payment", color: "#00897B" },
+    { emoji: "🖼️", label: "Gallery",  color: "#7c3aed" },
+    { emoji: "📷", label: "Camera",   color: "#ef4444" },
+    { emoji: "📍", label: "Location", color: "#22c55e" },
+    { emoji: "👤", label: "Contact",  color: "#3b82f6" },
+    { emoji: "📄", label: "Document", color: "#f59e0b" },
+    { emoji: "🎵", label: "Audio",    color: "#f97316" },
+    { emoji: "📊", label: "Poll",     color: "#6366f1" },
+    { emoji: "💸", label: "Payment",  color: "#14b8a6" },
+    { emoji: "🎬", label: "GIF",      color: "#ec4899" },
+    { emoji: "🔗", label: "Link",     color: "#0ea5e9" },
+    { emoji: "📝", label: "Note",     color: "#84cc16" },
+    { emoji: "⏱️", label: "Timer",   color: "#a78bfa" },
   ];
+
+  // Filtered emoji for search
+  const displayEmojis = useMemo(() => {
+    const pool = STICKER_MAP[emojiCategory] ?? STICKER_MAP.all;
+    if (!emojiSearch.trim()) return pool;
+    return pool.filter((e) => e.includes(emojiSearch));
+  }, [emojiCategory, emojiSearch]);
+
   return (
-    <div className="qc-conversation-stage" data-testid="chat-conversation-stage" style={{
+    <div style={{
       width: "100%", height: "100%", display: "flex", flexDirection: "column",
-      background: "#ffffff", position: "relative",
+      background: S.black, position: "relative",
     }}>
-      {/* Background pattern */}
-      <div style={{
-        position: "absolute", inset: 0, opacity: 0.04, pointerEvents: "none",
-        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4z' fill='%23fff'/%3E%3C/svg%3E")`,
-      }} />
-
-      {/* Chill Room Modal */}
-      <ChillRoomModal
-        isOpen={chillRoomOpen}
-        onClose={() => setChillRoomOpen(false)}
-        spaceName={`${contact.name} Chill Room`}
-      />
-
-      {/* Header */}
-      <div className="qc-conversation-header" data-testid="chat-conversation-header" style={{
-        display: "flex", alignItems: "center", padding: "10px 12px", gap: 10,
-        background: "#ffffff", zIndex: 10, flexShrink: 0,
-        boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
-      }}>
-        <button data-testid="chat-back-button" onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "#002FA7", fontSize: 20, padding: 4 }}>←</button>
-        <ContactAvatar contact={contact} size={40} />
-        <div style={{ flex: 1 }}>
-          <div data-testid="chat-active-contact-name" className="qc-display" style={{ color: "#09090b", fontWeight: 800, fontSize: 18 }}>
-            {contact.name}
-          </div>
-          <div data-testid="chat-active-contact-status" className="mono" style={{ color: "#52525B", fontSize: 11 }}>
-            {isContactTyping ? (
-              <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                style={{ color: "#00C853" }}
-              >
-                typing…
-              </motion.span>
-            ) : "tap for contact info"}
-            <span style={{ marginLeft: 6, color: "#002FA7" }}>
-              {`Receipts ${readReceiptsEnabled ? formatReceiptMode(readReceiptMode) : "Off"}`}
-            </span>
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {/* Enter Chill Room button */}
-          <motion.button
-            data-testid="chat-open-chill-room-button"
-            className="qc-chat-action-button"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setChillRoomOpen(true)}
+      {/* Screenshot notification banner */}
+      <AnimatePresence>
+        {screenshotBanner && (
+          <motion.div
+            initial={{ y: -60, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -60, opacity: 0 }}
             style={{
-              background: "#ffffff",
-              border: "none",
-              borderRadius: 20,
-              padding: "5px 10px",
-              cursor: "pointer",
-              color: "#09090b",
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: "0.04em",
-              textTransform: "uppercase",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              boxShadow: "none",
-              whiteSpace: "nowrap",
+              position: "absolute", top: 0, left: 0, right: 0, zIndex: 100,
+              background: "rgba(30,30,30,0.97)", padding: "14px 20px",
+              display: "flex", alignItems: "center", gap: 10,
+              borderBottom: "1px solid rgba(255,255,255,0.08)",
             }}
           >
-            Chill Room
+            <span style={{ fontSize: 20 }}>📸</span>
+            <span style={{
+              color: S.textSecond, fontSize: 13, fontWeight: 700,
+              letterSpacing: "0.06em", textTransform: "uppercase",
+              fontFamily: "-apple-system,sans-serif",
+            }}>
+              YOU TOOK A SCREENSHOT OF CHAT!
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modals */}
+      <ChillRoomModal isOpen={chillRoomOpen} onClose={() => setChillRoomOpen(false)} spaceName={`${contact.name} Chill Room`} />
+
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <div style={{
+        display: "flex", alignItems: "center", padding: "10px 14px", gap: 10,
+        background: S.dark, zIndex: 10, flexShrink: 0,
+        borderBottom: `1px solid ${S.cardBorder}`,
+      }}>
+        <button onClick={onBack} style={{
+          background: "none", border: "none", cursor: "pointer",
+          color: S.yellow, fontSize: 22, padding: 4, lineHeight: 1,
+        }}>←</button>
+
+        <ContactAvatar contact={contact} size={38} />
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            color: S.textPrimary, fontWeight: 800, fontSize: 16,
+            fontFamily: "-apple-system,sans-serif", overflow: "hidden",
+            textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {contact.name}
+          </div>
+          <div style={{ fontSize: 11, color: isContactTyping ? S.green : S.textMuted }}>
+            {isContactTyping ? (
+              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                typing…
+              </motion.span>
+            ) : "tap to view profile"}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {/* Chill Room */}
+          <motion.button
+            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.93 }}
+            onClick={() => setChillRoomOpen(true)}
+            style={{
+              background: "rgba(255,252,0,0.12)", border: `1px solid rgba(255,252,0,0.3)`,
+              borderRadius: 20, padding: "4px 10px", cursor: "pointer",
+              color: S.yellow, fontSize: 11, fontWeight: 700,
+              letterSpacing: "0.04em", textTransform: "uppercase",
+              display: "flex", alignItems: "center", gap: 4,
+            }}
+          >
+            🏠 Chill
           </motion.button>
 
-          {/* Biometric Handshake trigger */}
-          {!isHandshakeVerified && (
+          {/* Handshake */}
+          {!isHandshakeVerified ? (
             <motion.button
-              data-testid="chat-handshake-button"
-              className="qc-chat-action-button"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.93 }}
               onClick={onInitiateHandshake}
               style={{
-                background: "#ffffff",
-                border: "1px solid rgba(9,9,11,0.14)",
-                borderRadius: 20,
-                padding: "5px 10px",
-                cursor: "pointer",
-                color: "#002FA7",
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: "0.04em",
-                textTransform: "uppercase",
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                boxShadow: "none",
-                whiteSpace: "nowrap",
+                background: "rgba(168,85,247,0.12)", border: "1px solid rgba(168,85,247,0.3)",
+                borderRadius: 20, padding: "4px 10px", cursor: "pointer",
+                color: S.purple, fontSize: 11, fontWeight: 700,
+                letterSpacing: "0.04em", textTransform: "uppercase",
               }}
             >
-              Handshake
+              🤝 Trust
             </motion.button>
-          )}
-
-          {isHandshakeVerified && (
+          ) : (
             <div style={{
-              background: "rgba(0, 245, 255, 0.15)",
-              border: "1px solid rgba(0, 245, 255, 0.5)",
-              borderRadius: 20,
-              padding: "5px 10px",
-              color: "#002FA7",
-              fontSize: 10,
-              fontWeight: 800,
-              letterSpacing: "0.05em",
-              textTransform: "uppercase",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
+              background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)",
+              borderRadius: 20, padding: "4px 10px",
+              color: S.green, fontSize: 10, fontWeight: 800,
+              letterSpacing: "0.05em", textTransform: "uppercase",
             }}>
-              Obsidian Class
+              ✅ Verified
             </div>
           )}
 
-          <span data-testid="chat-video-placeholder-button" className="mono" style={{ cursor: "pointer", color: "#002FA7", fontSize: 11, fontWeight: 800 }}>VIDEO</span>
-          <button
-            data-testid="chat-audio-call-button"
-            onClick={() => setIsAudioCallOpen(true)}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              color: "#002FA7",
-              fontSize: 11,
-              fontWeight: 800,
-              padding: 0,
-            }}
-            aria-label={`Start encrypted audio call with ${contact.name}`}
+          {/* Video call */}
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, padding: 4 }}
+            title="Video call"
           >
-            CALL
-          </button>
-          <span data-testid="chat-more-menu-placeholder" className="mono" style={{ cursor: "pointer", color: "#52525B", fontSize: 16 }}>•••</span>
+            📹
+          </motion.button>
+
+          {/* Audio call */}
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setIsAudioCallOpen(true)}
+            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, padding: 4 }}
+            title="Voice call"
+          >
+            📞
+          </motion.button>
+
+          {/* Screenshot (for demo) */}
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={triggerScreenshotBanner}
+            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, padding: 4 }}
+            title="Screenshot"
+          >
+            📸
+          </motion.button>
+
+          {/* More menu */}
+          <div style={{ position: "relative" }}>
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setShowMoreMenu((v) => !v)}
+              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, padding: 4, color: S.textSecond }}
+            >
+              ⋮
+            </motion.button>
+            <AnimatePresence>
+              {showMoreMenu && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9, y: -8 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: -8 }}
+                  style={{
+                    position: "absolute", right: 0, top: "100%",
+                    background: S.card, border: `1px solid ${S.cardBorder}`,
+                    borderRadius: 14, padding: "8px 0", zIndex: 50,
+                    minWidth: 180, boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+                  }}
+                >
+                  {[
+                    { icon: "🔒", label: "View Encryption Info" },
+                    { icon: "🔕", label: "Mute Notifications"   },
+                    { icon: "👤", label: "View Profile"          },
+                    { icon: "🗑️", label: "Clear Chat"            },
+                    { icon: "🚫", label: "Block Contact"          },
+                  ].map((item) => (
+                    <button key={item.label} onClick={() => setShowMoreMenu(false)} style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      width: "100%", padding: "10px 16px", background: "none", border: "none",
+                      color: item.label === "Block Contact" ? S.red : S.textPrimary,
+                      fontSize: 13, cursor: "pointer", textAlign: "left",
+                      fontFamily: "-apple-system,sans-serif",
+                    }}>
+                      {item.icon} {item.label}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
+      {/* Audio Call overlay */}
       {isAudioCallOpen && (
         <AudioCall
-          myUserId={myUserId}
-          peerId={contact.id}
-          peerName={contact.name}
-          open={isAudioCallOpen}
-          onClose={() => setIsAudioCallOpen(false)}
+          myUserId={myUserId} peerId={contact.id} peerName={contact.name}
+          open={isAudioCallOpen} onClose={() => setIsAudioCallOpen(false)}
         />
       )}
 
+      {/* Biometric handshake */}
       {showHandshake && (
         <BiometricHandshake
           partnerName={contact.name}
           onCancel={() => setShowHandshake(false)}
-          onVerified={() => {
-            setIsHandshakeVerified(true);
-            setShowHandshake(false);
-          }}
+          onVerified={() => { setIsHandshakeVerified(true); setShowHandshake(false); }}
         />
       )}
 
-      {/* Messages */}
-      <div className="qc-message-stream" data-testid="chat-message-stream" style={{
+      {/* ── Location sharing banner ─────────────────────────────────────── */}
+      <AnimatePresence>
+        {showLocation && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            style={{
+              background: "rgba(34,197,94,0.08)", borderBottom: "1px solid rgba(34,197,94,0.2)",
+              padding: "8px 16px", display: "flex", alignItems: "center", gap: 8, flexShrink: 0,
+            }}
+          >
+            <span style={{ fontSize: 18 }}>📍</span>
+            <span style={{ flex: 1, fontSize: 12, color: S.green, fontFamily: "-apple-system,sans-serif" }}>
+              <strong>{contact.name}</strong> shares their location with you.{" "}
+              <span style={{ textDecoration: "underline", cursor: "pointer" }}>Share yours?</span>
+            </span>
+            <button onClick={() => setShowLocation(false)} style={{
+              background: "none", border: "none", cursor: "pointer",
+              color: S.textMuted, fontSize: 18, padding: 0, lineHeight: 1,
+            }}>×</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Messages stream ─────────────────────────────────────────────── */}
+      <div style={{
         flex: 1, overflowY: "auto", padding: "12px 10px",
         scrollbarWidth: "none", zIndex: 5, position: "relative",
         display: "flex", flexDirection: "column", gap: compactLayout ? 1 : 2,
       }}>
         {messages.length === 0 && (
-          <div className="qc-chat-empty-state" data-testid="chat-empty-state" style={{
+          <div style={{
             flex: 1, display: "flex", flexDirection: "column",
             alignItems: "center", justifyContent: "center",
-            color: "var(--qc-ink-3)", fontSize: 13, fontFamily: "var(--qc-font-ui)",
-            padding: "60px 20px", textAlign: "center", gap: 14, maxWidth: 380, margin: "0 auto",
+            color: S.textSecond, fontSize: 13,
+            padding: "60px 20px", textAlign: "center", gap: 14,
           }}>
-            <div aria-hidden="true" style={{
-              width: 56, height: 56, borderRadius: 14, display: "grid", placeItems: "center",
-              background: "var(--qc-accent-bg)", color: "var(--qc-accent)",
-              border: "1px solid var(--qc-accent-line)",
-            }}>
-              <Icon name="shield-check" size={26} />
+            <div style={{ fontSize: 64 }}>👻</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: S.textPrimary }}>
+              Say hi to {contact.name}!
             </div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--qc-ink)" }}>
-              Start of your conversation with {contact.name}
-            </div>
-            <div style={{ fontSize: 12, lineHeight: 1.6, color: "var(--qc-ink-3)" }}>
+            <div style={{ fontSize: 12, lineHeight: 1.6, color: S.textSecond, maxWidth: 280 }}>
               Messages are end-to-end encrypted — only you and {contact.name} can read them.
-              Say hi to break the silence.
             </div>
           </div>
         )}
         {messages.map((msg) => (
           <MessageBubble
-            key={msg.id}
-            msg={msg}
-            isMine={msg.senderId === myUserId}
-            showReactions={showReactions}
-            readReceiptsEnabled={readReceiptsEnabled}
-            readReceiptMode={readReceiptMode}
-            compactLayout={compactLayout}
+            key={msg.id} msg={msg} isMine={msg.senderId === myUserId}
+            showReactions={showReactions} readReceiptsEnabled={readReceiptsEnabled}
+            readReceiptMode={readReceiptMode} compactLayout={compactLayout}
             onRetry={msg.status === "failed" ? () => handleRetry(msg) : undefined}
           />
         ))}
         <div ref={bottomRef} />
       </div>
 
-      {/* Attachment tray */}
+      {/* ── Attachment tray ─────────────────────────────────────────────── */}
       <AnimatePresence>
         {showAttach && (
           <motion.div
-            initial={{ y: 80, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
+            initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
             exit={{ y: 80, opacity: 0 }}
             transition={{ type: "spring", stiffness: 350, damping: 30 }}
-            className="qc-attach-tray"
-            data-testid="chat-attachment-tray"
             style={{
-              background: "#ffffff", padding: "20px 16px 12px",
+              background: S.dark, padding: "20px 16px 12px",
               zIndex: 20, flexShrink: 0,
               display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px 8px",
+              borderTop: `1px solid ${S.cardBorder}`,
             }}
           >
             {ATTACH_ITEMS.map((a) => (
-              <button
-                key={a.label}
-                onClick={() => setShowAttach(false)}
-                style={{
-                  display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
-                  background: "none", border: "none", cursor: "pointer",
-                }}
-              >
+              <button key={a.label} onClick={() => setShowAttach(false)} style={{
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+                background: "none", border: "none", cursor: "pointer",
+              }}>
                 <div style={{
                   width: 52, height: 52, borderRadius: 16, background: a.color,
                   display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24,
                 }}>
                   {a.emoji}
                 </div>
-                <span style={{ color: "#aebac1", fontSize: 11, fontFamily: "-apple-system,sans-serif" }}>
+                <span style={{ color: S.textSecond, fontSize: 11, fontFamily: "-apple-system,sans-serif" }}>
                   {a.label}
                 </span>
               </button>
@@ -965,305 +898,448 @@ function ChatConversation({
         )}
       </AnimatePresence>
 
-      <TrustSnapshotCard
-        context="compose"
-        draftText={input}
-        recipientName={contact.name}
-      />
-
-      {/* Input bar */}
-        <div className="qc-input-bar" data-testid="chat-input-bar" style={{
-        display: "flex", alignItems: "flex-end", gap: 8,
-        padding: "10px 12px 12px", background: "#ffffff", flexShrink: 0, zIndex: 10,
-      }}>
-        <motion.button
-          type="button"
-          data-testid="chat-spoiler-toggle-button"
-          onClick={() => setSpoilerShieldEnabled((enabled) => !enabled)}
-          animate={{
-            background: spoilerShieldEnabled ? "rgba(83,189,235,0.2)" : "rgba(255,255,255,0.04)",
-            border: spoilerShieldEnabled ? "1px solid rgba(83,189,235,0.55)" : "1px solid rgba(255,255,255,0.08)",
-            boxShadow: spoilerShieldEnabled ? "0 0 10px rgba(83,189,235,0.25)" : "none",
-          }}
-          title={spoilerShieldEnabled ? "Spoiler Shield: ON" : "Spoiler Shield: OFF"}
-          style={{
-            minWidth: 78,
-            height: 40,
-            borderRadius: 999,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: "0.03em",
-            flexShrink: 0,
-            padding: "0 12px",
-            marginBottom: 4,
-            color: spoilerShieldEnabled ? "#53bdeb" : "#aebac1",
-          }}
-        >
-          SPOILER
-        </motion.button>
-        {spoilerShieldEnabled && (
-          <motion.button
-            type="button"
-            onClick={() => setSpoilerShieldMode((mode) => (mode === "auto" ? "hold" : "auto"))}
-            whileTap={{ scale: 0.96 }}
-            title={spoilerShieldMode === "auto" ? "Auto re-hide enabled" : "Manual hide mode"}
+      {/* ── Emoji / Sticker panel ───────────────────────────────────────── */}
+      <AnimatePresence>
+        {showEmoji && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 350, damping: 30 }}
             style={{
-              minWidth: 58,
-              height: 36,
-              borderRadius: 999,
-              border: "1px solid rgba(255,255,255,0.14)",
-              background: "rgba(255,255,255,0.06)",
-              color: "#cfd7dc",
-              cursor: "pointer",
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: "0.03em",
-              flexShrink: 0,
-              padding: "0 10px",
-              marginBottom: 6,
+              background: S.dark, borderTop: `1px solid ${S.cardBorder}`,
+              zIndex: 20, flexShrink: 0, padding: "12px 12px 8px",
+              maxHeight: 280,
             }}
           >
-            {spoilerShieldMode === "auto" ? "AUTO" : "HOLD"}
-          </motion.button>
-        )}
-
-        <div className="qc-composer" style={{
-          flex: 1, display: "flex", alignItems: "center", gap: 6,
-          padding: "9px 14px", minHeight: 46, position: "relative",
-        }}>
-          <button data-testid="chat-tone-button" className="mono" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#002FA7", fontWeight: 800 }}>TONE</button>
-
-          {/* Ghost-text + real input wrapper */}
-          <div style={{ flex: 1, position: "relative", display: "flex", alignItems: "center" }}>
-            {/* Ghost suggestion overlay (shown behind the cursor) */}
-            {ghostSuggestion && (input ?? "").trim() && (
-              <div
-                aria-hidden="true"
+            {/* Search */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              background: S.card, borderRadius: 12, padding: "7px 12px",
+              marginBottom: 10, border: `1px solid ${S.cardBorder}`,
+            }}>
+              <span style={{ color: S.textMuted }}>🔍</span>
+              <input
+                value={emojiSearch}
+                onChange={(e) => setEmojiSearch(e.target.value)}
+                placeholder="Search stickers & emojis"
                 style={{
-                  position: "absolute",
-                  left: 0,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  pointerEvents: "none",
-                  whiteSpace: "pre",
-                  fontSize: 15,
-                  fontFamily: "-apple-system,sans-serif",
-                  color: "transparent",
-                  userSelect: "none",
+                  background: "none", border: "none", outline: "none",
+                  color: S.textPrimary, fontSize: 13, flex: 1,
                 }}
-              >
-                {input}
-                <span style={{ color: "rgba(174,186,193,0.45)" }}>{ghostSuggestion}</span>
-              </div>
-            )}
-            <input
-              data-testid="chat-message-input"
-              value={input}
-              onChange={(e) => handleInputChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key.length === 1 || e.key === "Backspace" || e.key === "Enter") {
-                  getEmotionDetectionService().ingestKeystroke(e.key);
-                }
-                if (e.key === "Tab" && ghostSuggestion) {
-                  e.preventDefault();
-                  const accepted = input + ghostSuggestion;
-                  setInput(accepted);
-                  setGhostSuggestion("");
-                  sendTyping(contact.id, false);
-                } else if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              placeholder={ghostSuggestion ? "" : "Write a secure message"}
-              style={{
-                background: "transparent", border: "none", outline: "none",
-                color: "#e9edef", fontSize: 15, flex: 1, width: "100%",
-                fontFamily: "-apple-system,sans-serif",
-                caretColor: "#e9edef",
-              }}
-            />
-          </div>
+              />
+            </div>
+            {/* Category chips */}
+            <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", marginBottom: 10 }}>
+              {EMOJI_CATS.map((cat) => (
+                <button key={cat.key} onClick={() => setEmojiCategory(cat.key)} style={{
+                  borderRadius: 999,
+                  border: emojiCategory === cat.key ? `1px solid ${S.yellow}` : `1px solid ${S.cardBorder}`,
+                  background: emojiCategory === cat.key ? "rgba(255,252,0,0.15)" : S.card,
+                  color: emojiCategory === cat.key ? S.yellow : S.textSecond,
+                  padding: "4px 10px", fontSize: 11, fontWeight: 700,
+                  cursor: "pointer", whiteSpace: "nowrap",
+                }}>
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+            {/* Emoji grid */}
+            <div style={{
+              display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4,
+              overflowY: "auto", maxHeight: 140,
+            }}>
+              {displayEmojis.map((emoji, i) => (
+                <button
+                  key={`${emoji}-${i}`}
+                  onClick={() => handleSendEmoji(emoji)}
+                  style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    fontSize: 26, padding: "4px", borderRadius: 8,
+                    transition: "background 0.1s",
+                  }}
+                  title={emoji}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-          {/* Ghost suggestion pill hint */}
+      {/* ── Mini Games panel ────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showGames && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 350, damping: 30 }}
+            style={{
+              background: S.dark, borderTop: `1px solid ${S.cardBorder}`,
+              zIndex: 20, flexShrink: 0, padding: "12px 12px 8px",
+              maxHeight: 300,
+            }}
+          >
+            <div style={{
+              fontSize: 12, fontWeight: 800, color: S.textSecond,
+              letterSpacing: "0.08em", textTransform: "uppercase",
+              marginBottom: 10, fontFamily: "-apple-system,sans-serif",
+            }}>
+              🎮 Mini Games
+            </div>
+            <div style={{
+              display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8,
+              overflowY: "auto", maxHeight: 220,
+            }}>
+              {MINI_GAMES.map((game) => (
+                <motion.button
+                  key={game.id}
+                  whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowGames(false)}
+                  style={{
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
+                    background: game.color, borderRadius: 14, padding: "12px 6px",
+                    border: "none", cursor: "pointer",
+                  }}
+                >
+                  <span style={{ fontSize: 24 }}>{game.emoji}</span>
+                  <span style={{
+                    color: "#fff", fontSize: 9, fontWeight: 700,
+                    textAlign: "center", lineHeight: 1.2,
+                    fontFamily: "-apple-system,sans-serif",
+                    letterSpacing: "0.01em",
+                  }}>
+                    {game.name}
+                  </span>
+                  <span style={{
+                    color: "rgba(255,255,255,0.6)", fontSize: 8,
+                    fontFamily: "-apple-system,sans-serif",
+                  }}>
+                    {game.players}P
+                  </span>
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <TrustSnapshotCard context="compose" draftText={input} recipientName={contact.name} />
+
+      {/* ── Snapchat-style Input Bar ────────────────────────────────────── */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "8px 10px 12px", background: S.dark, flexShrink: 0, zIndex: 10,
+        borderTop: `1px solid ${S.cardBorder}`,
+      }}>
+        {/* Left: Camera button */}
+        <motion.button
+          whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}
+          style={{
+            width: 44, height: 44, borderRadius: "50%",
+            background: S.yellow, border: "none", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 20, flexShrink: 0,
+            boxShadow: `0 2px 12px rgba(255,252,0,0.25)`,
+          }}
+          title="Camera"
+        >
+          📷
+        </motion.button>
+
+        {/* Input pill (Snapchat style) */}
+        <div style={{
+          flex: 1, display: "flex", alignItems: "center", gap: 6,
+          background: S.card, borderRadius: 28, padding: "8px 14px",
+          border: `1px solid ${S.cardBorder}`, minHeight: 42, position: "relative",
+        }}>
+          {/* Spoiler toggle */}
+          {spoilerShieldEnabled && (
+            <motion.button
+              type="button"
+              onClick={() => setSpoilerShieldMode((m) => m === "auto" ? "hold" : "auto")}
+              style={{
+                background: "rgba(83,189,235,0.15)", border: "1px solid rgba(83,189,235,0.4)",
+                borderRadius: 8, padding: "2px 7px", cursor: "pointer",
+                color: "#53bdeb", fontSize: 9, fontWeight: 700, flexShrink: 0,
+              }}
+            >
+              {spoilerShieldMode === "auto" ? "AUTO" : "HOLD"}
+            </motion.button>
+          )}
+
+          {/* Ghost suggestion overlay */}
+          {ghostSuggestion && (input ?? "").trim() && (
+            <div aria-hidden="true" style={{
+              position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)",
+              pointerEvents: "none", whiteSpace: "pre", fontSize: 15,
+              fontFamily: "-apple-system,sans-serif", color: "transparent",
+            }}>
+              {input}<span style={{ color: "rgba(255,255,255,0.25)" }}>{ghostSuggestion}</span>
+            </div>
+          )}
+
+          <input
+            data-testid="chat-message-input"
+            value={input}
+            onChange={(e) => handleInputChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key.length === 1 || e.key === "Backspace" || e.key === "Enter") {
+                getEmotionDetectionService().ingestKeystroke(e.key);
+              }
+              if (e.key === "Tab" && ghostSuggestion) {
+                e.preventDefault();
+                setInput(input + ghostSuggestion); setGhostSuggestion("");
+                sendTyping(contact.id, false);
+              } else if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault(); handleSend();
+              }
+            }}
+            placeholder={ghostSuggestion ? "" : "Send a Chat…"}
+            style={{
+              background: "transparent", border: "none", outline: "none",
+              color: S.textPrimary, fontSize: 15, flex: 1,
+              fontFamily: "-apple-system,sans-serif",
+            }}
+          />
+
+          {/* Tab accept hint */}
           {ghostSuggestion && (input ?? "").trim() && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              onClick={() => { setInput(input + ghostSuggestion); setGhostSuggestion(""); }}
               style={{
-                flexShrink: 0,
-                background: "rgba(109,74,255,0.18)",
-                border: "1px solid rgba(109,74,255,0.35)",
-                borderRadius: 8,
-                padding: "2px 7px",
-                fontSize: 10,
-                color: "#bf5af2",
-                fontWeight: 700,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
+                flexShrink: 0, background: "rgba(109,74,255,0.18)",
+                border: "1px solid rgba(109,74,255,0.35)", borderRadius: 6,
+                padding: "2px 7px", fontSize: 10, color: S.purple,
+                fontWeight: 700, cursor: "pointer",
               }}
-              onClick={() => {
-                setInput(input + ghostSuggestion);
-                setGhostSuggestion("");
-              }}
-              title="Press Tab to accept"
             >
               Tab ↹
             </motion.div>
           )}
 
-          <button data-testid="chat-attach-button" className="mono" onClick={() => setShowAttach((a) => !a)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#002FA7", fontWeight: 800 }}>ADD</button>
-          <button data-testid="chat-camera-button" className="mono" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#002FA7", fontWeight: 800 }}>CAM</button>
+          {/* Attach button */}
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={showAttach ? () => setShowAttach(false) : openAttachPanel}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              fontSize: 18, flexShrink: 0,
+              color: showAttach ? S.yellow : S.textSecond,
+            }}
+            title="Attach"
+          >
+            📎
+          </motion.button>
         </div>
-        <button
-          data-testid="chat-send-message-button"
-          className="qc-send-button"
-          onClick={handleSend}
-          style={{
-            width: 48, height: 48, borderRadius: "50%",
-            background: (input ?? "").trim() ? "var(--emotion-accent-strong, #00a884)" : "var(--emotion-surface-raised, #374248)",
-            border: "none", cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 20, flexShrink: 0,
-            transition: "background var(--emotion-duration, 0.2s)",
-            boxShadow: (input ?? "").trim() ? "var(--emotion-shadow-md, 0 2px 8px rgba(0,168,132,0.4))" : "none",
-          }}
-        >
-          SEND
-        </button>
+
+        {/* Right side icon cluster */}
+        <div style={{ display: "flex", gap: 2, alignItems: "center", flexShrink: 0 }}>
+          {/* Spoiler */}
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setSpoilerShieldEnabled((e) => !e)}
+            style={{
+              width: 36, height: 36, borderRadius: "50%", border: "none",
+              background: spoilerShieldEnabled ? "rgba(83,189,235,0.2)" : "transparent",
+              cursor: "pointer", fontSize: 16, display: "flex",
+              alignItems: "center", justifyContent: "center",
+              color: spoilerShieldEnabled ? "#53bdeb" : S.textMuted,
+            }}
+            title="Spoiler Shield"
+          >
+            🛡️
+          </motion.button>
+
+          {/* Emoji / Sticker */}
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={showEmoji ? () => setShowEmoji(false) : openEmojiPanel}
+            style={{
+              width: 36, height: 36, borderRadius: "50%", border: "none",
+              background: showEmoji ? "rgba(255,252,0,0.12)" : "transparent",
+              cursor: "pointer", fontSize: 20, display: "flex",
+              alignItems: "center", justifyContent: "center",
+            }}
+            title="Stickers & Emojis"
+          >
+            😊
+          </motion.button>
+
+          {/* Bitmoji / sticker icon */}
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={openEmojiPanel}
+            style={{
+              width: 36, height: 36, borderRadius: "50%", border: "none",
+              background: "transparent", cursor: "pointer", fontSize: 20,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+            title="Bitmoji"
+          >
+            🎭
+          </motion.button>
+
+          {/* Games */}
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={showGames ? () => setShowGames(false) : openGamesPanel}
+            style={{
+              width: 36, height: 36, borderRadius: "50%", border: "none",
+              background: showGames ? "rgba(168,85,247,0.15)" : "transparent",
+              cursor: "pointer", fontSize: 20, display: "flex",
+              alignItems: "center", justifyContent: "center",
+              color: showGames ? S.purple : undefined,
+            }}
+            title="Mini Games"
+          >
+            🎮
+          </motion.button>
+
+          {/* Send OR mic */}
+          {(input ?? "").trim() ? (
+            <motion.button
+              data-testid="chat-send-message-button"
+              onClick={handleSend}
+              whileTap={{ scale: 0.9 }}
+              style={{
+                width: 42, height: 42, borderRadius: "50%",
+                background: S.outBubble, border: "none", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 18, flexShrink: 0,
+                boxShadow: "0 2px 8px rgba(0,120,255,0.4)",
+              }}
+            >
+              ➤
+            </motion.button>
+          ) : (
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onMouseDown={() => setIsRecordingVoice(true)}
+              onMouseUp={() => setIsRecordingVoice(false)}
+              onMouseLeave={() => setIsRecordingVoice(false)}
+              style={{
+                width: 42, height: 42, borderRadius: "50%", border: "none",
+                background: isRecordingVoice ? S.red : "transparent",
+                cursor: "pointer", fontSize: 22,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                transition: "background 0.15s",
+                boxShadow: isRecordingVoice ? `0 2px 12px rgba(239,68,68,0.5)` : "none",
+              }}
+              title="Hold to record voice"
+            >
+              🎤
+            </motion.button>
+          )}
+        </div>
       </div>
+
+      {/* Voice recording indicator */}
+      <AnimatePresence>
+        {isRecordingVoice && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            style={{
+              position: "absolute", bottom: 80, left: "50%", transform: "translateX(-50%)",
+              background: S.red, borderRadius: 28, padding: "10px 20px",
+              display: "flex", alignItems: "center", gap: 10, zIndex: 50,
+              boxShadow: "0 4px 20px rgba(239,68,68,0.4)",
+            }}
+          >
+            <motion.div
+              animate={{ scale: [1, 1.3, 1] }}
+              transition={{ repeat: Infinity, duration: 0.8 }}
+              style={{ width: 10, height: 10, borderRadius: "50%", background: "#fff" }}
+            />
+            <span style={{ color: "#fff", fontSize: 13, fontWeight: 700, fontFamily: "-apple-system,sans-serif" }}>
+              Recording… release to send
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-// ————————————————————————————————————————————————————————————————————————————————
-function MessageBubble({
-  msg,
-  isMine,
-  showReactions,
-  readReceiptsEnabled,
-  readReceiptMode,
-  compactLayout,
-  onRetry,
-}: {
-  msg: ChatMessage;
-  isMine: boolean;
-  showReactions: boolean;
-  readReceiptsEnabled: boolean;
-  readReceiptMode: ReadReceiptMode;
-  compactLayout: boolean;
-  onRetry?: () => void;
+// ─── Message Bubble ───────────────────────────────────────────────────────────
+function MessageBubble({ msg, isMine, showReactions, readReceiptsEnabled, readReceiptMode, compactLayout, onRetry }: {
+  msg: ChatMessage; isMine: boolean; showReactions: boolean;
+  readReceiptsEnabled: boolean; readReceiptMode: ReadReceiptMode;
+  compactLayout: boolean; onRetry?: () => void;
 }) {
   const text = typeof msg.text === "string" ? msg.text : "";
   const isAiReply = text.trim().startsWith("AI:") || text.trim().startsWith("[AI]");
+  const isEmoji = /^\p{Emoji}+$/u.test(text.trim()) && text.trim().length <= 4;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: msg.status === "sending" ? 0.7 : 1, y: 0 }}
-      style={{
-        display: "flex",
-        justifyContent: isMine ? "flex-end" : "flex-start",
-        marginBottom: compactLayout ? 4 : 6,
-      }}
+      initial={{ opacity: 0, y: 8, scale: 0.96 }}
+      animate={{ opacity: msg.status === "sending" ? 0.7 : 1, y: 0, scale: 1 }}
+      style={{ display: "flex", justifyContent: isMine ? "flex-end" : "flex-start", marginBottom: compactLayout ? 4 : 6 }}
     >
       <div style={{ maxWidth: compactLayout ? "84%" : "78%" }}>
-        <div
-          className={`qc-bubble ${isMine ? "qc-bubble-own" : "qc-bubble-other"}`}
-          style={{
-            background: isAiReply ? "linear-gradient(135deg, oklch(0.25 0.05 280) 0%, oklch(0.20 0.05 280) 100%)" : undefined,
-            padding: compactLayout ? "6px 10px" : "8px 12px",
-            boxShadow: isAiReply
-              ? "0 0 0 1px oklch(0.40 0.10 280), 0 0 16px oklch(0.30 0.10 280 / 0.2)"
-              : "var(--qc-shadow-1)",
-            transition: "opacity 0.2s",
-          }}
-        >
-          {isAiReply && (
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                background: "rgba(109, 74, 255, 0.2)",
-                border: "1px solid rgba(109, 74, 255, 0.4)",
-                borderRadius: 6,
-                padding: "2px 6px",
-                marginBottom: 5,
-              }}
-            >
-              <span style={{ fontSize: 10 }}>AI</span>
-              <span
-                style={{
-                  fontSize: 9,
-                  fontWeight: 800,
-                  color: "#a78bfa",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                  fontFamily: "-apple-system,sans-serif",
-                }}
-              >
-                Replied
-              </span>
-            </div>
-          )}
-
-          <SpoilerShieldText rawText={text} compact={compactLayout} />
-
-          {showReactions && (
-            <div style={{ marginTop: compactLayout ? 4 : 6 }}>
-              <MessageReactions align={isMine ? "right" : "left"} enabled={showReactions} />
-            </div>
-          )}
-
-          <div
-            style={{
-              marginTop: compactLayout ? 4 : 6,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              gap: 6,
-            }}
-          >
-            <span
-              style={{
-                color: "rgba(233,237,239,0.5)",
-                fontSize: 11,
-                fontFamily: "-apple-system,sans-serif",
-              }}
-            >
-              {formatTime(msg.createdAt)}
-            </span>
-            {isMine && (
-              <DeliveryStatusBadge
-                status={msg.status}
-                readReceiptsEnabled={readReceiptsEnabled}
-                readReceiptMode={readReceiptMode}
-              />
-            )}
+        {isEmoji ? (
+          /* Big emoji message */
+          <div style={{ fontSize: 48, textAlign: isMine ? "right" : "left", lineHeight: 1.2, padding: "4px 8px" }}>
+            {text}
           </div>
-        </div>
-        {msg.status === "failed" && onRetry && (
+        ) : (
           <div style={{
-            display: "flex", justifyContent: isMine ? "flex-end" : "flex-start",
-            marginTop: 4,
+            background: isAiReply
+              ? "linear-gradient(135deg, #1e0a3c 0%, #150828 100%)"
+              : isMine ? S.outBubble : S.inBubble,
+            borderRadius: isMine ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+            padding: compactLayout ? "6px 12px" : "9px 14px",
+            boxShadow: isMine
+              ? "0 2px 8px rgba(0,120,255,0.25)"
+              : isAiReply
+                ? "0 0 0 1px rgba(168,85,247,0.4), 0 0 16px rgba(168,85,247,0.15)"
+                : "0 1px 4px rgba(0,0,0,0.4)",
+            transition: "opacity 0.2s",
+            border: isAiReply ? "1px solid rgba(168,85,247,0.3)" : "none",
           }}>
-            <button
-              type="button"
-              onClick={onRetry}
-              className="qc-btn qc-btn-ghost qc-btn-sm"
-              data-testid="chat-message-retry-button"
-              aria-label="Retry sending message"
+            {isAiReply && (
+              <div style={{
+                display: "inline-flex", alignItems: "center", gap: 4,
+                background: "rgba(109,74,255,0.2)", border: "1px solid rgba(109,74,255,0.4)",
+                borderRadius: 6, padding: "2px 6px", marginBottom: 5,
+              }}>
+                <span style={{ fontSize: 10 }}>✨</span>
+                <span style={{ fontSize: 9, fontWeight: 800, color: S.purple, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                  AI Replied
+                </span>
+              </div>
+            )}
+
+            <SpoilerShieldText rawText={text} compact={compactLayout} />
+
+            {showReactions && (
+              <div style={{ marginTop: compactLayout ? 4 : 6 }}>
+                <MessageReactions align={isMine ? "right" : "left"} enabled={showReactions} />
+              </div>
+            )}
+
+            <div style={{ marginTop: compactLayout ? 3 : 5, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 5 }}>
+              <span style={{ color: isMine ? "rgba(255,255,255,0.55)" : S.textMuted, fontSize: 10 }}>
+                {formatTime(msg.createdAt)}
+              </span>
+              {isMine && (
+                <DeliveryStatusBadge
+                  status={msg.status} readReceiptsEnabled={readReceiptsEnabled} readReceiptMode={readReceiptMode}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {msg.status === "failed" && onRetry && (
+          <div style={{ display: "flex", justifyContent: isMine ? "flex-end" : "flex-start", marginTop: 4 }}>
+            <button type="button" onClick={onRetry} data-testid="chat-message-retry-button"
               style={{
-                color: "var(--qc-warn, #ff5722)",
-                fontSize: 11,
-                fontWeight: 700,
-                padding: "3px 8px",
+                background: "none", border: "none", cursor: "pointer",
+                color: S.red, fontSize: 11, fontWeight: 700, padding: "3px 8px",
               }}
             >
               ↻ Retry
@@ -1275,10 +1351,9 @@ function MessageBubble({
   );
 }
 
-
-// â”€â”€â”€ Utilities â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Utilities ────────────────────────────────────────────────────────────────
 function formatTime(ts: number): string {
-  const d = new Date(ts);
+  const d   = new Date(ts);
   const now = new Date();
   const isToday = d.toDateString() === now.toDateString();
   if (isToday) return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
@@ -1287,7 +1362,3 @@ function formatTime(ts: number): string {
   if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
-
-
-
-
