@@ -15,7 +15,11 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from motor.motor_asyncio import AsyncIOMotorClient
 import json
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+try:
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+except ImportError:
+    LlmChat = None
+    UserMessage = None
 from firebase_service import initialize_firebase_admin, firebase_is_ready, verify_firebase_id_token
 
 # --- Config ---
@@ -338,6 +342,12 @@ def resolve_runtime_provider(config: Optional[dict]) -> tuple[str, str, str]:
     return provider_map.get(active_provider, provider_map["openai"])
 
 async def run_assistant_response(user: dict, session_id: str, prompt: str, context: str, ai_config: Optional[dict] = None) -> str:
+    if LlmChat is None or UserMessage is None:
+        raise HTTPException(
+            status_code=503,
+            detail="AI assistant runtime unavailable on this server",
+        )
+
     provider, model, runtime_key = resolve_runtime_provider(ai_config)
     if not runtime_key:
         raise HTTPException(status_code=503, detail="AI assistant key missing")

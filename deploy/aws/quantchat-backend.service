@@ -6,7 +6,7 @@ After=network.target
 User=ubuntu
 WorkingDirectory=__APP_DIR__/backend
 EnvironmentFile=__APP_DIR__/backend/.env
-ExecStart=__APP_DIR__/backend/.venv/bin/uvicorn server:app --host 0.0.0.0 --port 8001
+ExecStart=__APP_DIR__/backend/.venv/bin/uvicorn server:app --host 127.0.0.1 --port 8000
 Restart=always
 RestartSec=5
 
